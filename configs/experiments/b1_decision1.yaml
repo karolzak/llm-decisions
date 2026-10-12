@@ -1,0 +1,14 @@
+id: b1_decision1
+description: Microsoft-Decision-1 on Azure AI Foundry (systemone choice question).
+leaderboards: [product]
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: azure_foundry_decision
+  model: decision-1
+  params:
+    include_descriptions: true
+run:
+  concurrency: 4
+  max_rpm: 9          # deployment limit on kz-exp-foundry: 10 requests/min (capacity 10)
+  max_retries: 12

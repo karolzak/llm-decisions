@@ -1,0 +1,16 @@
+id: a2_openai_decisions
+description: GPT-6 Luna via the OpenAI Decisions API (choice question).
+leaderboards: [product]
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: openai_decisions
+  model: gpt-6-luna-openai   # OpenAI platform; Azure returns 404 for /openai/v1/decisions
+  params:
+    include_descriptions: true
+run:
+  concurrency: 8
+enabled: false
+notes: >-
+  Not served by Azure OpenAI/Foundry (preflight 2026-10-12: HTTP 404). Needs OPENAI_API_KEY
+  for the OpenAI platform, or switch `model` to an Azure model config once Azure supports it.

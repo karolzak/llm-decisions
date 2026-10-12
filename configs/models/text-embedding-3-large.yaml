@@ -1,0 +1,9 @@
+# Not deployed yet on kz-exp-foundry; deploy an embedding model and adjust `deployment`.
+name: text-embedding-3-large
+provider: azure_openai
+deployment: text-embedding-3-large
+params:
+  max_input_chars: 24000
+pricing:
+  input: 0.13
+  source: placeholder (Azure list price, verify)

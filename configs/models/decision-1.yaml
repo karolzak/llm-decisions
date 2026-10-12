@@ -1,5 +1,7 @@
-name: microsoft-decision-1
-provider: azure_foundry_decision
-deployment_env: DECISION1_DEPLOYMENT
-route: /providers/microsoft/v1/systemone
-question_type: choice    # labels -> `criteria` {value: description}
+name: decision-1
+provider: azure_foundry
+deployment: Decision-1  # Microsoft-Decision-1 v1
+pricing:
+  input: 0.042
+  output: 0.042
+  source: prices.azure.com retail API, 2026-10-12 (Microsoft Decision 1, 1M Tokens)

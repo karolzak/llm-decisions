@@ -4,77 +4,125 @@ Benchmark of bounded-decision mechanisms on enterprise text decisions: autoregre
 generation vs. decision APIs (OpenAI Decisions, Microsoft-Decision-1) vs. custom
 non-generative readouts on `openai/gpt-oss-20b`. See [exp-plan.md](exp-plan.md).
 
+Everything is **dataset-agnostic**: datasets, label catalogs, task instructions, models and
+experiments are YAML configs; code never hard-codes labels or prompts for a specific dataset.
+
 ## Layout
 
 ```
-configs/      datasets, models, experiments, label catalogs (short vs. verbose criteria)
-src/edb/      package: settings, providers (Azure), local (gpt-oss), datasets, calibration,
-              runners, reporting
-scripts/      run_preflight.py (more to come: prepare_data, run_experiment, build_report)
-infra/aml/    Azure ML workspace + GPU compute instance provisioning
-tests/
-artifacts/    run outputs (git-ignored)
+configs/
+  datasets/           <name>.yaml (sources, fields, state template, task, splits, catalogs)
+  datasets/splits/    frozen split assignments (committed; reproducible on every machine)
+  label_catalogs/     label sets with optional semantic descriptions (short vs. verbose)
+  models/             deployments + pricing
+  experiments/        method + model + catalog roles + run settings (rate limits, concurrency)
+src/edb/
+  schemas.py          Example, LabelCatalog, TaskSpec, Prediction, Usage
+  config.py           config models + loading
+  prompts.py          shared autoregressive prompt construction
+  datasets/           sources (url/local; json/jsonl/csv), state rendering, grouped splits
+  providers/          decision methods (A1, A2, B1, S1), auth, retries, rate limiting
+  calibration/        accuracy, macro-F1, NLL, Brier, ECE, risk/coverage, temperature scaling
+  runners/            resumable prediction runner, latency benchmark
+  reporting/          leaderboards, reliability + risk/coverage plots, markdown report
+scripts/              prepare_data, run_preflight, run_experiment, run_latency, build_report
+infra/aml/            Azure ML GPU provisioning (parked)
+artifacts/            outputs (git-ignored)
 ```
 
-## Setup (Windows / laptop: API experiments)
+## Setup
 
-Requires [uv](https://docs.astral.sh/uv/). uv provisions Python 3.12 and a local `.venv`.
+Requires [uv](https://docs.astral.sh/uv/) (provisions Python 3.12 and a local `.venv`).
 
 ```powershell
-uv sync                       # creates .venv with core + dev deps
-Copy-Item .env.example .env   # adjust if needed
+uv sync
+Copy-Item .env.example .env
 az login --tenant 16b3c013-d300-468d-ac64-7eda0820b6d3
 uv run python scripts/run_preflight.py --skip-gpu
 uv run pytest
 ```
 
-### Azure resources
+### Azure
 
 | What | Value |
 |---|---|
-| Subscription | `karzak-MCAPS-Hybrid-Int-REQ-172014-2026` (`005cc313-…`) |
-| Resource group | `kz-exp-rg` (swedencentral) |
-| Foundry resource / project | `llm-decisions-resource` / `llm-decisions` |
-| Deployments | `gpt-6-luna` (GlobalStandard, 500), `Decision-1` = Microsoft-Decision-1 (GlobalStandard, 50) |
+| Subscription / RG | `005cc313-…` / `kz-exp-rg` (swedencentral) |
+| Foundry resource / project | `kz-exp-foundry` / `proj-default` |
+| `gpt-6-luna` | GlobalStandard, 250 RPM / 250K TPM |
+| `Decision-1` (Microsoft-Decision-1 v1) | GlobalStandard, **10 RPM** |
 
-Local (API-key) auth is disabled on the resource, so all calls use Entra ID tokens
-(`DefaultAzureCredential`, scope `https://cognitiveservices.azure.com/.default`). Your identity
-needs a data-plane role such as **Cognitive Services User** on the resource.
+Auth is Entra ID only (local auth is disabled): `DefaultAzureCredential`, scope
+`https://cognitiveservices.azure.com/.default`.
 
-Endpoints used:
-
-- gpt-6-luna (Responses API): `https://llm-decisions-resource.openai.azure.com/openai/v1/`
-- Microsoft-Decision-1: `https://llm-decisions-resource.services.ai.azure.com/providers/microsoft/v1/systemone`
-- OpenAI Decisions API probe (A2): `…/openai/v1/decisions`
+- gpt-6-luna (Responses API): `https://kz-exp-foundry.openai.azure.com/openai/v1/`
+- Microsoft-Decision-1: `https://kz-exp-foundry.services.ai.azure.com/providers/microsoft/v1/systemone`
 
 ### Package index note
 
-The user-level uv config points at `packagefeedproxy.microsoft.io`, which lags PyPI by
-several days. `pyproject.toml` pins `exclude-newer` to a snapshot the proxy covers; bump it
-(and `openai>=3.26.0` for the SDK's `client.decisions`) when needed, then `uv lock`.
+The user-level uv config uses `packagefeedproxy.microsoft.io`, which lags PyPI. `pyproject.toml`
+pins `exclude-newer` to a snapshot the proxy serves. The OpenAI Decisions API is called over raw
+HTTP until `openai>=3.26.0` (which adds `client.decisions`) is available.
 
-## Setup (Azure ML GPU compute: gpt-oss-20b experiments)
+## Workflow
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\infra\aml\provision.ps1 -CheckOnly   # quota only
-powershell -ExecutionPolicy Bypass -File .\infra\aml\provision.ps1 -Size Standard_NC24ads_A100_v4
+# 1. data: download + frozen grouped/stratified splits (train/dev/calibration; test sealed)
+uv run python scripts/prepare_data.py --dataset ace
+
+# 2. predictions (resumable; re-run to continue, --retry-errors to redo failures)
+uv run python scripts/run_experiment.py --experiment a1_gpt6_luna b1_decision1 --split dev calibration
+uv run python scripts/run_experiment.py --experiment b1_decision1 --catalog verbose --limit 100
+
+# 3. latency (plan defaults: 20 warmups, 200 examples, 5 reps, concurrency 1 and 8)
+uv run python scripts/run_latency.py --experiment a1_gpt6_luna --catalog short
+
+# 4. report: artifacts/reports/<dataset>/<split>/report.md (+ CSVs, plots, metrics.json)
+uv run python scripts/build_report.py --dataset ace --split dev
+
+# final evaluation only:
+uv run python scripts/run_experiment.py --experiment ... --split test --allow-test
 ```
 
-`provision.ps1` creates the workspace (`kz-exp-aml`), a compute instance with idle shutdown
-(60 min) and a system-assigned identity, and grants that identity **Cognitive Services User**
-on the Foundry resource. Then, on the compute instance terminal:
+Outputs: `artifacts/runs/<dataset>/<experiment>__<catalog role>/<split>/predictions.jsonl` plus a
+manifest with the config snapshot/hash. Changing an experiment's config refuses to mix outputs
+(use `--force` to archive the old run).
 
-```bash
-git clone <this repo> && cd llm-decisions
-bash infra/aml/bootstrap-env.sh   # uv sync --extra local, model download, preflight
-```
+## Experiments
 
-> Azure ML **dedicated GPU quota is 0** for A10/A100/H100 families in swedencentral on this
-> subscription. Request quota (Azure ML studio → Quotas) for the family you choose before
-> provisioning.
+| ID | Config | Status |
+|---|---|---|
+| A1 | `a1_gpt6_luna` (label only, one-hot) and `a1v_gpt6_luna_verbalized` (JSON + verbalized confidence) | ready |
+| A2 | `a2_openai_decisions` | **disabled**: Azure returns 404 for `/openai/v1/decisions`; needs `OPENAI_API_KEY` (OpenAI platform) |
+| A3 | – | **infeasible on Azure**: gpt-6-luna rejects logprobs ("not supported with reasoning models") |
+| B1 | `b1_decision1` | ready (10 RPM → paced with `max_rpm: 9`) |
+| C1–C5 | – | parked until GPU quota is granted |
+| S1 | `s1_embedding_label`, `s1_embedding_centroid` | **disabled**: needs an embedding deployment (`configs/models/text-embedding-3-large.yaml`) |
 
-## Dataset
+Each experiment runs once per label catalog role (`short`, `verbose`) available for the dataset.
 
-ACE (Fujitsu Research, CC BY 4.0): 3,600 train / 1,100 test, labels `Compliant`,
-`Non-Compliant`, `Not-Applicable`. The official test split stays sealed; train is split
-60/20/20 into train/dev/calibration (see `configs/datasets/ace.yaml`).
+## Adding a dataset
+
+1. Create `configs/datasets/<name>.yaml`: `files` (url or local path; json/jsonl/csv;
+   `records_path` for nested JSON), `fields` (label, optional id/group), a `state.template`
+   (`{field}` placeholders, with `mapping`/`list`/`json` formatters), `labels` (list or `auto`),
+   `task.instructions`, `splits`, and `label_catalogs` (role → catalog file or `auto`).
+2. Optional: `configs/label_catalogs/<catalog>.yaml` with semantic descriptions.
+3. `uv run python scripts/prepare_data.py --dataset <name>` and commit
+   `configs/datasets/splits/<name>.json`.
+4. Run any experiment with `--dataset <name>`.
+
+`banking77.yaml` (77 intents, auto labels) is included as the fallback dataset.
+
+## Datasets
+
+**ACE** (Fujitsu Research, CC BY 4.0): 3,600 train / 1,100 test; `Compliant`, `Non-Compliant`,
+`Not-Applicable`. ACE deliberately reuses scenarios with different clauses (usually with a
+different label): 550 repeated-scenario groups in train. Derived splits are therefore grouped
+by `scenario_text` (no group shared between train/dev/calibration). Splits: train 2161 /
+dev 719 / calibration 720. The official test split also shares 360 scenarios with train (always
+with different clauses). This is inherent to the benchmark and is reported in the data manifest.
+
+## Azure ML GPU (parked)
+
+`infra/aml/` holds the provisioning/bootstrap scripts for gpt-oss-20b runs; parked until GPU
+quota is granted. Recommended size: `Standard_NC24ads_A100_v4` (1× A100 80 GB).

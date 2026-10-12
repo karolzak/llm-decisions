@@ -1,17 +1,55 @@
-# ACE: Assessing Compliance in Enterprise (Fujitsu Research, EACL 2026), CC BY 4.0
+# ACE: Assessing Compliance in Enterprise (Fujitsu Research, EACL 2026)
 name: ace
-source:
-  repo: https://github.com/FujitsuResearch/Fujitsu-Assessing-Compliance-in-Enterprise-Dataset
-  train_url: https://raw.githubusercontent.com/FujitsuResearch/Fujitsu-Assessing-Compliance-in-Enterprise-Dataset/main/train.json
-  test_url: https://raw.githubusercontent.com/FujitsuResearch/Fujitsu-Assessing-Compliance-in-Enterprise-Dataset/main/test.json
+description: Multi-clause contract compliance scenarios (4,700 = 3,600 train / 1,100 test).
+license: CC BY 4.0
+homepage: https://github.com/FujitsuResearch/Fujitsu-Assessing-Compliance-in-Enterprise-Dataset
+
+files:
+  train:
+    url: https://raw.githubusercontent.com/FujitsuResearch/Fujitsu-Assessing-Compliance-in-Enterprise-Dataset/main/train.json
+    format: json
+    records_path: scenarios
+  test:
+    url: https://raw.githubusercontent.com/FujitsuResearch/Fujitsu-Assessing-Compliance-in-Enterprise-Dataset/main/test.json
+    format: json
+    records_path: scenarios
+
 fields:
-  clauses: clauses          # dict: evidence_N -> clause text
-  scenario: scenario_text
   label: gd_tr
+  # ACE reuses scenarios with different clauses (usually with a different label);
+  # keep those variants inside one derived split to avoid near-duplicate leakage.
+  group: scenario_text
+  keep: [clauses, scenario_text]
+
+state:
+  template: |-
+    Contract clauses:
+    {clauses}
+
+    Scenario:
+    {scenario_text}
+  formatters:
+    clauses:
+      type: mapping
+      item_template: "[{key}] {value}"
+      joiner: "\n\n"
+
 labels: [Compliant, Non-Compliant, Not-Applicable]
-# The official test split stays sealed; train (3,600) is split stratified by label.
+
+task:
+  name: compliance
+  instructions: >-
+    Given the contract clauses and the scenario, decide whether the scenario complies
+    with the clauses, violates them, or is not governed by them.
+
+# Official test split stays sealed; train (3,600) -> 60/20/20 stratified, grouped splits.
 splits:
+  sealed: [test]
+  derive_from: train
+  ratios: {train: 0.6, dev: 0.2, calibration: 0.2}
   seed: 20261012
-  train: 0.6
-  dev: 0.2
-  calibration: 0.2
+  stratify: true
+
+label_catalogs:
+  short: ace_short
+  verbose: ace_verbose

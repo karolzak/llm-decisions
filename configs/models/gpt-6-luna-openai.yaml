@@ -1,0 +1,9 @@
+# OpenAI platform (not Azure): Azure does not serve POST /v1/decisions yet.
+name: gpt-6-luna-openai
+provider: openai
+deployment: gpt-6-luna
+pricing:
+  # Decisions API: input-only billing.
+  input: 0.10
+  output: 0.0
+  source: developers.openai.com/api/docs/guides/decisions (2026-10-12)

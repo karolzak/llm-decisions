@@ -1,0 +1,37 @@
+# BANKING77 (PolyAI): fine-grained banking intent classification (fallback dataset).
+name: banking77
+description: 13,083 banking customer-support queries labelled with 77 intents.
+license: CC BY 4.0
+homepage: https://github.com/PolyAI-LDN/task-specific-datasets
+
+files:
+  train:
+    url: https://raw.githubusercontent.com/PolyAI-LDN/task-specific-datasets/master/banking_data/train.csv
+    format: csv
+  test:
+    url: https://raw.githubusercontent.com/PolyAI-LDN/task-specific-datasets/master/banking_data/test.csv
+    format: csv
+
+fields:
+  label: category
+  group: text
+  keep: [text]
+
+state:
+  template: "Customer message:\n{text}"
+
+labels: auto
+
+task:
+  name: intent
+  instructions: Which banking support intent best matches the customer's message?
+
+splits:
+  sealed: [test]
+  derive_from: train
+  ratios: {train: 0.6, dev: 0.2, calibration: 0.2}
+  seed: 20261012
+  stratify: true
+
+label_catalogs:
+  short: auto

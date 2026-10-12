@@ -1,0 +1,16 @@
+id: a1v_gpt6_luna_verbalized
+description: GPT-6 Luna (Azure OpenAI), autoregressive JSON answer with verbalized confidence.
+leaderboards: [product]
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: azure_openai_autoregressive
+  model: gpt-6-luna
+  params:
+    reasoning_effort: medium   # none|low|medium|high|xhigh (deployment default: medium)
+    max_output_tokens: 4096
+    confidence: verbalized
+    stream: true
+run:
+  concurrency: 8
+  max_rpm: 240       # deployment limit: 250 requests/min, 250K tokens/min

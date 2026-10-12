@@ -1,6 +1,10 @@
 name: gpt-6-luna
 provider: azure_openai
-deployment_env: GPT6_LUNA_DEPLOYMENT
-api: responses           # A1 autoregressive baseline
-# A2: OpenAI `POST /v1/decisions` (feasibility checked by scripts/run_preflight.py)
-# A3: logprob-based readout (feasibility checked by scripts/run_preflight.py)
+deployment: gpt-6-luna
+pricing:
+  # Azure retail prices, Global Standard, swedencentral, short context (<= long-context threshold).
+  input: 0.10
+  cached_input: 0.01
+  cache_write: 0.125
+  output: 0.50
+  source: prices.azure.com retail API, 2026-10-12 (6-luna ShortCo * Std Gl)

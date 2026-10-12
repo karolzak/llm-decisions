@@ -1,7 +1,8 @@
 name: gpt-oss-20b
 provider: local_hf
 hf_model_id: openai/gpt-oss-20b
-# MXFP4 weights (~13 GB) run natively on Hopper+ GPUs; on older GPUs transformers
-# may dequantize to bf16 (~42 GB VRAM for weights) depending on kernel support.
-dtype: bfloat16
-device_map: auto
+# Set to the pay-as-you-go hourly price of the GPU VM used (cost = GPU seconds x price).
+gpu_hourly_price_usd: 4.775  # Standard_NC24ads_A100_v4, swedencentral
+params:
+  dtype: bfloat16
+  device_map: auto
