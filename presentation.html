@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Decision Models — Jev, OpenAI Decisions, and the emerging System-One pattern</title>
+<title>Decision Models — Jev, OpenAI Decisions, and What Might Be Happening Under the Hood</title>
 
 <style>
 :root {
   --bg: #07111f;
-  --bg2: #0b1728;
   --panel: #101f33;
   --panel2: #14263d;
   --text: #f4f7fb;
@@ -19,6 +18,7 @@
   --orange: #ffb86b;
   --red: #ff7b7b;
   --purple: #b99cff;
+  --yellow: #ffd166;
   --border: rgba(255,255,255,.12);
   --shadow: 0 20px 60px rgba(0,0,0,.35);
 }
@@ -108,6 +108,7 @@ li { margin: 8px 0; }
 .orange { color: var(--orange); }
 .red { color: var(--red); }
 .purple { color: var(--purple); }
+.yellow { color: var(--yellow); }
 
 .eyebrow {
   color: var(--cyan);
@@ -119,9 +120,17 @@ li { margin: 8px 0; }
 }
 
 .subtitle {
-  max-width: 1050px;
+  max-width: 1100px;
   color: var(--muted);
   font-size: clamp(20px, 1.7vw, 30px);
+}
+
+.big-quote {
+  font-size: clamp(28px, 3vw, 52px);
+  line-height: 1.2;
+  max-width: 1200px;
+  font-weight: 600;
+  letter-spacing: -.025em;
 }
 
 .grid {
@@ -144,18 +153,18 @@ li { margin: 8px 0; }
   font-size: clamp(15px, 1.1vw, 20px);
 }
 
-.big-quote {
-  font-size: clamp(28px, 3vw, 52px);
-  line-height: 1.2;
-  max-width: 1150px;
-  font-weight: 600;
-  letter-spacing: -.025em;
-}
-
 .callout {
   border-left: 5px solid var(--cyan);
   padding: 16px 22px;
   background: rgba(85,214,208,.07);
+  border-radius: 0 14px 14px 0;
+  margin: 18px 0;
+}
+
+.warning {
+  border-left: 5px solid var(--yellow);
+  padding: 18px 24px;
+  background: rgba(255,209,102,.08);
   border-radius: 0 14px 14px 0;
   margin: 18px 0;
 }
@@ -183,6 +192,16 @@ li { margin: 8px 0; }
 .node.highlight {
   border-color: var(--blue);
   box-shadow: 0 0 30px rgba(90,167,255,.15);
+}
+
+.node.green {
+  border-color: var(--green);
+  color: var(--text);
+}
+
+.node.purple {
+  border-color: var(--purple);
+  color: var(--text);
 }
 
 .arrow {
@@ -249,6 +268,18 @@ th {
   border: 1px solid rgba(90,167,255,.25);
 }
 
+.badge.green {
+  background: rgba(110,231,168,.12);
+  color: var(--green);
+  border-color: rgba(110,231,168,.25);
+}
+
+.badge.orange {
+  background: rgba(255,184,107,.12);
+  color: var(--orange);
+  border-color: rgba(255,184,107,.25);
+}
+
 .footer {
   position: absolute;
   left: 6vw;
@@ -299,11 +330,6 @@ th {
   margin-top: 10px;
 }
 
-.source a {
-  color: #8aa8c8;
-  text-decoration: none;
-}
-
 .question {
   font-size: clamp(22px, 2vw, 34px);
   padding: 18px 22px;
@@ -313,10 +339,47 @@ th {
   margin: 10px 0;
 }
 
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  margin: 30px 0;
+}
+
+.timeline-item {
+  position: relative;
+  padding: 22px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.timeline-item:not(:last-child)::after {
+  content: "→";
+  position: absolute;
+  right: -22px;
+  top: 42%;
+  color: var(--muted);
+  font-size: 28px;
+  z-index: 5;
+}
+
+.placeholder {
+  border: 2px dashed rgba(185,156,255,.45);
+  background: rgba(185,156,255,.05);
+  border-radius: 22px;
+  padding: 50px;
+  text-align: center;
+}
+
 @media (max-width: 900px) {
-  .grid.two, .grid.three, .branch {
+  .grid.two, .grid.three, .branch, .timeline {
     grid-template-columns: 1fr;
   }
+
+  .timeline-item::after { display: none; }
+
   .slide {
     overflow-y: auto;
     justify-content: flex-start;
@@ -331,112 +394,77 @@ th {
 <div class="deck">
 
 <!-- ========================================================= -->
-<!-- 1 -->
+<!-- 1 — TITLE -->
 <!-- ========================================================= -->
 
 <section class="slide active">
   <div class="eyebrow">DS / AI Sharing Session</div>
 
-  <h1>
-    Decision Models
-  </h1>
+  <h1>Decision Models</h1>
 
   <p class="big-quote">
-    What happens if we stop asking foundation models to
+    What if models didn't need to
     <span class="blue">generate an answer</span>
-    and instead ask them to
-    <span class="cyan">make a decision?</span>
+    to make an intelligent
+    <span class="cyan">decision?</span>
   </p>
 
   <p class="subtitle">
-    Jev, OpenAI Decisions API, and the emerging “System One” model pattern.
+    Jev, OpenAI Decisions API, and an exploration of what might actually
+    be happening under the hood.
   </p>
 
   <div class="footer">
-    <span>Internal discussion</span>
+    <span>Decision Models</span>
     <span>1</span>
   </div>
 </section>
 
 
 <!-- ========================================================= -->
-<!-- 2 -->
+<!-- 2 — JEV APPEARS -->
 <!-- ========================================================= -->
 
 <section class="slide">
-  <div class="eyebrow">The starting observation</div>
+  <div class="eyebrow">September 2026</div>
 
-  <h2>LLMs are surprisingly expensive decision engines</h2>
+  <h2>Then Jev appeared</h2>
 
   <div class="grid two">
 
-    <div class="card">
-      <h3 class="blue">What the application needs</h3>
-
-      <div class="code">route = "fraud"
-
-risk = 0.82
-
-allow_action = false</div>
+    <div>
+      <p class="big-quote">
+        TypeSafe AI introduced <span class="cyan">Jev</span> as a new class
+        of <span class="blue">“System One” models.</span>
+      </p>
 
       <p class="muted">
-        Software ultimately needs a bounded value it can branch on.
+        Not another chatbot. Not another reasoning model.
       </p>
     </div>
 
     <div class="card">
-      <h3 class="orange">What an LLM naturally produces</h3>
+      <h3>Instead of generating text...</h3>
 
-      <div class="code">"Based on the information provided,
-this appears most likely to be a
-fraud-related request because..."</div>
+      <div class="code">state
+  ↓
+question
+  ↓
+typed decision
+  ↓
+probability</div>
 
-      <p class="muted">
-        We then parse the generated language back into a decision.
+      <p>
+        The model directly answers bounded questions.
       </p>
     </div>
 
-  </div>
-
-  <div class="callout">
-    <strong>The decision-model thesis:</strong>
-    language generation may be unnecessary work when the output space is already known.
-  </div>
-
-  <div class="footer">
-    <span>Decision models</span>
-    <span>2</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 3 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">Jev</div>
-
-  <h2>A model designed around decisions rather than strings</h2>
-
-  <p>
-    TypeSafe AI introduced <strong>Jev</strong> in September 2026 as a
-    purpose-built <span class="cyan">“System One” decision model</span>.
-  </p>
-
-  <div class="diagram">
-    <div class="node highlight">Unstructured state</div>
-    <div class="arrow">→</div>
-    <div class="node">Model</div>
-    <div class="arrow">→</div>
-    <div class="node highlight">Typed probability distribution</div>
   </div>
 
   <div class="branch">
 
     <div class="primitive choice">
       <h3>Choice</h3>
-      <p>Select one candidate from a bounded set.</p>
       <div class="code">fraud       .72
 lost_card   .18
 dispute     .10</div>
@@ -444,170 +472,742 @@ dispute     .10</div>
 
     <div class="primitive score">
       <h3>Score</h3>
-      <p>Evaluate against an ordered rubric.</p>
       <div class="code">risk = 7.4 / 10</div>
     </div>
 
     <div class="primitive noul">
       <h3>Noul</h3>
-      <p>Estimate whether a proposition is true.</p>
-      <div class="code">P(fraud) = .82</div>
+      <div class="code">P(statement) = .82</div>
     </div>
 
   </div>
 
-  <div class="source">
-    Sources:
-    TypeSafe AI launch material and documentation.
+  <div class="callout">
+    TypeSafe's claim was bigger than “we built a faster classifier”:
+    <strong>this is a different primitive for using machine intelligence.</strong>
   </div>
 
   <div class="footer">
     <span>Jev</span>
+    <span>2</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 3 — TYPESAFE ORIGIN -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Where did it come from?</div>
+
+  <h2>The TypeSafe story matters</h2>
+
+  <div class="grid two">
+
+    <div class="card">
+      <h3 class="cyan">TypeSafe AI</h3>
+
+      <ul>
+        <li>Founded by Diogo Almeida, Erik Gafni and Sasha Sheng</li>
+        <li>Roughly two years building in stealth</li>
+        <li>Jev publicly launched in September 2026</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 class="blue">Diogo Almeida</h3>
+
+      <ul>
+        <li>Previously at OpenAI</li>
+        <li>Worked around RLHF / InstructGPT / ChatGPT / GPT-4-era systems</li>
+        <li>Left OpenAI in 2024</li>
+        <li>Started questioning whether language generation was the right primitive for automation</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <p class="big-quote" style="margin-top:30px">
+    Models had become extraordinarily good at
+    <span class="blue">talking</span>.
+    So where was all the
+    <span class="cyan">automation?</span>
+  </p>
+
+  <div class="footer">
+    <span>TypeSafe AI</span>
     <span>3</span>
   </div>
 </section>
 
 
 <!-- ========================================================= -->
-<!-- 4 -->
+<!-- 4 — THESIS -->
 <!-- ========================================================= -->
 
 <section class="slide">
-  <div class="eyebrow">Mental model</div>
+  <div class="eyebrow">The thesis</div>
 
-  <h2>Not “generate the answer” — score the possible answers</h2>
+  <h2>Maybe we optimized for the wrong output</h2>
 
   <div class="grid two">
 
     <div class="card">
-      <h3>Autoregressive LLM</h3>
+      <h3 class="green">What software needs</h3>
 
-      <div class="diagram">
-        <div class="node">State</div>
-        <div class="arrow">→</div>
-        <div class="node">Transformer</div>
-      </div>
+      <div class="code">route = "fraud"
 
-      <div class="code">token → token → token → token → ...
+risk = 0.82
 
-"The correct category is probably fraud."</div>
+approve = false</div>
 
       <p class="muted">
-        Sequential decoding continues until the answer has been expressed as language.
+        Values that software can branch on.
       </p>
     </div>
 
     <div class="card">
-      <h3 class="cyan">Decision model</h3>
+      <h3 class="orange">What an LLM naturally produces</h3>
 
-      <div class="diagram">
-        <div class="node">State</div>
-        <div class="arrow">→</div>
-        <div class="node highlight">Representation</div>
-      </div>
-
-      <div class="code">fraud       0.72
-lost_card   0.18
-dispute     0.10</div>
+      <div class="code">"Based on the available information,
+this appears most likely to be
+a fraud-related request because..."</div>
 
       <p class="muted">
-        The bounded answer space can potentially be evaluated directly.
+        Language that we then convert back into software state.
       </p>
     </div>
 
   </div>
 
   <div class="callout">
-    A useful abstraction is:
-    <strong>P(option | state, question, candidate set)</strong>.
+    We trained models to communicate with humans.
+    But many software decisions don't require language at all.
   </div>
 
   <div class="footer">
-    <span>Intuition</span>
+    <span>The Jev thesis</span>
     <span>4</span>
   </div>
 </section>
 
 
 <!-- ========================================================= -->
-<!-- 5 -->
+<!-- 5 — WHY IMPORTANT -->
 <!-- ========================================================= -->
 
 <section class="slide">
-  <div class="eyebrow">Important nuance</div>
+  <div class="eyebrow">Why this matters</div>
 
-  <h2>Probably more than embedding similarity</h2>
-
-  <p>
-    A tempting interpretation is:
-  </p>
-
-  <div class="diagram">
-    <div class="node">Encode state</div>
-    <div class="arrow">↔</div>
-    <div class="node">Encode options</div>
-    <div class="arrow">→</div>
-    <div class="node">Similarity</div>
-  </div>
-
-  <p>
-    That is technically possible — and resembles retrieval / bi-encoder classification —
-    but the available evidence around Jev suggests something richer.
-  </p>
+  <h2>LLMs are surprisingly expensive decision engines</h2>
 
   <div class="grid two">
 
     <div class="card">
-      <h3 class="orange">Independent scoring</h3>
+      <h3>Typical LLM path</h3>
 
-      <div class="code">score(A) = F(state, A)
-score(B) = F(state, B)
-score(C) = F(state, C)</div>
-
-      <p>
-        Candidates do not interact.
-      </p>
+      <div class="code">State
+  ↓
+Prompt
+  ↓
+LLM
+  ↓
+token → token → token → token
+  ↓
+JSON / text
+  ↓
+parse
+  ↓
+decision</div>
     </div>
 
     <div class="card">
-      <h3 class="cyan">Listwise scoring</h3>
+      <h3 class="cyan">Decision-model path</h3>
 
-      <div class="code">scores =
-F(state, question, [A, B, C])
-
-→ [.72, .18, .10]</div>
-
-      <p>
-        The candidate set itself becomes part of the decision context.
-      </p>
+      <div class="code">State
+  ↓
+Decision model
+  ↓
+P(A), P(B), P(C)
+  ↓
+policy
+  ↓
+action</div>
     </div>
 
   </div>
 
-  <p class="muted">
-    Independent probing of Jev has reported option-set and option-order effects,
-    which are more consistent with joint/listwise evaluation than simple
-    independent embedding similarity.
+  <p class="big-quote" style="font-size:30px; margin-top:28px">
+    If the answer space is already known,
+    <span class="cyan">generating language may simply be unnecessary computation.</span>
   </p>
 
   <div class="footer">
-    <span>How might it work?</span>
+    <span>Why it matters</span>
     <span>5</span>
   </div>
 </section>
 
 
 <!-- ========================================================= -->
-<!-- 6 -->
+<!-- 6 — BUSINESS USE CASE -->
 <!-- ========================================================= -->
 
 <section class="slide">
-  <div class="eyebrow">Possible computational shape</div>
+  <div class="eyebrow">The business use case</div>
 
-  <h2>Encode expensive context once, branch into decisions</h2>
+  <h2>A lot of enterprise AI is actually bounded judgment</h2>
+
+  <div class="grid two">
+
+    <div class="card">
+      <ul>
+        <li>Which queue should receive this request?</li>
+        <li>Is this transaction suspicious?</li>
+        <li>Which policy applies?</li>
+        <li>How risky is this action?</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <ul>
+        <li>Is this retrieved evidence sufficient?</li>
+        <li>Should this agent action be allowed?</li>
+        <li>Which model should handle this request?</li>
+        <li>Does this document satisfy the requirement?</li>
+      </ul>
+    </div>
+
+  </div>
 
   <div class="diagram">
-    <div class="node highlight">World / state</div>
+    <div class="node highlight">Unstructured state</div>
+    <div class="arrow">→</div>
+    <div class="node highlight">Bounded judgment</div>
+    <div class="arrow">→</div>
+    <div class="node highlight">Probability</div>
+    <div class="arrow">→</div>
+    <div class="node highlight">Action</div>
+  </div>
+
+  <div class="callout">
+    These problems need intelligence —
+    but they don't necessarily need <strong>language generation.</strong>
+  </div>
+
+  <div class="footer">
+    <span>Enterprise use cases</span>
+    <span>6</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 7 — CALIBRATION -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">The really interesting output</div>
+
+  <h2>The probability may matter more than the prediction</h2>
+
+  <div class="grid two">
+
+    <div class="card">
+      <h3>Prediction</h3>
+
+      <div class="code">Decision:
+
+FRAUD</div>
+
+      <p>
+        Useful — but binary.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3 class="cyan">Decision + uncertainty</h3>
+
+      <div class="code">fraud       .97
+dispute     .02
+lost_card   .01</div>
+
+      <p>
+        Now software can reason about uncertainty.
+      </p>
+    </div>
+
+  </div>
+
+  <div class="code" style="margin-top:20px;">confidence > .95       → automate
+
+.70 – .95              → stronger model / additional checks
+
+confidence < .70       → human review</div>
+
+  <div class="callout">
+    <strong>Accuracy</strong> tells us whether the model is right.
+    <strong>Calibration</strong> tells us whether we can build policy around its uncertainty.
+  </div>
+
+  <div class="footer">
+    <span>Calibration</span>
+    <span>7</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 8 — HALLUCINATION -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">One important caveat</div>
+
+  <h2>“Cannot hallucinate” ≠ “cannot be wrong”</h2>
+
+  <div class="grid two">
+
+    <div class="card">
+      <h3 class="green">Bounded output solves</h3>
+
+      <ul>
+        <li>Invalid output types</li>
+        <li>Invented categories</li>
+        <li>Unexpected prose</li>
+        <li>Parsing failures</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 class="red">It does not solve</h3>
+
+      <ul>
+        <li>Wrong classification</li>
+        <li>Missing domain knowledge</li>
+        <li>Distribution shift</li>
+        <li>Badly specified choices</li>
+        <li>Misleading confidence</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <p class="big-quote" style="font-size:30px; margin-top:30px">
+    A decision model can return a
+    <span class="red">perfectly valid but completely wrong value.</span>
+  </p>
+
+  <div class="footer">
+    <span>Reliability</span>
+    <span>8</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 9 — OAI TIMELINE -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">And then things got interesting...</div>
+
+  <h2>Two weeks later: OpenAI Decisions API</h2>
+
+  <div class="timeline">
+
+    <div class="timeline-item">
+      <span class="badge">15 Sep</span>
+      <h3 style="margin-top:14px">Jev</h3>
+      <p>TypeSafe publicly launches Jev.</p>
+    </div>
+
+    <div class="timeline-item">
+      <span class="badge orange">Days later</span>
+      <h3 style="margin-top:14px">OpenAI prototype</h3>
+      <p>Inference / infrastructure engineers explore the same pattern.</p>
+    </div>
+
+    <div class="timeline-item">
+      <span class="badge green">29 Sep</span>
+      <h3 style="margin-top:14px">DevDay</h3>
+      <p>OpenAI announces Decisions API.</p>
+    </div>
+
+    <div class="timeline-item">
+      <span class="badge green">6 Oct</span>
+      <h3 style="margin-top:14px">Public beta</h3>
+      <p>Developers get access.</p>
+    </div>
+
+  </div>
+
+  <p class="big-quote" style="text-align:center">
+    Coincidence?
+  </p>
+
+  <div class="footer">
+    <span>OpenAI Decisions</span>
+    <span>9</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 10 — API SIMILARITY -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">The resemblance</div>
+
+  <h2>The APIs look remarkably similar</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Jev</th>
+        <th>OpenAI Decisions</th>
+        <th>Meaning</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr>
+        <td><strong>Noul</strong></td>
+        <td><strong>Predicate</strong></td>
+        <td>Probability that a proposition is true</td>
+      </tr>
+
+      <tr>
+        <td><strong>Choice</strong></td>
+        <td><strong>Choice</strong></td>
+        <td>Distribution over bounded alternatives</td>
+      </tr>
+
+      <tr>
+        <td><strong>Score</strong></td>
+        <td><strong>Score</strong></td>
+        <td>Distribution over an ordered rubric</td>
+      </tr>
+
+      <tr>
+        <td>Multiple questions</td>
+        <td>Multiple questions</td>
+        <td>Reuse shared input/state</td>
+      </tr>
+
+      <tr>
+        <td>Typed probabilities</td>
+        <td>Typed probabilities</td>
+        <td>No free-form answer required</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    At the <strong>programming-model level</strong>,
+    these are extremely similar ideas.
+  </div>
+
+  <div class="footer">
+    <span>Jev vs OpenAI</span>
+    <span>10</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 11 — CONTROVERSY -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">The controversy</div>
+
+  <h2>Did OpenAI copy Jev?</h2>
+
+  <div class="grid two">
+
+    <div class="card">
+      <h3 class="green">What the evidence supports</h3>
+
+      <p>
+        OpenAI API product lead <strong>Nikunj Handa</strong> later described
+        Jev's launch as inspiring OpenAI inference / infrastructure engineers
+        to prototype the idea rapidly.
+      </p>
+
+      <p>
+        The initial implementation reportedly came together in roughly
+        <strong>a week.</strong>
+      </p>
+    </div>
+
+    <div class="card">
+      <h3 class="red">What the evidence does not support</h3>
+
+      <ul>
+        <li>Copied Jev weights</li>
+        <li>Copied Jev architecture</li>
+        <li>Copied training data</li>
+        <li>Copied RLCD</li>
+        <li>Transferred proprietary TypeSafe code</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="callout">
+    The defensible conclusion:
+    <strong>rapid competitive reaction — not evidence of proprietary copying.</strong>
+  </div>
+
+  <div class="footer">
+    <span>The controversy</span>
+    <span>11</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 12 — LUNA CLUE -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">But here's the really interesting part</div>
+
+  <h2>OpenAI apparently didn't train a new model</h2>
+
+  <p class="big-quote">
+    The first Decisions implementation reportedly reused
+    <span class="green">existing GPT-6 Luna weights.</span>
+  </p>
+
+  <div class="grid two">
+
+    <div class="card">
+      <h3>Jev</h3>
+
+      <div class="code">purpose-built model
+      ↓
+specialized training
+      ↓
+RLCD
+      ↓
+typed probabilities</div>
+    </div>
+
+    <div class="card">
+      <h3 class="green">OpenAI Decisions v1</h3>
+
+      <div class="code">existing Luna
+      ↓
+bounded output
+      ↓
+optimized inference
+      ↓
+typed probabilities</div>
+    </div>
+
+  </div>
+
+  <div class="callout">
+    Which creates a much more interesting question than
+    <em>“who copied whom?”</em>
+  </div>
+
+  <p class="big-quote" style="font-size:32px">
+    Do we actually need a <span class="cyan">new model</span>
+    to build a decision model?
+  </p>
+
+  <div class="footer">
+    <span>The deeper question</span>
+    <span>12</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 13 — DISCLAIMER -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Now we enter speculation territory</div>
+
+  <h2>Important: we don't actually know how Jev works</h2>
+
+  <div class="warning">
+    <strong>⚠ Architecture from here onward is exploration, not documentation.</strong>
+  </div>
+
+  <div class="grid two">
+
+    <div class="card">
+      <h3 class="green">Known</h3>
+
+      <ul>
+        <li>Jev architecture is proprietary</li>
+        <li>It directly exposes bounded decisions</li>
+        <li>Multiple questions can share state</li>
+        <li>TypeSafe describes specialized RLCD training</li>
+        <li>OpenAI has described Decisions v1 at a high level</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 class="orange">Not publicly documented</h3>
+
+      <ul>
+        <li>Exact Jev architecture</li>
+        <li>Exact RLCD objective</li>
+        <li>Internal decision heads</li>
+        <li>Exact representation sharing</li>
+        <li>How much calibration comes from training vs post-processing</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="callout">
+    The next slides explore <strong>technically plausible implementations</strong>
+    consistent with the behavior we can observe.
+  </div>
+
+  <div class="footer">
+    <span>Architecture exploration</span>
+    <span>13</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 14 — EMBEDDINGS -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Possibility #1</div>
+
+  <h2>The simplest idea: embedding similarity</h2>
+
+  <div class="diagram">
+    <div class="node">State</div>
+    <div class="arrow">→</div>
+    <div class="node highlight">Encoder</div>
+    <div class="arrow">→</div>
+    <div class="node">State vector</div>
+  </div>
+
+  <div class="diagram">
+    <div class="node">Option A</div>
+    <div class="node">Option B</div>
+    <div class="node">Option C</div>
+    <div class="arrow">→</div>
+    <div class="node highlight">Option vectors</div>
+  </div>
+
+  <div class="code">score(A) = similarity(state, A)
+score(B) = similarity(state, B)
+score(C) = similarity(state, C)
+
+P = softmax(scores)</div>
+
+  <div class="grid two" style="margin-top:20px">
+
+    <div class="card">
+      <h3 class="green">Attractive because...</h3>
+      <ul>
+        <li>Very fast</li>
+        <li>Parallel</li>
+        <li>Options can be pre-encoded</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 class="orange">But...</h3>
+      <p>
+        Semantic similarity is probably too weak to explain sophisticated
+        contextual judgment.
+      </p>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>Possible architecture</span>
+    <span>14</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 15 — CROSS ENCODER -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Possibility #2</div>
+
+  <h2>Score each candidate in context</h2>
+
+  <div class="code">(state, question, option A) → Transformer → score A
+
+(state, question, option B) → Transformer → score B
+
+(state, question, option C) → Transformer → score C
+
+
+                         ↓
+
+                      softmax</div>
+
+  <p>
+    This resembles a <strong>cross-encoder / reranker</strong>.
+  </p>
+
+  <div class="grid two">
+
+    <div class="card">
+      <h3 class="green">Much richer</h3>
+
+      <p>
+        The model can understand the relationship between:
+      </p>
+
+      <div class="code">state
+question
+candidate meaning</div>
+    </div>
+
+    <div class="card">
+      <h3 class="orange">But potentially expensive</h3>
+
+      <div class="code">N candidates
+≈
+N expensive evaluations</div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>Possible architecture</span>
+    <span>15</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 16 — SHARED STATE -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Possibility #3</div>
+
+  <h2>Encode the expensive state once</h2>
+
+  <div class="diagram">
+    <div class="node highlight">STATE</div>
+    <div class="arrow">→</div>
+    <div class="node highlight">Transformer</div>
     <div class="arrow">→</div>
     <div class="node highlight">Shared representation</div>
   </div>
@@ -615,340 +1215,124 @@ F(state, question, [A, B, C])
   <div class="branch">
 
     <div class="primitive choice">
-      <h3>Which route?</h3>
-      <div class="code">A  .62
-B  .27
-C  .11</div>
+      <h3>Candidate A</h3>
+      <div class="code">score = 4.1</div>
     </div>
 
     <div class="primitive score">
-      <h3>How risky?</h3>
-      <div class="code">1  .01
-...
-7  .42
-8  .31</div>
+      <h3>Candidate B</h3>
+      <div class="code">score = 2.3</div>
     </div>
 
     <div class="primitive noul">
-      <h3>Is this fraud?</h3>
-      <div class="code">false .18
-true  .82</div>
+      <h3>Candidate C</h3>
+      <div class="code">score = 3.7</div>
     </div>
 
   </div>
-
-  <div class="callout">
-    Jev documentation says multiple questions can share the same state and
-    are evaluated independently. This creates a natural opportunity to reuse
-    the expensive representation of the state.
-  </div>
-
-  <p class="muted">
-    Exact Jev architecture remains proprietary. Shared KV-prefix / parallel
-    branch interpretations come from external probing and should be treated
-    as informed hypotheses rather than confirmed architecture.
-  </p>
-
-  <div class="footer">
-    <span>Architecture intuition</span>
-    <span>6</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 7 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">Why this could matter</div>
-
-  <h2>Generation has a structural cost</h2>
-
-  <div class="grid three">
-
-    <div class="card">
-      <h3 class="blue">Latency</h3>
-      <p>
-        Autoregressive generation is sequential:
-      </p>
-      <div class="code">t₁ → t₂ → t₃ → ... → tₙ</div>
-      <p class="muted">
-        A bounded decision may require only one scoring computation.
-      </p>
-    </div>
-
-    <div class="card">
-      <h3 class="green">Type safety</h3>
-      <p>
-        If the output space is:
-      </p>
-      <div class="code">{A, B, C}</div>
-      <p>
-        the model cannot suddenly return:
-      </p>
-      <div class="code">"It depends..."</div>
-    </div>
-
-    <div class="card">
-      <h3 class="purple">Probability</h3>
-      <p>
-        The useful output may not be the winner.
-      </p>
-      <div class="code">A = .51
-B = .47
-C = .02</div>
-      <p class="muted">
-        Uncertainty itself becomes part of application logic.
-      </p>
-    </div>
-
-  </div>
-
-  <div class="footer">
-    <span>Why decision models?</span>
-    <span>7</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 8 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">Calibration</div>
-
-  <h2>The probability may be more important than the prediction</h2>
-
-  <p class="big-quote">
-    If a model says <span class="cyan">“80% confident”</span>,
-    can we expect it to be correct roughly
-    <span class="cyan">80% of the time?</span>
-  </p>
-
-  <div class="grid two">
-
-    <div class="card">
-      <h3>Accuracy</h3>
-      <div class="code">100 decisions
-85 correct
-
-accuracy = 85%</div>
-
-      <p>
-        Tells us how often the model wins.
-      </p>
-    </div>
-
-    <div class="card">
-      <h3 class="cyan">Calibration</h3>
-      <div class="code">Predictions around 0.8 confidence
-
-Observed accuracy ≈ 0.8</div>
-
-      <p>
-        Tells us whether uncertainty can be trusted.
-      </p>
-    </div>
-
-  </div>
-
-  <div class="callout">
-    This enables a different automation pattern:
-    <strong>act when confident, escalate when uncertain.</strong>
-  </div>
-
-  <p class="muted">
-    Jev explicitly positions calibrated decisions as a training objective
-    through its RLCD approach. Independent evaluation has also found useful
-    selective-prediction behavior, although calibration remains workload-dependent.
-  </p>
-
-  <div class="footer">
-    <span>Calibration</span>
-    <span>8</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 9 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">A subtle but important correction</div>
-
-  <h2>“Cannot hallucinate” does not mean “cannot be wrong”</h2>
-
-  <div class="grid two">
-
-    <div class="card">
-      <h3 class="green">What bounded output solves</h3>
-
-      <ul>
-        <li>Invalid output types</li>
-        <li>Unexpected free-form answers</li>
-        <li>Parsing failures</li>
-        <li>Invented categories</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h3 class="red">What it does not solve</h3>
-
-      <ul>
-        <li>Wrong classification</li>
-        <li>Distribution shift</li>
-        <li>Badly specified options</li>
-        <li>Misleading confidence</li>
-        <li>Missing domain knowledge</li>
-      </ul>
-    </div>
-
-  </div>
-
-  <div class="callout">
-    A decision model can return a
-    <strong>perfectly valid but completely wrong value.</strong>
-  </div>
-
-  <p>
-    The reliability problem therefore moves from
-    <span class="orange">“can I parse the answer?”</span>
-    toward
-    <span class="cyan">“when should I trust the answer?”</span>
-  </p>
-
-  <div class="footer">
-    <span>Reliability</span>
-    <span>9</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 10 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">Two weeks later...</div>
-
-  <h2>OpenAI announces the Decisions API</h2>
-
-  <div class="grid two">
-
-    <div class="card">
-      <h3 class="blue">Jev</h3>
-
-      <p><span class="badge">15 Sep 2026</span></p>
-
-      <ul>
-        <li>Purpose-built System One model</li>
-        <li>Choice / Score / Noul</li>
-        <li>Probability distributions</li>
-        <li>Calibration-first training thesis</li>
-        <li>No free-form generation</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h3 class="green">OpenAI Decisions</h3>
-
-      <p><span class="badge">29 Sep 2026</span></p>
-
-      <ul>
-        <li>Predicate / Choice / Score</li>
-        <li>Probability distributions</li>
-        <li>Multiple bounded questions</li>
-        <li>Optimized decision-serving path</li>
-        <li>Initial implementation based on existing GPT-6 Luna weights</li>
-      </ul>
-    </div>
-
-  </div>
-
-  <div class="callout">
-    The APIs are strikingly similar at the
-    <strong>programming-model level</strong>,
-    but the first implementations appear technically different.
-  </div>
-
-  <div class="footer">
-    <span>OpenAI Decisions</span>
-    <span>10</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 11 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">The timing</div>
-
-  <h2>Did OpenAI react to Jev?</h2>
-
-  <p class="big-quote">
-    <span class="green">Yes — at the product/inference layer.</span>
-  </p>
-
-  <p>
-    In a post-DevDay discussion, OpenAI API product lead
-    <strong>Nikunj Handa</strong> described Jev's launch as inspiring
-    OpenAI inference/infrastructure engineers to prototype the idea rapidly.
-  </p>
 
   <div class="diagram">
-    <div class="node">15 Sep<br><strong>Jev</strong></div>
+    <div class="node highlight">softmax</div>
     <div class="arrow">→</div>
-    <div class="node highlight">~1 week<br>prototype</div>
-    <div class="arrow">→</div>
-    <div class="node">29 Sep<br><strong>DevDay</strong></div>
-    <div class="arrow">→</div>
-    <div class="node">6 Oct<br><strong>public beta</strong></div>
+    <div class="node highlight">[ .54, .09, .37 ]</div>
   </div>
 
   <div class="callout">
-    This is evidence of <strong>rapid competitive reaction</strong>.
-    It is <strong>not</strong> evidence that OpenAI copied Jev's proprietary
-    architecture, weights, training data, or RLCD method.
+    This naturally explains why many bounded decisions could be much cheaper
+    than repeatedly asking a generative model.
   </div>
 
   <p class="muted">
-    The speed is easier to understand because OpenAI did not need to train
-    a new foundation model for the first version.
+    Shared representation / KV-prefix interpretations are plausible hypotheses,
+    not confirmed Jev architecture.
   </p>
 
   <div class="footer">
-    <span>Timeline</span>
-    <span>11</span>
+    <span>Possible architecture</span>
+    <span>16</span>
   </div>
 </section>
 
 
 <!-- ========================================================= -->
-<!-- 12 -->
+<!-- 17 — LISTWISE -->
 <!-- ========================================================= -->
 
 <section class="slide">
-  <div class="eyebrow">The most interesting technical clue</div>
+  <div class="eyebrow">Possibility #4</div>
 
-  <h2>OpenAI reused GPT-6 Luna</h2>
-
-  <p>
-    OpenAI's first Decisions implementation was described as using
-    <strong>existing GPT-6 Luna weights</strong> rather than a newly trained
-    decision foundation model.
-  </p>
+  <h2>Maybe the options are evaluated jointly</h2>
 
   <div class="grid two">
 
     <div class="card">
-      <h3 class="blue">Normal Luna</h3>
+      <h3>Independent scoring</h3>
 
-      <div class="code">representation
+      <div class="code">score(A) = F(state, A)
+
+score(B) = F(state, B)
+
+score(C) = F(state, C)</div>
+
+      <p class="muted">
+        A never “sees” B or C.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3 class="cyan">Listwise scoring</h3>
+
+      <div class="code">scores =
+F(
+  state,
+  question,
+  [A, B, C]
+)
+
+→ [.54, .09, .37]</div>
+
+      <p class="muted">
+        The alternatives themselves become part of the context.
+      </p>
+    </div>
+
+  </div>
+
+  <div class="callout">
+    The question becomes less:
+    <strong>“How similar is A to the state?”</strong>
+    and more:
+    <strong>“Given these competing alternatives, how should probability mass be distributed?”</strong>
+  </div>
+
+  <p class="muted">
+    Reported option-set and option-order effects in independent Jev probing
+    are consistent with this kind of interaction — although they do not prove
+    a specific architecture.
+  </p>
+
+  <div class="footer">
+    <span>Listwise decisions</span>
+    <span>17</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 18 — OAI CLUE -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">OpenAI gives us another clue</div>
+
+  <h2>Maybe language generation is just one readout</h2>
+
+  <div class="grid two">
+
+    <div class="card">
+      <h3>Normal foundation model</h3>
+
+      <div class="code">rich representation
       ↓
 vocabulary logits
       ↓
@@ -958,64 +1342,68 @@ next token
       ↓
 next token
       ↓
-text</div>
+language</div>
     </div>
 
     <div class="card">
-      <h3 class="green">Decisions</h3>
+      <h3 class="cyan">Decision mode</h3>
 
-      <div class="code">representation
+      <div class="code">rich representation
       ↓
-bounded output constraint
+bounded candidates
       ↓
-candidate scoring
+candidate scores
       ↓
-probability distribution
+probabilities
       ↓
 decision</div>
     </div>
 
   </div>
 
+  <p class="big-quote" style="font-size:30px; margin-top:30px">
+    Foundation models may already contain rich enough
+    <span class="cyan">representations of the world</span>
+    for decision making.
+  </p>
+
   <div class="callout">
-    This suggests that at least some “decision-model” behavior can be obtained
-    by changing <strong>how an existing foundation model is used at inference time</strong>.
+    Language generation may simply be
+    <strong>one possible readout from those representations.</strong>
   </div>
 
   <div class="footer">
-    <span>OpenAI Decisions</span>
-    <span>12</span>
+    <span>Foundation model readouts</span>
+    <span>18</span>
   </div>
 </section>
 
 
 <!-- ========================================================= -->
-<!-- 13 -->
+<!-- 19 — FUNDAMENTAL QUESTION -->
 <!-- ========================================================= -->
 
 <section class="slide">
-  <div class="eyebrow">The deeper question</div>
+  <div class="eyebrow">The unresolved question</div>
 
-  <h2>New model architecture — or new readout paradigm?</h2>
+  <h2>Where does the real advantage come from?</h2>
 
   <div class="grid two">
 
     <div class="card">
-      <h3 class="cyan">Hypothesis A</h3>
+      <h3 class="green">Hypothesis A — new readout</h3>
 
-      <p class="big-quote" style="font-size:28px">
-        Foundation models already contain the necessary representation.
-      </p>
+      <div class="code">Foundation model
+      ↓
+rich representation
+      ↓
+decision head
+      ↓
+probabilities</div>
 
       <p>
-        Language generation is simply one possible readout.
+        Most of the benefit comes from avoiding autoregressive generation.
       </p>
-
-      <div class="code">foundation model
-      ↓
-representation
-      ↓
-decision head</div>
 
       <p class="muted">
         OpenAI Decisions v1 points in this direction.
@@ -1023,21 +1411,19 @@ decision head</div>
     </div>
 
     <div class="card">
-      <h3 class="purple">Hypothesis B</h3>
+      <h3 class="purple">Hypothesis B — new representation</h3>
 
-      <p class="big-quote" style="font-size:28px">
-        Training specifically for decisions changes the representation itself.
-      </p>
-
-      <p>
-        Calibration and decision quality may require specialized training.
-      </p>
-
-      <div class="code">decision training
+      <div class="code">specialized
+decision training
       ↓
 different representation
       ↓
-better calibrated decisions</div>
+better calibrated
+decisions</div>
+
+      <p>
+        Specialized training changes what the model learns internally.
+      </p>
 
       <p class="muted">
         Jev's RLCD thesis points in this direction.
@@ -1046,425 +1432,125 @@ better calibrated decisions</div>
 
   </div>
 
-  <div class="callout">
-    These hypotheses are not mutually exclusive.
-    The interesting question is <strong>how much value comes from each layer.</strong>
-  </div>
-
-  <div class="footer">
-    <span>Open question</span>
-    <span>13</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 14 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">A useful abstraction</div>
-
-  <h2>Foundation model ≠ language generator</h2>
-
-  <div class="diagram">
-    <div class="node highlight">Foundation model</div>
-    <div class="arrow">→</div>
-    <div class="node highlight">World representation</div>
-  </div>
-
-  <div class="branch">
-
-    <div class="primitive choice">
-      <h3>Language head</h3>
-      <p>What token comes next?</p>
-      <div class="code">P(token | context)</div>
-    </div>
-
-    <div class="primitive score">
-      <h3>Decision head</h3>
-      <p>Which bounded action applies?</p>
-      <div class="code">P(action | state)</div>
-    </div>
-
-    <div class="primitive noul">
-      <h3>Value / verifier head</h3>
-      <p>How good or true is this?</p>
-      <div class="code">P(valid | state)</div>
-    </div>
-
-  </div>
-
-  <p class="big-quote" style="font-size:30px; margin-top:30px">
-    Perhaps the important shift is not a new kind of intelligence —
-    but a new way of <span class="cyan">reading intelligence out of a model.</span>
+  <p class="big-quote" style="font-size:32px; margin-top:30px">
+    How much value comes from the
+    <span class="blue">model</span>,
+    and how much comes from the
+    <span class="cyan">readout?</span>
   </p>
 
   <div class="footer">
-    <span>Mental model</span>
-    <span>14</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 15 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">Where this fits</div>
-
-  <h2>System One + System Two</h2>
-
-  <div class="grid two">
-
-    <div class="card">
-      <h3 class="cyan">System One</h3>
-
-      <p>
-        Fast, bounded judgment.
-      </p>
-
-      <ul>
-        <li>classification</li>
-        <li>routing</li>
-        <li>scoring</li>
-        <li>verification</li>
-        <li>guardrails</li>
-        <li>risk estimation</li>
-      </ul>
-
-      <div class="code">state → decision → probability</div>
-    </div>
-
-    <div class="card">
-      <h3 class="purple">System Two</h3>
-
-      <p>
-        Open-ended reasoning and generation.
-      </p>
-
-      <ul>
-        <li>analysis</li>
-        <li>planning</li>
-        <li>explanation</li>
-        <li>code generation</li>
-        <li>complex tool use</li>
-        <li>novel problem solving</li>
-      </ul>
-
-      <div class="code">state → reasoning → generated output</div>
-    </div>
-
-  </div>
-
-  <div class="callout">
-    The interesting architecture may not be
-    <strong>decision models instead of LLMs</strong>,
-    but decision models <strong>around and between LLM calls</strong>.
-  </div>
-
-  <div class="footer">
-    <span>System One / System Two</span>
-    <span>15</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 16 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">Emerging category</div>
-
-  <h2>Is “decision model” actually a new model category?</h2>
-
-  <table>
-    <thead>
-      <tr>
-        <th></th>
-        <th>Generative LLM</th>
-        <th>Traditional classifier</th>
-        <th>Decision model</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      <tr>
-        <td><strong>Output</strong></td>
-        <td>Open-ended tokens</td>
-        <td>Fixed labels</td>
-        <td>Runtime-defined bounded choices</td>
-      </tr>
-
-      <tr>
-        <td><strong>Task flexibility</strong></td>
-        <td>Very high</td>
-        <td>Low</td>
-        <td>High within bounded decisions</td>
-      </tr>
-
-      <tr>
-        <td><strong>Task-specific training</strong></td>
-        <td>Usually unnecessary</td>
-        <td>Usually required</td>
-        <td>Potentially unnecessary</td>
-      </tr>
-
-      <tr>
-        <td><strong>Inference</strong></td>
-        <td>Autoregressive</td>
-        <td>Single pass</td>
-        <td>Bounded / parallel scoring</td>
-      </tr>
-
-      <tr>
-        <td><strong>Probability</strong></td>
-        <td>Token probability</td>
-        <td>Class probability</td>
-        <td>Decision probability</td>
-      </tr>
-
-      <tr>
-        <td><strong>Natural role</strong></td>
-        <td>Reason / generate</td>
-        <td>Predict known task</td>
-        <td>Judge / route / score</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="callout">
-    Today it is safer to call this a
-    <strong>new model-serving / application abstraction</strong>
-    than a single settled neural architecture.
-  </div>
-
-  <div class="footer">
-    <span>Category</span>
-    <span>16</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 17 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">What we know vs what we infer</div>
-
-  <h2>Keep the epistemology clean</h2>
-
-  <div class="grid three">
-
-    <div class="card">
-      <h3 class="green">Known</h3>
-
-      <ul>
-        <li>Jev exposes bounded typed decisions.</li>
-        <li>It returns probability distributions.</li>
-        <li>Questions can share state.</li>
-        <li>TypeSafe describes specialized RLCD training.</li>
-        <li>OpenAI Decisions v1 reused Luna weights.</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h3 class="orange">Strong inference</h3>
-
-      <ul>
-        <li>Removing autoregressive decoding explains much of the latency advantage.</li>
-        <li>Shared state representation can make multiple decisions cheap.</li>
-        <li>Candidate-set interaction likely matters for Jev.</li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h3 class="red">Unknown</h3>
-
-      <ul>
-        <li>Exact Jev architecture</li>
-        <li>Exact RLCD objective</li>
-        <li>How much calibration comes from training vs post-processing</li>
-        <li>Whether specialized representations are essential</li>
-      </ul>
-    </div>
-
-  </div>
-
-  <div class="footer">
-    <span>Evidence</span>
-    <span>17</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 18 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">Discussion</div>
-
-  <h2>Questions worth debating</h2>
-
-  <div class="question">
-    1. Is a decision model fundamentally a new model —
-    or mostly a new inference/readout mechanism?
-  </div>
-
-  <div class="question">
-    2. Is calibration actually the key innovation,
-    rather than speed or structured output?
-  </div>
-
-  <div class="question">
-    3. Does bounded output genuinely reduce hallucination,
-    or merely move the reliability problem elsewhere?
-  </div>
-
-  <div class="question">
-    4. If foundation models already contain rich world representations,
-    how many other useful “heads” besides language generation are we underusing?
-  </div>
-
-  <div class="question">
-    5. Should future agent architectures explicitly separate
-    fast judgment from expensive reasoning?
-  </div>
-
-  <div class="footer">
-    <span>Discussion</span>
-    <span>18</span>
-  </div>
-</section>
-
-
-<!-- ========================================================= -->
-<!-- 19 -->
-<!-- ========================================================= -->
-
-<section class="slide">
-  <div class="eyebrow">Takeaway</div>
-
-  <h1>
-    Maybe the model doesn't always need to talk.
-  </h1>
-
-  <p class="big-quote">
-    For many AI systems, the useful primitive may be:
-  </p>
-
-  <div class="code" style="font-size:clamp(22px,2vw,34px); max-width:900px;">
-state
-  ↓
-bounded question
-  ↓
-probability distribution
-  ↓
-policy / action
-  </div>
-
-  <p class="subtitle" style="margin-top:28px">
-    Jev made that idea explicit.
-    OpenAI's rapid Decisions API response suggests the pattern may be
-    broader than one model or one vendor.
-  </p>
-
-  <div class="footer">
-    <span>Decision models</span>
+    <span>The core question</span>
     <span>19</span>
   </div>
 </section>
 
 
 <!-- ========================================================= -->
-<!-- 20 -->
+<!-- 20 — EXPERIMENT PLACEHOLDER -->
 <!-- ========================================================= -->
 
 <section class="slide">
-  <div class="eyebrow">References</div>
+  <div class="eyebrow">Next: empirical evidence</div>
 
-  <h2>Primary / useful sources</h2>
+  <h2>Experiments — in progress</h2>
 
-  <div class="grid two">
+  <div class="placeholder">
 
-    <div class="card">
-      <h3>TypeSafe / Jev</h3>
+    <p class="big-quote" style="margin:auto">
+      Can we reproduce decision-model behavior
+      <span class="purple">without training a purpose-built decision model?</span>
+    </p>
 
-      <ul>
-        <li>
-          TypeSafe AI — Jev / System One launch material
-        </li>
-        <li>
-          TypeSafe documentation — System One API, Choice, Score and Noul
-        </li>
-        <li>
-          TypeSafe documentation — model behavior, context and deployment characteristics
-        </li>
-      </ul>
+    <div class="diagram" style="margin-top:40px">
+      <div class="node">Autoregressive</div>
+      <div class="arrow">→</div>
+      <div class="node">Bounded decision</div>
+      <div class="arrow">→</div>
+      <div class="node">Candidate scoring</div>
+      <div class="arrow">→</div>
+      <div class="node">Listwise readout</div>
     </div>
 
-    <div class="card">
-      <h3>OpenAI Decisions</h3>
+    <p class="muted" style="margin-top:30px">
+      Accuracy · Calibration · Latency · Cost
+    </p>
 
-      <ul>
-        <li>
-          OpenAI Decisions API documentation<br>
-          <span class="source">
-            https://developers.openai.com/api/docs/guides/decisions
-          </span>
-        </li>
-
-        <li>
-          OpenAI DevDay 2026 material and post-DevDay discussion
-        </li>
-
-        <li>
-          OpenAI API product discussion describing the initial Luna-based implementation
-        </li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h3>Independent evidence</h3>
-
-      <ul>
-        <li>
-          Independent Jev benchmarking by researchers from
-          University of Bonn / Lamarr Institute / Fraunhofer IAIS
-        </li>
-
-        <li>
-          Independent probing of Jev architecture and option-set behavior
-        </li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h3>Calibration background</h3>
-
-      <ul>
-        <li>
-          Guo et al. — <em>On Calibration of Modern Neural Networks</em><br>
-          <span class="source">
-            https://proceedings.mlr.press/v70/guo17a.html
-          </span>
-        </li>
-
-        <li>
-          Selective prediction / risk-coverage literature
-        </li>
-      </ul>
-    </div>
+    <p class="purple" style="font-weight:700; margin-top:25px">
+      RESULTS TBD
+    </p>
 
   </div>
 
   <div class="footer">
-    <span>References</span>
+    <span>Experiments</span>
     <span>20</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 21 — DISCUSSION -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Discussion</div>
+
+  <h2>Three questions I'd leave us with</h2>
+
+  <div class="question">
+    <strong>1.</strong>
+    Are decision models actually a new model class —
+    or a new way of using foundation models?
+  </div>
+
+  <div class="question">
+    <strong>2.</strong>
+    Is calibration the real innovation —
+    rather than structured output or speed?
+  </div>
+
+  <div class="question">
+    <strong>3.</strong>
+    If language generation is only one possible readout from a foundation model,
+    what other useful readouts are we currently underusing?
+  </div>
+
+  <div class="footer">
+    <span>Discussion</span>
+    <span>21</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 22 — TAKEAWAY -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Takeaway</div>
+
+  <h1>Maybe the model doesn't always need to talk.</h1>
+
+  <div class="code" style="font-size:clamp(22px,2vw,34px); max-width:900px; margin-top:20px;">state
+  ↓
+bounded question
+  ↓
+probability distribution
+  ↓
+policy
+  ↓
+action</div>
+
+  <p class="subtitle" style="margin-top:30px">
+    Jev made the idea explicit.
+    OpenAI's rapid response suggests the pattern may be broader than
+    one model, one architecture, or one vendor.
+  </p>
+
+  <div class="footer">
+    <span>Decision Models</span>
+    <span>22</span>
   </div>
 </section>
 
