@@ -1,0 +1,82 @@
+[project]
+name = "enterprise-decisions-benchmark"
+version = "0.1.0"
+description = "Benchmark of bounded-decision readout mechanisms (autoregressive vs. decision APIs vs. custom scoring) on enterprise text decisions."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # 3.26.0+ adds `client.decisions`; the internal feed proxy lags PyPI, so Decisions
+    # calls go over raw HTTP until the SDK version is available.
+    "openai>=3.24.0",
+    "azure-identity>=1.19",
+    "httpx>=0.27",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "pyyaml>=6.0",
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "tenacity>=9.0",
+    "tqdm>=4.66",
+    "rich>=13.7",
+    "matplotlib>=3.9",
+]
+
+[project.optional-dependencies]
+# Local open-weight model stack (gpt-oss-20b). Install on the Azure ML GPU compute instance:
+#   uv sync --extra local
+local = [
+    "torch>=2.8",
+    "transformers>=4.56",
+    "accelerate>=1.10",
+    "kernels>=0.9",
+    "safetensors>=0.6",
+    "huggingface-hub>=0.34",
+    "nvidia-ml-py>=12.0",
+]
+aml = [
+    "azure-ai-ml>=1.28",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "edb"
+
+[tool.uv]
+default-groups = ["dev"]
+# Reproducible package snapshot. Also keeps resolution within what the internal feed proxy
+# (packagefeedproxy.microsoft.io, which lags PyPI by several days) has mirrored.
+exclude-newer = "2026-10-03T00:00:00Z"
+# Dev on Windows; GPU runs on Linux x86_64 (Azure ML compute instance).
+environments = [
+    "sys_platform == 'win32'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

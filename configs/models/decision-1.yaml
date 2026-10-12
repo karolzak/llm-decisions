@@ -1,0 +1,5 @@
+name: microsoft-decision-1
+provider: azure_foundry_decision
+deployment_env: DECISION1_DEPLOYMENT
+route: /providers/microsoft/v1/systemone
+question_type: choice    # labels -> `criteria` {value: description}

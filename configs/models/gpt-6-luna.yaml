@@ -1,0 +1,6 @@
+name: gpt-6-luna
+provider: azure_openai
+deployment_env: GPT6_LUNA_DEPLOYMENT
+api: responses           # A1 autoregressive baseline
+# A2: OpenAI `POST /v1/decisions` (feasibility checked by scripts/run_preflight.py)
+# A3: logprob-based readout (feasibility checked by scripts/run_preflight.py)

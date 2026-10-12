@@ -1,0 +1,17 @@
+name: ace_verbose
+labels:
+  - id: A
+    value: Compliant
+    description: >-
+      The described scenario adheres to all governing clauses, including
+      applicable obligations, conditions, exceptions, and timing requirements.
+  - id: B
+    value: Non-Compliant
+    description: >-
+      At least one governing clause is violated after applying relevant
+      conditions, exceptions, dependencies, and timing requirements.
+  - id: C
+    value: Not-Applicable
+    description: >-
+      The supplied clauses do not govern the described scenario, so compliance
+      or violation cannot be established from them.

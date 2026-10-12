@@ -1,0 +1,11 @@
+name: ace_short
+labels:
+  - id: A
+    value: Compliant
+    description: Compliant
+  - id: B
+    value: Non-Compliant
+    description: Non-Compliant
+  - id: C
+    value: Not-Applicable
+    description: Not-Applicable

@@ -1,0 +1,17 @@
+# ACE: Assessing Compliance in Enterprise (Fujitsu Research, EACL 2026), CC BY 4.0
+name: ace
+source:
+  repo: https://github.com/FujitsuResearch/Fujitsu-Assessing-Compliance-in-Enterprise-Dataset
+  train_url: https://raw.githubusercontent.com/FujitsuResearch/Fujitsu-Assessing-Compliance-in-Enterprise-Dataset/main/train.json
+  test_url: https://raw.githubusercontent.com/FujitsuResearch/Fujitsu-Assessing-Compliance-in-Enterprise-Dataset/main/test.json
+fields:
+  clauses: clauses          # dict: evidence_N -> clause text
+  scenario: scenario_text
+  label: gd_tr
+labels: [Compliant, Non-Compliant, Not-Applicable]
+# The official test split stays sealed; train (3,600) is split stratified by label.
+splits:
+  seed: 20261012
+  train: 0.6
+  dev: 0.2
+  calibration: 0.2

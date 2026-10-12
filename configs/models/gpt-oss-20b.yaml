@@ -1,0 +1,7 @@
+name: gpt-oss-20b
+provider: local_hf
+hf_model_id: openai/gpt-oss-20b
+# MXFP4 weights (~13 GB) run natively on Hopper+ GPUs; on older GPUs transformers
+# may dequantize to bf16 (~42 GB VRAM for weights) depending on kernel support.
+dtype: bfloat16
+device_map: auto
