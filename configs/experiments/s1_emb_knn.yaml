@@ -1,0 +1,18 @@
+id: s1_emb_knn
+description: "Bi-encoder: similarity-weighted kNN vote over train embeddings."
+leaderboards: [product]
+supervision: supervised   # fits on train-split labels
+dataset: ace
+label_catalogs: [short]
+method:
+  type: embedding
+  model: text-embedding-3-large
+  params:
+    head: knn
+    views: state
+    fit_split: train
+    k: 25
+    tau: 0.05
+run:
+  concurrency: 8
+  max_rpm: 240   # ~1K tokens per ACE example vs 282K TPM deployment limit

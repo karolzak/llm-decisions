@@ -142,6 +142,8 @@ class ExperimentConfig(BaseModel):
     id: str
     description: str = ""
     leaderboards: list[str] = Field(default_factory=list)  # e.g. product, controlled
+    # zero_shot: no task labels used; supervised: fits on the dataset's train labels.
+    supervision: Literal["zero_shot", "supervised"] = "zero_shot"
     dataset: str | None = None  # default dataset; overridable from the CLI
     label_catalogs: list[str] = Field(default_factory=lambda: ["short"])  # roles
     method: MethodConfig

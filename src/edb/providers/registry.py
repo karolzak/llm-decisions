@@ -8,10 +8,10 @@ from edb.providers.base import DecisionMethod, MethodContext
 def _registry() -> dict[str, type[DecisionMethod]]:
     from edb.providers.azure_openai_ar import AzureOpenAIAutoregressive
     from edb.providers.decision1 import MicrosoftDecision1
-    from edb.providers.embeddings import EmbeddingSimilarity
+    from edb.providers.embeddings import EmbeddingMethod
     from edb.providers.openai_decisions import OpenAIDecisions
 
-    methods = [AzureOpenAIAutoregressive, MicrosoftDecision1, OpenAIDecisions, EmbeddingSimilarity]
+    methods = [AzureOpenAIAutoregressive, MicrosoftDecision1, OpenAIDecisions, EmbeddingMethod]
     return {m.type: m for m in methods}
 
 

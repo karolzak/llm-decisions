@@ -15,7 +15,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from edb.config import AUTO, DatasetConfig, load_dataset_config
+from edb.config import AUTO, DatasetConfig, config_hash, load_dataset_config
 from edb.datasets.render import render_state, template_fields
 from edb.datasets.sources import load_raw
 from edb.datasets.splits import assign_splits
@@ -69,25 +69,40 @@ def prepare_dataset(
     raw, hashes = load_raw(cfg, refresh=refresh)
     by_source = {split: build_examples(cfg, split, recs) for split, recs in raw.items()}
 
-    observed = sorted({e.label for exs in by_source.values() for e in exs})
-    labels = observed if cfg.labels == AUTO else list(cfg.labels)
-    unknown = set(observed) - set(labels)
-    if unknown:
-        raise ValueError(f"labels {sorted(unknown)} not declared in dataset config")
-
+    # Label set comes from the config or, for `auto`, from the derivation source only, so
+    # sealed (test) labels never shape the catalog.
     derived = by_source[cfg.splits.derive_from]
+    labels = (sorted({e.label for e in derived}) if cfg.labels == AUTO
+              else list(cfg.labels))
+    observed = {e.label for exs in by_source.values() for e in exs}
+    unknown = observed - set(labels)
+    if unknown:
+        raise ValueError(f"labels {sorted(unknown)} not in the label set {labels}")
+
     apath = assignment_path(cfg.name)
     if apath.exists() and not resplit:
         frozen = json.loads(apath.read_text(encoding="utf-8"))
+        policy = {"derive_from": cfg.splits.derive_from, "ratios": cfg.splits.ratios,
+                  "seed": cfg.splits.seed, "stratify": cfg.splits.stratify,
+                  "group_field": cfg.fields.group}
+        changed = {k: (frozen.get(k), v) for k, v in policy.items() if frozen.get(k) != v}
+        if changed:
+            raise RuntimeError(
+                f"split policy changed since splits were frozen ({apath}): {changed}. "
+                "Re-freeze with --resplit (invalidates comparisons with earlier runs)."
+            )
         for split in (cfg.splits.derive_from, *cfg.splits.sealed):
             if frozen["source_sha256"].get(split) != hashes[split]:
                 raise RuntimeError(
                     f"source file for split {split!r} changed since splits were frozen "
                     f"({apath}). Investigate, or re-freeze with --resplit."
                 )
-        split_of = {eid: s for s, ids in frozen["assignments"].items() for eid in ids}
-        if set(split_of) != {e.id for e in derived}:
+        ids = [eid for v in frozen["assignments"].values() for eid in v]
+        split_of = {eid: s for s, v in frozen["assignments"].items() for eid in v}
+        if len(ids) != len(split_of) or set(split_of) != {e.id for e in derived}:
             raise RuntimeError(f"frozen assignment ids do not match source records ({apath})")
+        if set(frozen["assignments"]) != set(cfg.splits.ratios):
+            raise RuntimeError(f"frozen split names differ from config ({apath})")
     else:
         names = assign_splits(
             labels=[e.label for e in derived],
@@ -122,9 +137,7 @@ def prepare_dataset(
     out = processed_dir(cfg.name)
     out.mkdir(parents=True, exist_ok=True)
     for split, exs in splits.items():
-        with (out / f"{split}.jsonl").open("w", encoding="utf-8") as f:
-            for e in exs:
-                f.write(e.model_dump_json() + "\n")
+        _atomic_write(out / f"{split}.jsonl", "".join(e.model_dump_json() + "\n" for e in exs))
 
     manifest = {
         "dataset": cfg.name,
@@ -137,9 +150,16 @@ def prepare_dataset(
             for s, exs in splits.items()
         },
         "group_overlap": _group_overlap(cfg, splits),
+        "fingerprint": dataset_fingerprint(cfg),
     }
-    (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    _atomic_write(out / "manifest.json", json.dumps(manifest, indent=2) + "\n")
     return manifest
+
+
+def _atomic_write(path: Path, text: str) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
 
 
 def _group_overlap(cfg: DatasetConfig, splits: dict[str, list[Example]]) -> dict[str, int]:
@@ -159,11 +179,23 @@ def _group_overlap(cfg: DatasetConfig, splits: dict[str, list[Example]]) -> dict
     return result
 
 
+def dataset_fingerprint(cfg: DatasetConfig) -> str:
+    """Identity of the processed data: data-relevant config + frozen assignment file."""
+    apath = assignment_path(cfg.name)
+    assignment = hashlib.sha256(apath.read_bytes()).hexdigest() if apath.exists() else None
+    relevant = cfg.model_dump(mode="json", exclude={"description", "homepage", "license"})
+    return config_hash(relevant, {"assignment_sha256": assignment})
+
+
 def load_manifest(dataset: str) -> dict[str, Any]:
+    """Processed-data manifest; (re)prepares when missing or stale w.r.t. the config."""
     path = processed_dir(dataset) / "manifest.json"
-    if not path.exists():
-        prepare_dataset(dataset)
-    return json.loads(path.read_text(encoding="utf-8"))
+    cfg = load_dataset_config(dataset)
+    if path.exists():
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        if manifest.get("fingerprint") == dataset_fingerprint(cfg):
+            return manifest
+    return prepare_dataset(dataset)
 
 
 def dataset_labels(dataset: str) -> list[str]:
@@ -171,9 +203,8 @@ def dataset_labels(dataset: str) -> list[str]:
 
 
 def load_split(dataset: str, split: str) -> list[Example]:
+    load_manifest(dataset)  # ensures processed files match the current config
     path = processed_dir(dataset) / f"{split}.jsonl"
-    if not path.exists():
-        prepare_dataset(dataset)
     if not path.exists():
         raise FileNotFoundError(f"dataset {dataset!r} has no split {split!r}")
     with path.open(encoding="utf-8") as f:

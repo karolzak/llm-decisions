@@ -11,7 +11,7 @@ import numpy as np
 
 from edb.calibration.metrics import COVERAGES, evaluate, threshold_for_coverage
 from edb.calibration.temperature import apply_temperature, fit_temperature
-from edb.runners.predict import read_predictions
+from edb.runners.predict import read_prediction_history
 from edb.schemas import Prediction
 from edb.settings import get_settings
 
@@ -21,7 +21,8 @@ class RunSplit:
     run_id: str
     split: str
     manifest: dict[str, Any]
-    predictions: dict[str, Prediction]
+    predictions: dict[str, Prediction]  # latest record per example
+    spend_total: float = 0.0  # all billed records, including superseded retries
 
     @property
     def leaderboards(self) -> list[str]:
@@ -48,11 +49,13 @@ def load_run_split(dataset: str, run_id: str, split: str) -> RunSplit | None:
     d = runs_root(dataset) / run_id / split
     if not (d / "manifest.json").exists():
         return None
+    history = read_prediction_history(d / "predictions.jsonl")
     return RunSplit(
         run_id=run_id,
         split=split,
         manifest=json.loads((d / "manifest.json").read_text(encoding="utf-8")),
-        predictions=read_predictions(d / "predictions.jsonl"),
+        predictions={p.example_id: p for p in history},
+        spend_total=float(sum(p.cost_usd or 0.0 for p in history)),
     )
 
 
@@ -74,6 +77,11 @@ def to_arrays(
             valid[i] = True
     y = np.array([index[p.gold] for p in preds])
     return P, y, valid
+
+
+def stored_choices(preds: list[Prediction], labels: list[str]) -> np.ndarray:
+    index = {v: i for i, v in enumerate(labels)}
+    return np.array([index.get(p.predicted, -1) for p in preds])
 
 
 def _pct(values: list[float], q: float) -> float | None:
@@ -115,6 +123,7 @@ class RunEvaluation:
     calibration_n: int
     ops: dict[str, Any]
     example_ids: list[str] = field(default_factory=list)
+    calibration_note: str | None = None
 
 
 def evaluate_run(
@@ -134,28 +143,41 @@ def evaluate_run(
     if not preds:
         return None
     P, y, valid = to_arrays(preds, labels)
+    choices = stored_choices(preds, labels)
 
-    temperature, calibrated, cal_n = None, None, 0
+    temperature, calibrated, cal_n, cal_note = None, None, 0, None
     cal = load_run_split(dataset, run_id, calibration_split) if split != calibration_split else None
+    if cal is not None and cal.manifest.get("config_hash") != run.manifest.get("config_hash"):
+        cal_note = "calibration split produced with a different config; not used"
+        cal = None
     if cal is not None:
-        cal_preds = [p for p in cal.predictions.values() if p.ok and p.probabilities]
-        cal_n = len(cal_preds)
+        cal_all = list(cal.predictions.values())
+        cal_valid = [p for p in cal_all if p.ok and p.probabilities]
+        cal_n = len(cal_valid)
         if cal_n >= min_calibration:
-            Pc, yc, _ = to_arrays(cal_preds, labels)
+            Pc, yc, _ = to_arrays(cal_valid, labels)
             temperature = fit_temperature(Pc, yc)
-            conf_c = apply_temperature(Pc, temperature).max(axis=1)
+            # Thresholds over ALL calibration requests (failures = confidence 0, as in eval).
+            Pa, _, va = to_arrays(cal_all, labels)
+            conf_c = np.where(va, apply_temperature(Pa, temperature).max(axis=1), 0.0)
             thresholds = {c: threshold_for_coverage(conf_c, c) for c in COVERAGES}
-            calibrated = evaluate(apply_temperature(P, temperature), y, valid, thresholds)
+            calibrated = evaluate(apply_temperature(P, temperature), y, valid, thresholds,
+                                  preferred=choices)
+        else:
+            cal_note = f"only {cal_n} valid calibration predictions (< {min_calibration})"
 
+    ops = operational(preds, run)
+    ops["spend_total_usd"] = run.spend_total
     return RunEvaluation(
         run_id=run_id,
         split=split,
         leaderboards=run.leaderboards,
         config=run.config,
-        raw=evaluate(P, y, valid),
+        raw=evaluate(P, y, valid, preferred=choices),
         calibrated=calibrated,
         temperature=temperature,
         calibration_n=cal_n,
-        ops=operational(preds, run),
+        ops=ops,
         example_ids=[p.example_id for p in preds],
+        calibration_note=cal_note,
     )

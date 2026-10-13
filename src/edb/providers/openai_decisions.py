@@ -94,6 +94,9 @@ class OpenAIDecisions(DecisionMethod):
             }
             result.prob_source = "model"
             result.extras["confidence"] = answer.get("confidence")
+            if result.predicted not in self.values:
+                result.error = f"choice {result.predicted!r} not in catalog"
+                result.predicted = None
         return result
 
     async def call(self, example: Example) -> CallResult:

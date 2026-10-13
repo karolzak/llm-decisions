@@ -1,0 +1,17 @@
+id: s1_emb_centroid
+description: "Bi-encoder: cosine(state, class centroid of train embeddings)."
+leaderboards: [product]
+supervision: supervised   # fits on train-split labels
+dataset: ace
+label_catalogs: [short]
+method:
+  type: embedding
+  model: text-embedding-3-large
+  params:
+    head: centroid
+    views: state
+    fit_split: train
+    tau: 0.05
+run:
+  concurrency: 8
+  max_rpm: 240   # ~1K tokens per ACE example vs 282K TPM deployment limit

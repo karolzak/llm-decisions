@@ -12,6 +12,7 @@ Params:
 from __future__ import annotations
 
 import json
+import math
 import time
 from typing import Any
 
@@ -102,6 +103,9 @@ class AzureOpenAIAutoregressive(DecisionMethod):
                 response, "error", None
             )
             result.extras["incomplete"] = str(details)
+            result.extras["partial_output"] = text
+            result.error = f"response {response.status}: {details}"
+            return result
 
         if self.verbalized:
             self._parse_verbalized(text, result)
@@ -109,7 +113,7 @@ class AzureOpenAIAutoregressive(DecisionMethod):
             parsed = parse_label(text, self.values)
             result.extras["parse_status"] = parsed.status
             if parsed.label is None:
-                result.error = f"unparseable output (status={response.status})"
+                result.error = "unparseable output"
             else:
                 result.predicted = parsed.label
                 result.probabilities = one_hot(parsed.label, self.values)
@@ -129,6 +133,19 @@ class AzureOpenAIAutoregressive(DecisionMethod):
         if parsed.label is None:
             result.error = "label not in catalog"
             return
+        if not math.isfinite(confidence):
+            result.error = f"non-finite confidence {confidence}"
+            return
+        if not 0.0 <= confidence <= 1.0:
+            # Some models answer on a 0-100 scale.
+            if 1.0 < confidence <= 100.0:
+                confidence /= 100.0
+                result.extras["confidence_rescaled"] = True
+            else:
+                result.error = f"confidence out of range: {confidence}"
+                return
+        if confidence <= 1.0 / len(self.values):
+            result.extras["confidence_clamped"] = True
         result.predicted = parsed.label
         result.probabilities = spread_confidence(parsed.label, confidence, self.values)
         result.prob_source = "verbalized"

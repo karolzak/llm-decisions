@@ -16,8 +16,15 @@ EPS = 1e-12
 COVERAGES = (0.8, 0.9, 0.95)
 
 
-def predictions(P: np.ndarray, valid: np.ndarray) -> np.ndarray:
+def predictions(
+    P: np.ndarray, valid: np.ndarray, preferred: np.ndarray | None = None
+) -> np.ndarray:
+    """Argmax per row; on exact ties a `preferred` index (stored prediction) wins if tied."""
     pred = P.argmax(axis=1)
+    if preferred is not None:
+        rows = np.arange(len(P))
+        ok = (preferred >= 0) & (P[rows, np.clip(preferred, 0, None)] == P.max(axis=1))
+        pred = np.where(ok, preferred, pred)
     return np.where(valid, pred, -1)
 
 
@@ -91,8 +98,13 @@ class SelectiveCurve:
 
 
 def threshold_for_coverage(conf: np.ndarray, coverage: float) -> float:
-    """Confidence threshold accepting ~`coverage` of items (fit on the calibration split)."""
-    return float(np.quantile(conf, 1.0 - coverage, method="lower"))
+    """Confidence threshold whose `conf >= t` policy accepts ceil(coverage * n) items.
+
+    Ties at the threshold can push realized coverage above the target.
+    """
+    ordered = np.sort(conf)[::-1]
+    k = max(1, int(np.ceil(coverage * len(ordered) - 1e-9)))
+    return float(ordered[k - 1])
 
 
 def evaluate(
@@ -101,8 +113,9 @@ def evaluate(
     valid: np.ndarray,
     thresholds: dict[float, float] | None = None,
     n_bins: int = 15,
+    preferred: np.ndarray | None = None,
 ) -> dict[str, Any]:
-    pred = predictions(P, valid)
+    pred = predictions(P, valid, preferred)
     correct = pred == y
     conf = np.where(valid, P.max(axis=1), 0.0)
     K = P.shape[1]

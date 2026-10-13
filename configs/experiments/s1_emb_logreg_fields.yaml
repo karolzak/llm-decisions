@@ -1,0 +1,16 @@
+id: s1_emb_logreg_fields
+description: "Bi-encoder: logistic-regression probe on per-field embeddings [a, b, a*b, |a-b|]."
+leaderboards: [product]
+supervision: supervised   # fits on train-split labels
+dataset: ace
+label_catalogs: [short]
+method:
+  type: embedding
+  model: text-embedding-3-large
+  params:
+    head: logreg
+    views: fields
+    fit_split: train
+run:
+  concurrency: 8
+  max_rpm: 240   # ~1K tokens per ACE example vs 282K TPM deployment limit

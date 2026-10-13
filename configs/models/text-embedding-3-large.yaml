@@ -1,9 +1,8 @@
-# Not deployed yet on kz-exp-foundry; deploy an embedding model and adjust `deployment`.
 name: text-embedding-3-large
 provider: azure_openai
-deployment: text-embedding-3-large
+deployment: text-embedding-3-large   # GlobalStandard, 282K TPM / 282 requests per 10 s
 params:
-  max_input_chars: 24000
+  max_input_chars: 24000   # model limit is 8191 tokens per input
 pricing:
   input: 0.13
-  source: placeholder (Azure list price, verify)
+  source: prices.azure.com retail API, 2026-10-12 (text-embedding-3-large-glbl)

@@ -19,6 +19,10 @@ from edb.providers.retry import backoff_delay, classify
 from edb.schemas import Example, LabelCatalog, Prediction, ProbSource, TaskSpec, Usage
 from edb.settings import Settings, get_settings
 
+# Bump when prediction post-processing changes in a way that alters stored predictions
+# (folded into each run's config hash, so outputs from different logic are never mixed).
+PREDICTION_LOGIC_VERSION = 2
+
 
 @dataclass
 class MethodContext:
@@ -70,6 +74,8 @@ class DecisionMethod(ABC):
     def __init__(self, ctx: MethodContext):
         self.ctx = ctx
         self.limiter = RateLimiter(ctx.run.max_rpm) if ctx.run.max_rpm else None
+        # Facts established during setup() (e.g. fitted hyper-parameters), stored in the manifest.
+        self.info: dict[str, Any] = {}
 
     @property
     def values(self) -> list[str]:
@@ -124,10 +130,26 @@ class DecisionMethod(ABC):
         if result is None:
             return pred
 
-        probs = normalize(result.probabilities, self.values)
+        try:
+            probs = normalize(result.probabilities, self.values)
+        except (ValueError, TypeError) as exc:
+            pred.error = f"invalid probabilities: {exc}"
+            pred.raw_output = result.raw_output
+            pred.extras = {**result.extras, "raw_probabilities": result.probabilities}
+            return pred
+        error = result.error
+        if probs is None and error is None:
+            error = "method returned no probability distribution"
+        # Canonical prediction = argmax of the stored distribution (what metrics use). On
+        # exact ties the provider's own choice is kept if it is one of the tied labels.
         predicted = result.predicted
-        if predicted is None and probs:
-            predicted = max(probs, key=probs.get)
+        if probs:
+            top = max(probs.values())
+            tied = [v for v in self.values if probs[v] == top]
+            if result.predicted not in tied:
+                if result.predicted is not None:
+                    result.extras["provider_choice"] = result.predicted
+                predicted = tied[0]
         pred.predicted = predicted
         pred.probabilities = probs
         pred.prob_source = result.prob_source if probs else "none"
@@ -135,21 +157,29 @@ class DecisionMethod(ABC):
         pred.ttft_ms = result.ttft_ms
         pred.usage = result.usage
         pred.cost_usd = api_cost(result.usage, self.ctx.model.pricing if self.ctx.model else None)
-        pred.error = result.error
+        pred.error = error
         pred.extras = result.extras
         return pred
 
 
 def normalize(probs: dict[str, float] | None, values: list[str]) -> dict[str, float] | None:
-    if not probs:
+    """Validate and renormalize a distribution over `values` (missing labels -> 0)."""
+    if probs is None:
         return None
+    if not probs:
+        raise ValueError("empty distribution")
     unknown = set(probs) - set(values)
     if unknown:
         raise ValueError(f"probabilities for unknown labels {sorted(unknown)}")
-    clean = {v: max(0.0, float(probs.get(v, 0.0))) for v in values}
+    clean = {}
+    for v in values:
+        p = float(probs.get(v, 0.0))
+        if not math.isfinite(p) or p < 0:
+            raise ValueError(f"invalid probability {v}={p}")
+        clean[v] = p
     total = sum(clean.values())
-    if not math.isfinite(total) or total <= 0:
-        return None
+    if total <= 0:
+        raise ValueError("probabilities sum to zero")
     return {v: p / total for v, p in clean.items()}
 
 
@@ -158,9 +188,14 @@ def one_hot(label: str, values: list[str]) -> dict[str, float]:
 
 
 def spread_confidence(label: str, confidence: float, values: list[str]) -> dict[str, float]:
-    """Verbalized confidence -> distribution with the remainder spread uniformly."""
-    c = min(1.0, max(0.0, confidence))
-    rest = (1.0 - c) / (len(values) - 1) if len(values) > 1 else 0.0
+    """Verbalized confidence -> distribution with the remainder spread uniformly.
+
+    The confidence must already be validated to [0, 1]. Values at or below 1/K are raised
+    just above uniform so the stated label stays the unique argmax (callers flag this).
+    """
+    k = len(values)
+    c = min(1.0, max(1.0 / k + 1e-6, confidence)) if k > 1 else 1.0
+    rest = (1.0 - c) / (k - 1) if k > 1 else 0.0
     return {v: c if v == label else rest for v in values}
 
 

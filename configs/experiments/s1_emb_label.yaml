@@ -1,0 +1,15 @@
+id: s1_emb_label
+description: "Bi-encoder zero-shot: cosine(state, label text)."
+leaderboards: [product]
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: embedding
+  model: text-embedding-3-large
+  params:
+    head: label
+    views: state
+    tau: 0.05
+run:
+  concurrency: 8
+  max_rpm: 240   # ~1K tokens per ACE example vs 282K TPM deployment limit

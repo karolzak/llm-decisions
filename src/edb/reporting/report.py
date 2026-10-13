@@ -13,6 +13,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
+from edb.config import load_experiment_config  # noqa: E402
 from edb.datasets.store import dataset_labels  # noqa: E402
 from edb.reporting.collect import RunEvaluation, evaluate_run, list_run_ids  # noqa: E402
 from edb.settings import get_settings  # noqa: E402
@@ -24,6 +25,13 @@ LEADERBOARDS = {
 }
 
 
+def _supervision(ev: RunEvaluation) -> str:
+    try:
+        return load_experiment_config(ev.config["experiment"]["id"]).supervision
+    except FileNotFoundError:
+        return "?"
+
+
 def _row(ev: RunEvaluation) -> dict[str, Any]:
     cfg = ev.config
     cal = ev.calibrated or {}
@@ -32,6 +40,7 @@ def _row(ev: RunEvaluation) -> dict[str, Any]:
         "run": ev.run_id,
         "method": cfg["experiment"]["method"]["type"],
         "model": model,
+        "supervision": _supervision(ev),
         "labels": cfg["catalog_role"],
         "n": ev.raw["n"],
         "err": ev.raw["errors"],
@@ -120,7 +129,8 @@ def build_report(dataset: str, split: str = "dev", intersect: bool = True) -> Pa
         "",
         f"Generated {datetime.now(UTC).isoformat(timespec='seconds')}. Temperature `T` is fit "
         "on each run's `calibration` split (never on the evaluated split); `*_cal` columns "
-        "use it. Failed requests count as errors with a uniform distribution.",
+        "use it. Failed requests count as errors with a uniform distribution. "
+        "`supervised` runs fit on the dataset's train labels; `zero_shot` runs do not.",
         "",
     ]
     all_metrics: dict[str, Any] = {}
@@ -135,6 +145,9 @@ def build_report(dataset: str, split: str = "dev", intersect: bool = True) -> Pa
             members = [ev for rid in [m.run_id for m in members]
                        if (ev := evaluate_run(dataset, rid, split, labels, common)) is not None]
             lines += [f"Evaluated on the {len(common)} examples shared by all runs.", ""]
+            if not members:
+                lines += ["_Runs share no examples; use --no-intersect._", ""]
+                continue
         df = pd.DataFrame([_row(ev) for ev in members]).sort_values("acc", ascending=False)
         df.to_csv(out / f"leaderboard_{board}.csv", index=False)
         lines += [_fmt(df), ""]

@@ -50,6 +50,7 @@ uv run pytest
 | Foundry resource / project | `kz-exp-foundry` / `proj-default` |
 | `gpt-6-luna` | GlobalStandard, 250 RPM / 250K TPM |
 | `Decision-1` (Microsoft-Decision-1 v1) | GlobalStandard, **10 RPM** |
+| `text-embedding-3-large` | GlobalStandard, 282K TPM |
 
 Auth is Entra ID only (local auth is disabled): `DefaultAzureCredential`, scope
 `https://cognitiveservices.azure.com/.default`.
@@ -84,8 +85,15 @@ uv run python scripts/run_experiment.py --experiment ... --split test --allow-te
 ```
 
 Outputs: `artifacts/runs/<dataset>/<experiment>__<catalog role>/<split>/predictions.jsonl` plus a
-manifest with the config snapshot/hash. Changing an experiment's config refuses to mix outputs
-(use `--force` to archive the old run).
+manifest with the config snapshot/hash. The manifest is written before any API call. The hash
+covers the method, prompts, catalog, model and data fingerprint, plus
+`PREDICTION_LOGIC_VERSION` in `providers/base.py` (bump it when post-processing changes).
+Changing any of these refuses to mix outputs (use `--force` to archive the old run), and a
+per-split lock prevents two processes from writing the same split. After a hashing-scheme
+change, `scripts/migrate_manifests.py` verifies stored predictions and re-stamps manifests.
+
+Experiments declare `supervision: zero_shot | supervised`. Supervised runs fit on the dataset's
+train labels and are labelled as such in the leaderboards.
 
 ## Experiments
 
@@ -96,9 +104,15 @@ manifest with the config snapshot/hash. Changing an experiment's config refuses 
 | A3 | – | **infeasible on Azure**: gpt-6-luna rejects logprobs ("not supported with reasoning models") |
 | B1 | `b1_decision1` | ready (10 RPM → paced with `max_rpm: 9`) |
 | C1–C5 | – | parked until GPU quota is granted |
-| S1 | `s1_embedding_label`, `s1_embedding_centroid` | **disabled**: needs an embedding deployment (`configs/models/text-embedding-3-large.yaml`) |
+| S1 | `s1_emb_label` (zero-shot), `s1_emb_centroid`, `s1_emb_knn`, `s1_emb_logreg`, `s1_emb_logreg_fields` | ready (`text-embedding-3-large`; train-split embeddings cached in `artifacts/cache/embeddings/`) |
 
 Each experiment runs once per label catalog role (`short`, `verbose`) available for the dataset.
+
+S1 heads share one method (`type: embedding`): the example is embedded live at prediction time
+(honest latency/cost). Learned heads (`centroid`, `knn`, `logreg`) are fit on the `train` split
+only; `logreg` picks its regularisation by group-aware cross-validation within train, so
+dev/calibration/test stay untouched. `views: fields` embeds each state-template field
+separately (ACE: clauses, scenario) and uses `[a, b, a*b, |a-b|]` features.
 
 ## Adding a dataset
 
@@ -113,14 +127,55 @@ Each experiment runs once per label catalog role (`short`, `verbose`) available 
 
 `banking77.yaml` (77 intents, auto labels) is included as the fallback dataset.
 
+To vet a new dataset for shortcuts, run the artifact probe. It fits grouped-CV
+logistic-regression probes on embeddings of each state-template field alone, all fields, and
+the full state, using the train split only:
+
+```powershell
+uv run python scripts/probe_artifacts.py --dataset <name>
+```
+
 ## Datasets
 
-**ACE** (Fujitsu Research, CC BY 4.0): 3,600 train / 1,100 test; `Compliant`, `Non-Compliant`,
-`Not-Applicable`. ACE deliberately reuses scenarios with different clauses (usually with a
-different label): 550 repeated-scenario groups in train. Derived splits are therefore grouped
+ACE (Fujitsu Research, CC BY 4.0) has 3,600 train / 1,100 test examples labelled `Compliant`,
+`Non-Compliant` or `Not-Applicable`. The train labels agree 100% with the
+`DeepSeek_prediction` teacher field, so the data was apparently filtered for agreement with a
+strong LLM. That makes it relatively easy for frontier models. ACE deliberately reuses scenarios
+with different clauses (usually with a different label): 550 repeated-scenario groups in train. Derived splits are therefore grouped
 by `scenario_text` (no group shared between train/dev/calibration). Splits: train 2161 /
 dev 719 / calibration 720. The official test split also shares 360 scenarios with train (always
 with different clauses). This is inherent to the benchmark and is reported in the data manifest.
+
+ACE artifact probe (`probe_artifacts.py`, 5-fold grouped CV on train, chance ≈ 0.33):
+
+| Probe input | CV accuracy |
+|---|---|
+| clauses only | 0.349 |
+| scenario only | 0.600 |
+| clauses + scenario `[a, b, a*b, \|a-b\|]` | 0.892 |
+| full state | 0.850 |
+
+So the scenario wording alone leaks Compliant vs. Non-Compliant (a hypothesis-only artifact),
+and a linear probe on frozen embeddings roughly matches frontier LLMs. ACE is therefore weak at
+separating decision mechanisms.
+
+The official test split differs from the train distribution. gpt-6-luna reaches ~93% on the
+train-derived calibration split but ~70% on test, and Compliant/Non-Compliant recall drops from
+~0.91 to ~0.60 (Not-Applicable is unaffected). The test split was apparently not
+teacher-filtered and contains contested scenarios. As a result, temperature scaling and
+selective-prediction thresholds fitted on the train-derived calibration split are
+overconfident on test. Supervised embedding probes reach 0.80–0.84 on test (0.83 on scenarios
+never seen in train): they learn ACE's labelling conventions, which zero-shot methods cannot.
+
+Microsoft-Decision-1 shifts much less (verbose labels: 0.79 calibration, 0.74 test) and beats
+gpt-6-luna zero-shot on test (0.741 vs. ~0.70). It depends heavily on the label descriptions:
+with short labels it almost never predicts `Not-Applicable` (recall ~0.09; 0.52 with verbose
+descriptions) and over-predicts `Non-Compliant` (recall ~0.98). In ~1.3% of its answers the top
+two probabilities are exactly tied; its own choice (catalog order) is kept and used in metrics.
+
+Note on `--limit`: re-running a split with a different `--limit` or `--sample-seed` adds to the
+same prediction file. Reports evaluate every stored prediction, and each leaderboard is
+intersected to the examples shared by all its runs.
 
 ## Azure ML GPU (parked)
 
