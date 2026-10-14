@@ -1,0 +1,19 @@
+id: c7_oss_early_exit_head
+description: "gpt-oss-20b, early-exit question head: hidden state at the answer position after L layers -> multinomial head (train), L chosen on dev; inference runs only L layers."
+leaderboards: [product, controlled]
+supervision: supervised
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_early_exit_head
+  model: gpt-oss-20b
+  params:
+    reasoning_effort: low
+    layers: [12, 16, 20]
+    l2: [0.0001, 0.001, 0.01, 0.1]
+    fit_split: train
+    select_split: dev
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

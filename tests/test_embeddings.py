@@ -85,3 +85,17 @@ def test_fit_embeddings_are_cached(sandbox, fake_api):
 def test_label_head_rejects_multiple_views(sandbox):
     with pytest.raises(ValueError):
         make_method({"head": "label", "views": "fields"})
+
+
+def test_logreg_fit_is_cached(sandbox, fake_api):
+    first = make_method({"head": "logreg", "cv_folds": 3})
+    asyncio.run(first.setup())
+    second = make_method({"head": "logreg", "cv_folds": 3})
+    asyncio.run(second.setup())
+    assert first.info["fit_cache"] == "miss" and second.info["fit_cache"] == "hit"
+    assert first.info["C"] == second.info["C"]
+    x = np.ones(DIM, dtype=np.float32) / np.sqrt(DIM)
+    assert first.scores(x) == second.scores(x)
+    changed = make_method({"head": "logreg", "cv_folds": 3, "Cs": [0.5]})
+    asyncio.run(changed.setup())
+    assert changed.info["fit_cache"] == "miss"

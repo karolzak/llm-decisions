@@ -25,7 +25,7 @@ def _key(text: str) -> str:
 
 class EmbeddingCache:
     def __init__(self, deployment: str):
-        root = get_settings().artifacts_dir / "cache" / "embeddings"
+        root = get_settings().cache_dir / "embeddings"
         self.path: Path = root / f"{deployment}.npz"
         self._rows: dict[str, np.ndarray] = {}
         if self.path.exists():

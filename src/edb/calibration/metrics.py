@@ -14,6 +14,14 @@ from sklearn.metrics import f1_score
 
 EPS = 1e-12
 COVERAGES = (0.8, 0.9, 0.95)
+# Confidences are rounded before ranking/thresholding so floating-point noise (e.g. from
+# temperature-scaling one-hot rows whose 1 sits in different positions) cannot create a
+# spurious ordering between mathematically tied predictions.
+CONF_DECIMALS = 10
+
+
+def confidences(P: np.ndarray, valid: np.ndarray) -> np.ndarray:
+    return np.round(np.where(valid, P.max(axis=1), 0.0), CONF_DECIMALS)
 
 
 def predictions(
@@ -102,7 +110,7 @@ def threshold_for_coverage(conf: np.ndarray, coverage: float) -> float:
 
     Ties at the threshold can push realized coverage above the target.
     """
-    ordered = np.sort(conf)[::-1]
+    ordered = np.sort(np.round(conf, CONF_DECIMALS))[::-1]
     k = max(1, int(np.ceil(coverage * len(ordered) - 1e-9)))
     return float(ordered[k - 1])
 
@@ -117,7 +125,7 @@ def evaluate(
 ) -> dict[str, Any]:
     pred = predictions(P, valid, preferred)
     correct = pred == y
-    conf = np.where(valid, P.max(axis=1), 0.0)
+    conf = confidences(P, valid)
     K = P.shape[1]
     curve = SelectiveCurve(conf, correct)
     out: dict[str, Any] = {

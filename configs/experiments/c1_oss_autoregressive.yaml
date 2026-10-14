@@ -1,0 +1,16 @@
+id: c1_oss_autoregressive
+description: "gpt-oss-20b, autoregressive generation (harmony, reasoning=low); one-hot."
+leaderboards: [product, controlled]
+supervision: zero_shot
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_autoregressive
+  model: gpt-oss-20b
+  params:
+    reasoning_effort: low
+    max_new_tokens: 4096
+run:
+  concurrency: 1      # one GPU, batch 1: latency = GPU time per decision
+  timeout_s: 900
+  max_retries: 1

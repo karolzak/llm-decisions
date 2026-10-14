@@ -1,8 +1,10 @@
 name: gpt-oss-20b
 provider: local_hf
 hf_model_id: openai/gpt-oss-20b
-# Set to the pay-as-you-go hourly price of the GPU VM used (cost = GPU seconds x price).
-gpu_hourly_price_usd: 4.775  # Standard_NC24ads_A100_v4, swedencentral
+# Cost = GPU seconds x hourly price. On-demand price of Standard_NC24ads_A100_v4 (1x A100 80GB,
+# swedencentral) for product comparisons; runs use the low-priority cluster (~$0.94/h).
+gpu_hourly_price_usd: 4.775
 params:
   dtype: bfloat16
-  device_map: auto
+  # attn_implementation: eager   # default for gpt-oss (attention sinks)
+  # dequantize: true             # force bf16 instead of MXFP4 kernels

@@ -31,7 +31,7 @@ local = [
     "torch>=2.8",
     "transformers>=4.56",
     "accelerate>=1.10",
-    "kernels>=0.9",
+    "kernels>=0.9; sys_platform == 'linux'",
     "safetensors>=0.6",
     "huggingface-hub>=0.34",
     "nvidia-ml-py>=12.0",
@@ -58,6 +58,8 @@ default-groups = ["dev"]
 # Reproducible package snapshot. Also keeps resolution within what the internal feed proxy
 # (packagefeedproxy.microsoft.io, which lags PyPI by several days) has mirrored.
 exclude-newer = "2026-10-04T00:00:00Z"
+# regex 2026.9.29 ships no Windows wheel via the feed proxy (sdist needs MSVC).
+constraint-dependencies = ["regex<2026.9.29"]
 # Dev on Windows; GPU runs on Linux x86_64 (Azure ML compute instance).
 environments = [
     "sys_platform == 'win32'",

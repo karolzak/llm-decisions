@@ -1,0 +1,18 @@
+id: c2p_oss_sequence_prior
+description: "gpt-oss-20b, C2 sequence likelihood with content-free prior correction (contextual calibration)."
+leaderboards: [product, controlled]
+supervision: zero_shot
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_sequence_scoring
+  model: gpt-oss-20b
+  params:
+    reasoning_effort: low
+    kv_reuse: false
+    length_norm: sum
+    prior: content_free
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

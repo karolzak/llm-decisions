@@ -1,0 +1,18 @@
+id: d2_oss_sequence_scoring_unbatched
+description: "Diagnostic: C2 with one forward pass per candidate (no batching/padding); isolates bf16 numerics in C2 vs C3."
+leaderboards: []
+supervision: zero_shot
+dataset: ace
+label_catalogs: [short]
+method:
+  type: local_sequence_scoring
+  model: gpt-oss-20b
+  params:
+    reasoning_effort: low
+    kv_reuse: false
+    batched: false
+    length_norm: sum
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

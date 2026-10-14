@@ -1,0 +1,40 @@
+{
+  "dataset": "ace",
+  "split": "train",
+  "n": 2161,
+  "majority_baseline": 0.3336,
+  "probes": {
+    "field:clauses": {
+      "cv_accuracy": 0.3489,
+      "recall_per_class": {
+        "Compliant": 0.297,
+        "Non-Compliant": 0.3,
+        "Not-Applicable": 0.449
+      }
+    },
+    "field:scenario_text": {
+      "cv_accuracy": 0.6002,
+      "recall_per_class": {
+        "Compliant": 0.676,
+        "Non-Compliant": 0.718,
+        "Not-Applicable": 0.406
+      }
+    },
+    "fields:all": {
+      "cv_accuracy": 0.8917,
+      "recall_per_class": {
+        "Compliant": 0.847,
+        "Non-Compliant": 0.883,
+        "Not-Applicable": 0.945
+      }
+    },
+    "state": {
+      "cv_accuracy": 0.8496,
+      "recall_per_class": {
+        "Compliant": 0.85,
+        "Non-Compliant": 0.872,
+        "Not-Applicable": 0.827
+      }
+    }
+  }
+}

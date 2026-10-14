@@ -101,16 +101,18 @@ def _plot_reliability(evals: list[RunEvaluation], path: Path) -> None:
 
 
 def _plot_risk_coverage(evals: list[RunEvaluation], path: Path) -> None:
-    fig, ax = plt.subplots(figsize=(6, 4))
-    for ev in evals:
+    fig, ax = plt.subplots(figsize=(7, 4.5))
+    colors = plt.get_cmap("tab20").colors
+    for i, ev in enumerate(evals):
         result = ev.calibrated or ev.raw
         pts = result["risk_coverage"]
         ax.plot([p["coverage"] for p in pts], [p["risk"] for p in pts],
+                color=colors[i % len(colors)], linestyle=("-", "--", ":")[i // 7 % 3],
                 label=f"{ev.run_id} (AURC={result['aurc']:.3f})")
     ax.set_xlabel("coverage")
     ax.set_ylabel("risk (error rate)")
     ax.set_xlim(0, 1)
-    ax.legend(fontsize=7)
+    ax.legend(fontsize=6, loc="center left", bbox_to_anchor=(1.01, 0.5))
     fig.tight_layout()
     fig.savefig(path, dpi=130)
     plt.close(fig)

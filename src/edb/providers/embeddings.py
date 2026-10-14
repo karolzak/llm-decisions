@@ -24,9 +24,12 @@ Params:
 
 from __future__ import annotations
 
+import hashlib
+import pickle
 from typing import Any
 
 import numpy as np
+import sklearn
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GroupKFold, cross_val_score
 from sklearn.pipeline import make_pipeline
@@ -54,6 +57,17 @@ def combine_views(views: list[np.ndarray]) -> np.ndarray:
 
 def _unit(x: np.ndarray) -> np.ndarray:
     return x / np.linalg.norm(x, axis=-1, keepdims=True)
+
+
+def _fit_key(X: np.ndarray, y: np.ndarray, groups: np.ndarray, Cs: list[float],
+             folds: int) -> str:
+    """Identity of a logreg fit: exact training data + hyper-parameter grid + sklearn version."""
+    h = hashlib.sha256()
+    for arr in (np.ascontiguousarray(X, dtype=np.float32), y.astype(np.int64)):
+        h.update(arr.tobytes())
+    h.update("\x00".join(groups.tolist()).encode())
+    h.update(repr((sorted(Cs), folds, sklearn.__version__)).encode())
+    return h.hexdigest()[:20]
 
 
 class EmbeddingMethod(DecisionMethod):
@@ -128,6 +142,13 @@ class EmbeddingMethod(DecisionMethod):
             return
 
         groups = np.array([e.group or e.id for e in examples])
+        key = _fit_key(X, y, groups, self.Cs, self.cv_folds)
+        cache = self.ctx.settings.cache_dir / "heads" / f"logreg-{key}.pkl"
+        if cache.exists():
+            self._clf, fit_info = pickle.loads(cache.read_bytes())
+            self.info.update(fit_info, fit_cache="hit")
+            return
+
         folds = list(GroupKFold(n_splits=self.cv_folds).split(X, y, groups))
 
         def make(c: float):
@@ -138,7 +159,10 @@ class EmbeddingMethod(DecisionMethod):
                    for c in self.Cs}
         best = min(cv_loss, key=cv_loss.get)
         self._clf = make(best).fit(X, y)
-        self.info.update({"C": best, "cv_log_loss": cv_loss})
+        fit_info = {"C": best, "cv_log_loss": cv_loss}
+        self.info.update(fit_info, fit_cache="miss")
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_bytes(pickle.dumps((self._clf, fit_info)))
 
     def scores(self, features: np.ndarray) -> dict[str, float]:
         """Class probabilities for one feature vector."""

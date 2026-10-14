@@ -1,0 +1,16 @@
+id: c4_oss_cross_encoder
+description: "gpt-oss-20b, cross-encoder: per-candidate Yes/No margin, softmax over candidates."
+leaderboards: [product, controlled]
+supervision: zero_shot
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_cross_encoder
+  model: gpt-oss-20b
+  params:
+    reasoning_effort: low
+    kv_reuse: true
+run:
+  concurrency: 1      # one GPU, batch 1: latency = GPU time per decision
+  timeout_s: 900
+  max_retries: 1

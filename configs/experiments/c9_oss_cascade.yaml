@@ -1,0 +1,15 @@
+id: c9_oss_cascade
+description: "Offline adaptive cascade (scripts/build_cascade.py): fast debiased letter readout, escalate to reason-then-read below a confidence threshold fitted on calibration."
+leaderboards: [product, controlled]
+supervision: zero_shot
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: offline_cascade
+  model: gpt-oss-20b
+  params:
+    fast: c6p_oss_letter_debiased
+    slow: c8_oss_reason_then_read
+    max_drop: 0.005
+enabled: false
+notes: Built offline from stored runs with scripts/build_cascade.py (no model calls).

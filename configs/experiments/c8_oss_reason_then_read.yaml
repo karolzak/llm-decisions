@@ -1,0 +1,16 @@
+id: c8_oss_reason_then_read
+description: "gpt-oss-20b, reason then read: generate the analysis channel, then read option-marker probabilities at the final answer position."
+leaderboards: [product, controlled]
+supervision: zero_shot
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_reason_then_read
+  model: gpt-oss-20b
+  params:
+    reasoning_effort: low
+    max_new_tokens: 4096
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

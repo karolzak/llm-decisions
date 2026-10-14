@@ -33,6 +33,7 @@ from edb.config import (
     load_model_config,
 )
 from edb.datasets.store import dataset_fingerprint, dataset_labels, load_split, sample_examples
+from edb.local import SCORING_VERSION as LOCAL_SCORING_VERSION
 from edb.prompts import ANSWER_JSON_CONFIDENCE, ANSWER_LABEL, DEFAULT_SYSTEM_PROMPT
 from edb.providers.base import PREDICTION_LOGIC_VERSION, MethodContext
 from edb.providers.registry import build_method
@@ -72,6 +73,8 @@ class RunSpec:
             "catalog": self.catalog.model_dump(mode="json"),
             "model": self.model.model_dump(mode="json", exclude={"pricing"})
             if self.model else None,
+            **({"local_scoring_version": LOCAL_SCORING_VERSION}
+               if self.model and self.model.provider == "local_hf" else {}),
         }
 
     def context(self, concurrency: int | None = None) -> MethodContext:

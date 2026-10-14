@@ -1,0 +1,17 @@
+id: c6_oss_letter_readout
+description: "gpt-oss-20b, option-letter readout: one forward pass, softmax over option-marker tokens."
+leaderboards: [product, controlled]
+supervision: zero_shot
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_letter_readout
+  model: gpt-oss-20b
+  params:
+    reasoning_effort: low
+    rotations: 1
+    prior: none
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

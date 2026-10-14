@@ -32,7 +32,8 @@ class FakeMethod(DecisionMethod):
 @pytest.fixture
 def fake_registry(monkeypatch):
     original = registry._registry
-    monkeypatch.setattr(registry, "_registry", lambda: {**original(), "fake": FakeMethod})
+    monkeypatch.setattr(registry, "_registry",
+                        lambda include_local=False: {**original(), "fake": FakeMethod})
 
 
 def test_run_resume_and_report(sandbox, fake_registry):
@@ -73,3 +74,21 @@ def test_config_change_requires_force(sandbox, fake_registry):
         asyncio.run(run_split(spec, "dev", limit=3))
     out = asyncio.run(run_split(spec, "dev", limit=3, force=True))
     assert out["n"] == 3
+
+def test_latency_benchmark_sets_up_once(sandbox, fake_registry, monkeypatch):
+    from edb.runners.latency import benchmark
+
+    setups = {"n": 0}
+    original = FakeMethod.setup
+
+    async def counting_setup(self):
+        setups["n"] += 1
+        await original(self)
+
+    monkeypatch.setattr(FakeMethod, "setup", counting_setup)
+    spec = resolve_runs("fake_exp", catalogs=["short"])[0]
+    summary = asyncio.run(benchmark(spec, "dev", n=6, warmup=2, reps=2, concurrencies=(1, 3)))
+    assert setups["n"] == 1
+    for conc in ("1", "3"):
+        s = summary["by_concurrency"][conc]
+        assert s["calls"] == 12 and s["errors"] == 0 and s["p50_ms"] is not None

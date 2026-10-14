@@ -7,7 +7,7 @@ Everything experiment-specific (deployments, prompts, labels, datasets) lives in
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -40,9 +40,22 @@ class Settings(BaseSettings):
 
     hf_token: str | None = Field(default=None, repr=False)
 
+    # Azure ML workspace + GPU cluster for local-model (C-series) jobs.
+    aml_workspace: str = "kz-exp-aml"
+    aml_compute: str = "cc-nc24ads-a100"
+
     configs_dir: Path = REPO_ROOT / "configs"
     data_dir: Path = REPO_ROOT / "data"
     artifacts_dir: Path = REPO_ROOT / "artifacts"
+    # Large reusable caches (embeddings, fitted heads, hidden-state features); defaults to
+    # <artifacts_dir>/cache. Remote jobs point it at local disk to avoid syncing it.
+    cache_dir: Path | None = None
+
+    @model_validator(mode="after")
+    def _default_cache_dir(self) -> "Settings":
+        if self.cache_dir is None:
+            self.cache_dir = self.artifacts_dir / "cache"
+        return self
 
     @property
     def openai_base_url(self) -> str:

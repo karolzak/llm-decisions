@@ -7,6 +7,8 @@ non-generative readouts on `openai/gpt-oss-20b`. See [exp-plan.md](exp-plan.md).
 Everything is **dataset-agnostic**: datasets, label catalogs, task instructions, models and
 experiments are YAML configs; code never hard-codes labels or prompts for a specific dataset.
 
+Results: [ACE baseline (2026-10-13)](docs/results/2026-10-13-ace-baseline/README.md).
+
 ## Layout
 
 ```
@@ -26,7 +28,7 @@ src/edb/
   runners/            resumable prediction runner, latency benchmark
   reporting/          leaderboards, reliability + risk/coverage plots, markdown report
 scripts/              prepare_data, run_preflight, run_experiment, run_latency, build_report
-infra/aml/            Azure ML GPU provisioning (parked)
+infra/aml/            Azure ML GPU jobs (run_job.sh, requirements export, managed VNet setup)
 artifacts/            outputs (git-ignored)
 ```
 
@@ -103,7 +105,18 @@ train labels and are labelled as such in the leaderboards.
 | A2 | `a2_openai_decisions` | **disabled**: Azure returns 404 for `/openai/v1/decisions`; needs `OPENAI_API_KEY` (OpenAI platform) |
 | A3 | – | **infeasible on Azure**: gpt-6-luna rejects logprobs ("not supported with reasoning models") |
 | B1 | `b1_decision1` | ready (10 RPM → paced with `max_rpm: 9`) |
-| C1–C5 | – | parked until GPU quota is granted |
+| C1 | `c1_oss_autoregressive` | gpt-oss-20b, harmony generation (reasoning=low), one-hot |
+| C2 | `c2_oss_sequence_scoring` | softmax over Σ log p(label tokens + `<\|return\|>`), independent sequences |
+| C3 | `c3_oss_kv_scoring` | as C2 with the prompt encoded once and the KV cache branched per candidate (scores equal C2) |
+| C4 | `c4_oss_cross_encoder` | per-candidate Yes/No margin (state + one candidate), softmax over candidates |
+| C5 | `c5_oss_listwise_head` | options listed after the state; frozen hidden states at each option's last token → shared linear head (train), layer/L2 chosen on dev (supervised) |
+| C2+ | `c2p_oss_sequence_prior` | C2 with a content-free prior subtracted per label (contextual calibration) |
+| C6 | `c6_oss_letter_readout` | options listed with single-token markers (A–Z, or 1–K for >26 options); one forward pass, softmax over marker tokens |
+| C6+ | `c6p_oss_letter_debiased` | C6 averaged over cyclic option orderings (up to 4, KV-shared prefix) with a content-free prior |
+| C7 | `c7_oss_early_exit_head` | hidden state at the answer position after L layers → multinomial head (train); L ∈ {12, 16, 20} chosen on dev; inference runs only L layers (supervised) |
+| C8 | `c8_oss_reason_then_read` | generate the reasoning (analysis) channel, stop at the final channel, read marker probabilities instead of sampling |
+| C9 | `c9_oss_cascade` | offline (`scripts/build_cascade.py`): C6+ first, escalate to C8 below a confidence threshold fitted on calibration (within 0.5 pt of C8) |
+| D2 | `d2_oss_sequence_scoring_unbatched` | diagnostic only (no leaderboard): C2 with one forward per candidate, to measure bf16 batch-shape noise |
 | S1 | `s1_emb_label` (zero-shot), `s1_emb_centroid`, `s1_emb_knn`, `s1_emb_logreg`, `s1_emb_logreg_fields` | ready (`text-embedding-3-large`; train-split embeddings cached in `artifacts/cache/embeddings/`) |
 
 Each experiment runs once per label catalog role (`short`, `verbose`) available for the dataset.
@@ -177,7 +190,45 @@ Note on `--limit`: re-running a split with a different `--limit` or `--sample-se
 same prediction file. Reports evaluate every stored prediction, and each leaderboard is
 intersected to the examples shared by all its runs.
 
-## Azure ML GPU (parked)
+## Azure ML GPU runs (C-series)
 
-`infra/aml/` holds the provisioning/bootstrap scripts for gpt-oss-20b runs; parked until GPU
-quota is granted. Recommended size: `Standard_NC24ads_A100_v4` (1× A100 80 GB).
+C-series experiments run as Azure ML command jobs on the low-priority cluster `cc-nc24ads-a100`
+(`Standard_NC24ads_A100_v4`, 1× A100 80 GB, 0–12 nodes) in workspace `kz-exp-aml`. There is one
+job per experiment × label catalog.
+
+```powershell
+uv sync --extra aml --extra local
+# pilot (separate output namespace; collect into a separate local root)
+uv run --extra aml python scripts/aml_submit.py --experiment c2_oss_sequence_scoring --catalog short --split dev --limit 20 --tag pilot
+uv run --extra aml python scripts/aml_collect.py --tag pilot --dest artifacts/pilot
+# full runs, then collect into artifacts/runs and build the report as usual
+uv run --extra aml python scripts/aml_submit.py --experiment c1_oss_autoregressive c2_oss_sequence_scoring c3_oss_kv_scoring c4_oss_cross_encoder c5_oss_listwise_head --split calibration test --allow-test
+uv run --extra aml python scripts/aml_collect.py --tag main
+```
+
+- Jobs use a public base image. `infra/aml/run_job.sh` installs Python 3.12 and the
+  `uv.lock`-pinned requirements (`infra/aml/env/requirements.txt`, regenerate with
+  `uv export --extra local --no-hashes --no-emit-project --no-header --no-annotate --format requirements-txt -o infra/aml/env/requirements.txt`).
+- Each run unit writes to a fixed blob path (`edb/<tag>/<dataset>/<run_id>/`) synced every
+  3 minutes. A preempted or resubmitted job resumes from it.
+- Local methods run at concurrency 1 with batch size 1. Per-request latency is GPU time, and cost
+  is GPU seconds × the on-demand A100 price (`configs/models/gpt-oss-20b.yaml`).
+- The local test suite exercises all C-methods on a tiny random gpt-oss model with the real
+  tokenizer. It checks that C2 and C3 scores are identical, C4 KV-reuse matches independent
+  scoring, and the C5 option positions are correct.
+
+### Networking (SFI policy)
+
+The `MCAPSGovDeployPolicies` / `SFI-NS2.2.1` policy forces storage accounts private. The
+workspace storage `kzexpaml9403165457` is therefore set up as follows:
+
+- `publicNetworkAccess: SecuredByPerimeter`, associated (Enforced) with the Network Security
+  Perimeter `kz-exp-nsp`. Its inbound rules allow the dev laptop IP (`45.59.123.126/32`) and this
+  subscription. **Update the IP rule if your public IP changes.**
+- Key-based auth is disabled. Datastores use identity auth
+  (`systemDatastoresAuthMode: identity`). Jobs use the submitting user's identity. Your user and
+  the workspace identity have `Storage Blob Data Contributor`; the workspace identity also has
+  `Storage File Data Privileged Contributor`.
+- The workspace uses a managed VNet (`AllowInternetOutbound`). The cluster reaches storage through
+  managed private endpoints and has internet access for Hugging Face and PyPI
+  (`infra/aml/enable_managed_vnet.py`).

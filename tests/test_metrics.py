@@ -65,3 +65,19 @@ def test_temperature_on_one_hot_matches_accuracy():
     y = np.array([0, 1, 2, 0, 1, 2, 0, 1, 1, 1])  # 8/10 correct
     Q = apply_temperature(P, fit_temperature(P, y))
     assert Q.max(axis=1).mean() == pytest.approx(0.8, abs=0.01)
+
+
+def test_scaled_one_hot_has_no_spurious_ranking():
+    # Errors concentrated in one predicted class must not change AURC after scaling:
+    # all one-hot confidences are mathematically tied, so AURC == error rate.
+    pred = np.array([0] * 50 + [1] * 50 + [2] * 50)
+    y = pred.copy()
+    y[100:120] = 0  # 20 errors, all among class-2 predictions
+    P = np.eye(3)[pred]
+    valid = np.ones(len(y), dtype=bool)
+    for T in (0.5, 4.367761191181849):
+        maxima = apply_temperature(np.eye(3), T).max(axis=1)
+        assert len(set(maxima.tolist())) > 1  # precondition: float noise really occurs
+        res = evaluate(apply_temperature(P, T), y, valid)
+        assert res["aurc"] == pytest.approx(20 / 150)
+        assert res["acc@80"] == pytest.approx(130 / 150)

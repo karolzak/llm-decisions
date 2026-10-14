@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-from edb.calibration.metrics import COVERAGES, evaluate, threshold_for_coverage
+from edb.calibration.metrics import COVERAGES, confidences, evaluate, threshold_for_coverage
 from edb.calibration.temperature import apply_temperature, fit_temperature
 from edb.runners.predict import read_prediction_history
 from edb.schemas import Prediction
@@ -159,7 +159,7 @@ def evaluate_run(
             temperature = fit_temperature(Pc, yc)
             # Thresholds over ALL calibration requests (failures = confidence 0, as in eval).
             Pa, _, va = to_arrays(cal_all, labels)
-            conf_c = np.where(va, apply_temperature(Pa, temperature).max(axis=1), 0.0)
+            conf_c = confidences(apply_temperature(Pa, temperature), va)
             thresholds = {c: threshold_for_coverage(conf_c, c) for c in COVERAGES}
             calibrated = evaluate(apply_temperature(P, temperature), y, valid, thresholds,
                                   preferred=choices)

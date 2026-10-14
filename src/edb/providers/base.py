@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
 from edb.config import DatasetConfig, ModelConfig, RunConfig
-from edb.pricing import api_cost
+from edb.pricing import api_cost, gpu_cost
 from edb.providers.retry import backoff_delay, classify
 from edb.schemas import Example, LabelCatalog, Prediction, ProbSource, TaskSpec, Usage
 from edb.settings import Settings, get_settings
@@ -156,7 +156,12 @@ class DecisionMethod(ABC):
         pred.raw_output = result.raw_output
         pred.ttft_ms = result.ttft_ms
         pred.usage = result.usage
-        pred.cost_usd = api_cost(result.usage, self.ctx.model.pricing if self.ctx.model else None)
+        model = self.ctx.model
+        if model is not None and model.provider == "local_hf":
+            gpu_s = (result.extras.get("gpu_ms") or latency_ms or 0.0) / 1000
+            pred.cost_usd = gpu_cost(gpu_s, model.gpu_hourly_price_usd)
+        else:
+            pred.cost_usd = api_cost(result.usage, model.pricing if model else None)
         pred.error = error
         pred.extras = result.extras
         return pred
