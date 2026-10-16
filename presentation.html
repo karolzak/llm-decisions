@@ -1017,63 +1017,54 @@ confidence < .70       → human review</div>
 <!-- 9b — MICROSOFT-DECISION-1 -->
 <!-- ========================================================= -->
 
-<section class="slide dense">
+<section class="slide">
   <div class="eyebrow">9 Oct 2026 · Microsoft Foundry</div>
 
   <h2>Microsoft-Decision-1</h2>
 
-  <div class="grid two">
+  <div class="grid three">
 
     <div class="card">
       <h3 class="purple">What it is</h3>
       <ul class="small">
-        <li>A decision-scoring model for routing, classification, prioritisation, verification and workflow control</li>
-        <li>No prose: given a <strong>state</strong> and a fixed set of options, it returns a <strong>calibrated probability per option</strong></li>
-        <li><strong>Built by post-training Qwen3.5-9B</strong> for fast single-pass scoring; Microsoft plans to rebase it on MAI and OpenAI models</li>
-        <li>Available in Microsoft Foundry (GlobalStandard, DataZoneStandard) and on OpenRouter</li>
-        <li>$0.042 per 1M input tokens; output tokens are free</li>
+        <li>Decision scoring for routing, classification, prioritisation, verification, workflow control</li>
+        <li>No prose: <strong>state</strong> + fixed options in, <strong>calibrated probability per option</strong> out</li>
+        <li><strong>Post-trained Qwen3.5-9B</strong> for single-pass scoring; to be rebased on MAI and OpenAI models</li>
+        <li>Microsoft Foundry and OpenRouter · $0.042 per 1M input tokens, output free</li>
       </ul>
     </div>
 
     <div class="card">
       <h3 class="purple">Same programming model as Jev</h3>
-      <div class="code">POST …/providers/microsoft/v1/systemone
-{ "state": "The API returns 500 on every call.",
+      <div class="code">POST …/microsoft/v1/systemone
+{ "state": "API returns 500",
   "questions": { "team": {
     "type": "choice",
-    "criteria": { "billing": "...",
-                  "engineering": "...",
-                  "support": "..." } } } }</div>
-      <p class="small" style="margin-top:8px">Question types: <strong>noul</strong> (is this true?) · <strong>choice</strong> (which option?) ·
-        <strong>score</strong> (how much, on an ordered scale?)</p>
+    "criteria": {
+      "billing": "...",
+      "engineering": "..." }}}}</div>
+      <p class="small" style="margin-top:8px"><strong>noul</strong> (true?) · <strong>choice</strong> (which?) ·
+        <strong>score</strong> (how much?)</p>
     </div>
 
-  </div>
-
-  <div class="grid two" style="margin-top:14px">
     <div class="card">
       <h3 class="orange">Microsoft's claims</h3>
       <ul class="small">
-        <li>Highest accuracy in a 36-benchmark comparison (~150k questions, blind from training)</li>
-        <li>P50 latency 2.5× faster than H2O-Lightning-4B, ~35× faster than GPT-6 Sol</li>
-        <li>Decision flips on 1.3% of perturbed inputs; none when options are reordered or paraphrased</li>
+        <li>Best accuracy across 36 benchmarks (~150k questions, blind from training)</li>
+        <li>P50 2.5× faster than H2O-Lightning-4B, ~35× faster than GPT-6 Sol</li>
+        <li>Flips on 1.3% of perturbed inputs; none when options are reordered</li>
+        <li>Xbox Research labelling: ~GPT-6 Sol quality, 14× faster, 200× cheaper</li>
       </ul>
     </div>
-    <div class="card">
-      <h3 class="cyan">Already used inside Microsoft</h3>
-      <ul class="small">
-        <li>Xbox Research: labelled 10k+ pieces of feedback, ~GPT-6 Sol quality, 14× faster, 200× cheaper</li>
-        <li>Copilot quality control, incident-response retrieval, Microsoft Discovery replanning</li>
-      </ul>
-    </div>
+
   </div>
 
-  <div class="callout small" style="margin-top:12px">
+  <div class="callout small" style="margin-top:14px">
     Note the recipe: a <strong>post-trained open 9B base model</strong> behind a Jev-style API (even the word "noul").
     Not a giant new model; a trained decision readout. We benchmark it as B1 in Part 1.
   </div>
 
-  <p class="tiny">Sources: Microsoft Command Line blog "Microsoft-Decision-1: Our model for fast decision-making"; Microsoft Learn "Deploy and use Microsoft-Decision-1 in Microsoft Foundry". Benchmarks are Microsoft's own.</p>
+  <p class="tiny">Sources: Microsoft Command Line blog "Microsoft-Decision-1: Our model for fast decision-making" (9 Oct 2026); Microsoft Learn "Deploy and use Microsoft-Decision-1 in Microsoft Foundry". Benchmarks are Microsoft's own.</p>
 
   <div class="footer">
     <span>Microsoft-Decision-1</span>
