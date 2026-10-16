@@ -19,9 +19,8 @@ from edb.reporting.collect import RunEvaluation, evaluate_run, list_run_ids  # n
 from edb.settings import get_settings  # noqa: E402
 
 LEADERBOARDS = {
-    "product": "Product leaderboard: what works best in practice?",
-    "controlled": "Controlled readout leaderboard: same model (gpt-oss-20b), different "
-    "decision mechanism",
+    "product": "Products and baselines: GPT-6 Luna, Decision-1, embeddings (A / B / S)",
+    "controlled": "Open-weight model: gpt-oss-20b, same weights, different readout (C-series)",
 }
 
 
@@ -30,6 +29,14 @@ def _supervision(ev: RunEvaluation) -> str:
         return load_experiment_config(ev.config["experiment"]["id"]).supervision
     except FileNotFoundError:
         return "?"
+
+
+def _leaderboards(ev: RunEvaluation) -> list[str]:
+    """Current experiment config wins, so regrouping runs needs no re-run (not hashed)."""
+    try:
+        return load_experiment_config(ev.config["experiment"]["id"]).leaderboards
+    except FileNotFoundError:
+        return ev.leaderboards
 
 
 def _row(ev: RunEvaluation) -> dict[str, Any]:
@@ -137,7 +144,7 @@ def build_report(dataset: str, split: str = "dev", intersect: bool = True) -> Pa
     ]
     all_metrics: dict[str, Any] = {}
     for board, title in LEADERBOARDS.items():
-        members = [ev for ev in evals if board in ev.leaderboards]
+        members = [ev for ev in evals if board in _leaderboards(ev)]
         lines += [f"## {title}", ""]
         if not members:
             lines += ["_No runs yet._", ""]

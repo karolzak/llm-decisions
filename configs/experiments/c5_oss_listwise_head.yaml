@@ -1,6 +1,6 @@
 id: c5_oss_listwise_head
 description: "gpt-oss-20b, listwise head on frozen option hidden states (trained on train, selected on dev)."
-leaderboards: [product, controlled]
+leaderboards: [controlled]
 supervision: supervised
 dataset: ace
 label_catalogs: [short, verbose]

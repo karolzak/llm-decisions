@@ -66,6 +66,18 @@ def test_run_resume_and_report(sandbox, fake_registry):
     assert (report.parent / "reliability_product.png").exists()
 
 
+def test_report_regroups_from_current_config(sandbox, fake_registry):
+    """Leaderboard membership follows the experiment config, not the stored manifest."""
+    spec = resolve_runs("fake_exp", catalogs=["short"])[0]
+    for split in ("dev", "calibration"):
+        asyncio.run(run_split(spec, split, limit=12))
+    cfg = sandbox / "configs" / "experiments" / "fake_exp.yaml"
+    cfg.write_text(cfg.read_text(encoding="utf-8").replace(
+        "leaderboards: [product]", "leaderboards: [controlled]"), encoding="utf-8")
+    metrics = json.loads((build_report("toy", "dev").parent / "metrics.json").read_text())
+    assert "fake_exp__short" in metrics["controlled"] and "product" not in metrics
+
+
 def test_config_change_requires_force(sandbox, fake_registry):
     spec = resolve_runs("fake_exp", catalogs=["short"])[0]
     asyncio.run(run_split(spec, "dev", limit=3))

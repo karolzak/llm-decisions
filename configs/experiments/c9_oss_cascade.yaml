@@ -1,6 +1,6 @@
 id: c9_oss_cascade
 description: "Offline adaptive cascade (scripts/build_cascade.py): fast debiased letter readout, escalate to reason-then-read below a confidence threshold fitted on calibration."
-leaderboards: [product, controlled]
+leaderboards: [controlled]
 supervision: zero_shot
 dataset: ace
 label_catalogs: [short, verbose]

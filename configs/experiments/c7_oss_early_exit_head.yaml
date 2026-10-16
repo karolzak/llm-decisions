@@ -1,6 +1,6 @@
 id: c7_oss_early_exit_head
 description: "gpt-oss-20b, early-exit question head: hidden state at the answer position after L layers -> multinomial head (train), L chosen on dev; inference runs only L layers."
-leaderboards: [product, controlled]
+leaderboards: [controlled]
 supervision: supervised
 dataset: ace
 label_catalogs: [short, verbose]

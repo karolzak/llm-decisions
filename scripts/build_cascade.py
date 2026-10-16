@@ -118,7 +118,7 @@ def main() -> int:
                     "".join(p.model_dump_json() + "\n" for p in preds), encoding="utf-8")
                 manifest = {"run_id": run_id, "dataset": ds.name, "split": split,
                             "config_hash": chash, "config": snapshot,
-                            "leaderboards": ["product", "controlled"],
+                            "leaderboards": ["controlled"],
                             "sessions": [{"started_at": datetime.now(UTC).isoformat(
                                 timespec="seconds"), "submitted": len(preds), "offline": True}]}
                 (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n",

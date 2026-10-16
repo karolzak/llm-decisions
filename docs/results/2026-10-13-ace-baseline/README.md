@@ -1,5 +1,8 @@
 # ACE baseline results (2026-10-13)
 
+> The C-series results (H2, H4, H5) and the BANKING77 rerun are in the follow-up:
+> [C-series readouts + BANKING77 (2026-10-14)](../2026-10-14-c-series-banking77/README.md).
+
 Dataset: ACE (Fujitsu, CC BY 4.0), 3 labels. Evaluated on the **official test split**
 (1,100 examples, sealed until these runs). Calibration (temperature, selective thresholds) is fit
 on the train-derived `calibration` split (720 examples). Every experiment ran on all 1,100 test

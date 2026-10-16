@@ -1,6 +1,6 @@
 id: c6p_oss_letter_debiased
 description: "gpt-oss-20b, option-letter readout averaged over cyclic option orderings with a content-free prior."
-leaderboards: [product, controlled]
+leaderboards: [controlled]
 supervision: zero_shot
 dataset: ace
 label_catalogs: [short, verbose]

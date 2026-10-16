@@ -1,6 +1,6 @@
 id: c4_oss_cross_encoder
 description: "gpt-oss-20b, cross-encoder: per-candidate Yes/No margin, softmax over candidates."
-leaderboards: [product, controlled]
+leaderboards: [controlled]
 supervision: zero_shot
 dataset: ace
 label_catalogs: [short, verbose]

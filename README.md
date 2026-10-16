@@ -7,7 +7,14 @@ non-generative readouts on `openai/gpt-oss-20b`. See [exp-plan.md](exp-plan.md).
 Everything is **dataset-agnostic**: datasets, label catalogs, task instructions, models and
 experiments are YAML configs; code never hard-codes labels or prompts for a specific dataset.
 
-Results: [ACE baseline (2026-10-13)](docs/results/2026-10-13-ace-baseline/README.md).
+Results:
+- [ACE baseline (2026-10-13)](docs/results/2026-10-13-ace-baseline/README.md): API methods and
+  embeddings on ACE.
+- [C-series readouts + BANKING77 (2026-10-14)](docs/results/2026-10-14-c-series-banking77/README.md):
+  Part 1 covers products and baselines (A, B, S) on ACE and BANKING77. Part 2, reported
+  separately, covers all gpt-oss-20b readouts (C1–C9).
+
+How each method works, with a diagram per experiment: [docs/methods.md](docs/methods.md).
 
 ## Layout
 
@@ -97,6 +104,14 @@ change, `scripts/migrate_manifests.py` verifies stored predictions and re-stamps
 Experiments declare `supervision: zero_shot | supervised`. Supervised runs fit on the dataset's
 train labels and are labelled as such in the leaderboards.
 
+Experiments also declare `leaderboards`, and results are reported in two separate parts that
+are never ranked against each other:
+- `product`: products and baselines (A, B, S) on hosted APIs.
+- `controlled`: open-weight readouts (C) on gpt-oss-20b, same weights throughout.
+
+Reports read the current experiment config to group runs. The grouping is not part of the
+config hash, so regrouping needs no re-run.
+
 ## Experiments
 
 | ID | Config | Status |
@@ -110,9 +125,9 @@ train labels and are labelled as such in the leaderboards.
 | C3 | `c3_oss_kv_scoring` | as C2 with the prompt encoded once and the KV cache branched per candidate (scores equal C2) |
 | C4 | `c4_oss_cross_encoder` | per-candidate Yes/No margin (state + one candidate), softmax over candidates |
 | C5 | `c5_oss_listwise_head` | options listed after the state; frozen hidden states at each option's last token → shared linear head (train), layer/L2 chosen on dev (supervised) |
-| C2+ | `c2p_oss_sequence_prior` | C2 with a content-free prior subtracted per label (contextual calibration) |
+| C2+ | `c2p_oss_sequence_prior` | C2 with a content-free prior subtracted per label (contextual calibration). The `N/A` content-free state collides with ACE's `Not-Applicable` label (see results) |
 | C6 | `c6_oss_letter_readout` | options listed with single-token markers (A–Z, or 1–K for >26 options); one forward pass, softmax over marker tokens |
-| C6+ | `c6p_oss_letter_debiased` | C6 averaged over cyclic option orderings (up to 4, KV-shared prefix) with a content-free prior |
+| C6+ | `c6p_oss_letter_debiased` | C6 averaged over cyclic option orderings (up to 4, KV-shared prefix) with a content-free prior (same `N/A` caveat as C2+) |
 | C7 | `c7_oss_early_exit_head` | hidden state at the answer position after L layers → multinomial head (train); L ∈ {12, 16, 20} chosen on dev; inference runs only L layers (supervised) |
 | C8 | `c8_oss_reason_then_read` | generate the reasoning (analysis) channel, stop at the final channel, read marker probabilities instead of sampling |
 | C9 | `c9_oss_cascade` | offline (`scripts/build_cascade.py`): C6+ first, escalate to C8 below a confidence threshold fitted on calibration (within 0.5 pt of C8) |
@@ -120,6 +135,7 @@ train labels and are labelled as such in the leaderboards.
 | S1 | `s1_emb_label` (zero-shot), `s1_emb_centroid`, `s1_emb_knn`, `s1_emb_logreg`, `s1_emb_logreg_fields` | ready (`text-embedding-3-large`; train-split embeddings cached in `artifacts/cache/embeddings/`) |
 
 Each experiment runs once per label catalog role (`short`, `verbose`) available for the dataset.
+Plain-language explanations and a diagram for every experiment: [docs/methods.md](docs/methods.md).
 
 S1 heads share one method (`type: embedding`): the example is embedded live at prediction time
 (honest latency/cost). Learned heads (`centroid`, `knn`, `logreg`) are fit on the `train` split

@@ -1,6 +1,6 @@
 id: c2_oss_sequence_scoring
 description: "gpt-oss-20b, candidate sequence likelihood, independent sequences (no reasoning)."
-leaderboards: [product, controlled]
+leaderboards: [controlled]
 supervision: zero_shot
 dataset: ace
 label_catalogs: [short, verbose]

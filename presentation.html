@@ -347,6 +347,8 @@ th {
   margin: 30px 0;
 }
 
+.timeline.five { grid-template-columns: repeat(5, 1fr); }
+
 .timeline-item {
   position: relative;
   padding: 22px;
@@ -373,8 +375,159 @@ th {
   text-align: center;
 }
 
+/* ---------- results section ---------- */
+
+.slide.dense { justify-content: flex-start; padding-top: 4.5vh; }
+.slide.dense h2 { margin-bottom: 16px; }
+
+.small, .small p, .small li { font-size: clamp(13px, .95vw, 17px); }
+.tiny { font-size: 12px; color: #8597ad; }
+
+.bars {
+  display: grid;
+  grid-template-columns: minmax(200px, 24%) 1fr 64px 76px;
+  gap: 5px 14px;
+  align-items: center;
+  font-size: clamp(13px, .95vw, 17px);
+}
+
+.bars .hdr {
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.bar-track {
+  height: 17px;
+  background: rgba(255,255,255,.05);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.bar-fill { height: 100%; border-radius: 5px; }
+.fill-api { background: var(--orange); }
+.fill-dec { background: var(--purple); }
+.fill-oss { background: var(--blue); }
+.fill-emb { background: var(--green); }
+.fill-trained {
+  background: repeating-linear-gradient(45deg, #55d6d0, #55d6d0 6px, #3aa9a4 6px, #3aa9a4 12px);
+}
+.fill-emb-trained {
+  background: repeating-linear-gradient(45deg, #6ee7a8, #6ee7a8 6px, #4cc086 6px, #4cc086 12px);
+}
+
+.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+.legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 12px;
+}
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.methods {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 12px;
+}
+
+.mcard {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.mcard h3 { font-size: clamp(15px, 1.15vw, 20px); margin: 0 0 6px; }
+.mcard p { font-size: clamp(12px, .85vw, 15px); margin: 4px 0 6px; color: var(--muted); line-height: 1.35; }
+.mcard .code { font-size: clamp(11px, .78vw, 14px); padding: 8px 10px; line-height: 1.35; border-radius: 10px; }
+.mcard.trained { border-color: rgba(85,214,208,.55); }
+.mcard.reason { border-color: rgba(255,184,107,.45); }
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 14px;
+  margin: 10px 0 6px;
+}
+
+.kpi {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.kpi .label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.kpi .vs { display: flex; justify-content: space-between; align-items: baseline; margin-top: 6px; gap: 8px; }
+.kpi .a { font-size: clamp(22px, 2vw, 34px); font-weight: 700; }
+.kpi .b { font-size: clamp(16px, 1.3vw, 22px); color: var(--muted); }
+.kpi .who { font-size: 12px; color: #8597ad; }
+
+.stack-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 26%) 1fr 70px;
+  gap: 14px;
+  align-items: center;
+  margin: 6px 0;
+  font-size: clamp(13px, .95vw, 17px);
+}
+
+.stack {
+  display: flex;
+  height: 26px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(255,255,255,.05);
+}
+
+.stack div {
+  height: 100%;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #07111f;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.s-c { background: var(--green); }
+.s-nc { background: var(--red); }
+.s-na { background: #8a9bb0; }
+
+.flow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.flow .node { min-width: 0; padding: 10px 14px; font-size: clamp(13px, .95vw, 17px); }
+.flow .arrow { font-size: 22px; }
+.node.dim { opacity: .45; border-style: dashed; }
+.node.cyan { border-color: var(--cyan); box-shadow: 0 0 24px rgba(85,214,208,.15); }
+.node.orange { border-color: var(--orange); }
+
+.evidence li { margin: 6px 0; }
+
 @media (max-width: 900px) {
-  .grid.two, .grid.three, .branch, .timeline {
+  .grid.two, .grid.three, .branch, .timeline, .timeline.five, .methods, .kpis {
     grid-template-columns: 1fr;
   }
 
@@ -807,15 +960,15 @@ confidence < .70       → human review</div>
 
 
 <!-- ========================================================= -->
-<!-- 9 — OAI TIMELINE -->
+<!-- 9 — OAI + MICROSOFT TIMELINE -->
 <!-- ========================================================= -->
 
 <section class="slide">
   <div class="eyebrow">And then things got interesting...</div>
 
-  <h2>Two weeks later: OpenAI Decisions API</h2>
+  <h2>Within four weeks: OpenAI Decisions API and Microsoft-Decision-1</h2>
 
-  <div class="timeline">
+  <div class="timeline five">
 
     <div class="timeline-item">
       <span class="badge">15 Sep</span>
@@ -841,15 +994,90 @@ confidence < .70       → human review</div>
       <p>Developers get access.</p>
     </div>
 
+    <div class="timeline-item" style="border-color:rgba(185,156,255,.45)">
+      <span class="badge" style="background:rgba(185,156,255,.12); color:var(--purple); border-color:rgba(185,156,255,.3)">9 Oct</span>
+      <h3 style="margin-top:14px">Microsoft-Decision-1</h3>
+      <p>Microsoft launches its own decision model in Foundry.</p>
+    </div>
+
   </div>
 
   <p class="big-quote" style="text-align:center">
-    Coincidence?
+    Coincidence? Or a new category?
   </p>
 
   <div class="footer">
-    <span>OpenAI Decisions</span>
+    <span>OpenAI Decisions · Microsoft-Decision-1</span>
     <span>9</span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- 9b — MICROSOFT-DECISION-1 -->
+<!-- ========================================================= -->
+
+<section class="slide dense">
+  <div class="eyebrow">9 Oct 2026 · Microsoft Foundry</div>
+
+  <h2>Microsoft-Decision-1</h2>
+
+  <div class="grid two">
+
+    <div class="card">
+      <h3 class="purple">What it is</h3>
+      <ul class="small">
+        <li>A decision-scoring model for routing, classification, prioritisation, verification and workflow control</li>
+        <li>No prose: given a <strong>state</strong> and a fixed set of options, it returns a <strong>calibrated probability per option</strong></li>
+        <li><strong>Built by post-training Qwen3.5-9B</strong> for fast single-pass scoring; Microsoft plans to rebase it on MAI and OpenAI models</li>
+        <li>Available in Microsoft Foundry (GlobalStandard, DataZoneStandard) and on OpenRouter</li>
+        <li>$0.042 per 1M input tokens; output tokens are free</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3 class="purple">Same programming model as Jev</h3>
+      <div class="code">POST …/providers/microsoft/v1/systemone
+{ "state": "The API returns 500 on every call.",
+  "questions": { "team": {
+    "type": "choice",
+    "criteria": { "billing": "...",
+                  "engineering": "...",
+                  "support": "..." } } } }</div>
+      <p class="small" style="margin-top:8px">Question types: <strong>noul</strong> (is this true?) · <strong>choice</strong> (which option?) ·
+        <strong>score</strong> (how much, on an ordered scale?)</p>
+    </div>
+
+  </div>
+
+  <div class="grid two" style="margin-top:14px">
+    <div class="card">
+      <h3 class="orange">Microsoft's claims</h3>
+      <ul class="small">
+        <li>Highest accuracy in a 36-benchmark comparison (~150k questions, blind from training)</li>
+        <li>P50 latency 2.5× faster than H2O-Lightning-4B, ~35× faster than GPT-6 Sol</li>
+        <li>Decision flips on 1.3% of perturbed inputs; none when options are reordered or paraphrased</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 class="cyan">Already used inside Microsoft</h3>
+      <ul class="small">
+        <li>Xbox Research: labelled 10k+ pieces of feedback, ~GPT-6 Sol quality, 14× faster, 200× cheaper</li>
+        <li>Copilot quality control, incident-response retrieval, Microsoft Discovery replanning</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout small" style="margin-top:12px">
+    Note the recipe: a <strong>post-trained open 9B base model</strong> behind a Jev-style API (even the word "noul").
+    Not a giant new model; a trained decision readout. We benchmark it as B1 in Part 1.
+  </div>
+
+  <p class="tiny">Sources: Microsoft Command Line blog "Microsoft-Decision-1: Our model for fast decision-making"; Microsoft Learn "Deploy and use Microsoft-Decision-1 in Microsoft Foundry". Benchmarks are Microsoft's own.</p>
+
+  <div class="footer">
+    <span>Microsoft-Decision-1</span>
+    <span>10</span>
   </div>
 </section>
 
@@ -1447,44 +1675,794 @@ decisions</div>
 
 
 <!-- ========================================================= -->
-<!-- 20 — EXPERIMENT PLACEHOLDER -->
+<!-- 20 — EXPERIMENTS: TWO SEPARATE PARTS -->
 <!-- ========================================================= -->
 
 <section class="slide">
-  <div class="eyebrow">Next: empirical evidence</div>
+  <div class="eyebrow">Empirical evidence</div>
 
-  <h2>Experiments — in progress</h2>
+  <h2>Two separate experiments, <span class="purple">never ranked against each other</span></h2>
 
-  <div class="placeholder">
+  <div class="grid two">
 
-    <p class="big-quote" style="margin:auto">
-      Can we reproduce decision-model behavior
-      <span class="purple">without training a purpose-built decision model?</span>
-    </p>
-
-    <div class="diagram" style="margin-top:40px">
-      <div class="node">Autoregressive</div>
-      <div class="arrow">→</div>
-      <div class="node">Bounded decision</div>
-      <div class="arrow">→</div>
-      <div class="node">Candidate scoring</div>
-      <div class="arrow">→</div>
-      <div class="node">Listwise readout</div>
+    <div class="card">
+      <span class="badge orange">Part 1</span>
+      <h3 class="orange" style="margin-top:12px">Products and baselines</h3>
+      <p><strong>GPT-6 Luna</strong> (generate the label) · <strong>Microsoft-Decision-1</strong> (decision API) ·
+        <strong>text-embedding-3-large</strong> baselines.</p>
+      <p class="muted">Hosted models: we only control the request.
+        <em>Which product works best for bounded decisions?</em></p>
     </div>
 
-    <p class="muted" style="margin-top:30px">
-      Accuracy · Calibration · Latency · Cost
-    </p>
+    <div class="card">
+      <span class="badge">Part 2</span>
+      <h3 class="blue" style="margin-top:12px">Open-weight model: gpt-oss-20b</h3>
+      <p>One model, <strong>identical weights</strong> in every run, on one A100.
+        Only the <em>readout</em> changes: how we ask, and how we read the answer.</p>
+      <p class="muted"><em>Holding the model fixed, what does the readout alone buy?</em></p>
+    </div>
 
-    <p class="purple" style="font-weight:700; margin-top:25px">
-      RESULTS TBD
-    </p>
+  </div>
 
+  <div class="grid two" style="margin-top:18px">
+    <div class="card small">
+      <p><strong>ACE</strong>: is this scenario compliant with these contract clauses? 3 options, needs reasoning over
+        conditions, exceptions and deadlines. <span class="muted">1,100 test examples.</span></p>
+    </div>
+    <div class="card small">
+      <p><strong>BANKING77</strong>: which of 77 intents is this customer message? Mostly "recognise it at a glance".
+        <span class="muted">3,080 test examples.</span></p>
+    </div>
+  </div>
+
+  <div class="warning small">
+    Different models, sizes, serving stacks and hardware: a Part 2 number next to a Part 1 number says nothing about the
+    decision mechanism. Measured in both parts: accuracy · calibration · can it abstain? · latency · cost.
   </div>
 
   <div class="footer">
     <span>Experiments</span>
-    <span>20</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P1 — DIVIDER -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Part 1</div>
+
+  <h1>Products and baselines</h1>
+
+  <p class="subtitle">
+    What you can call today: a general LLM that writes its answer, a purpose-built decision API,
+    and the cheapest thing that could possibly work (embeddings).
+  </p>
+
+  <div class="diagram">
+    <div class="node" style="border-color:var(--orange)">A · GPT-6 Luna<br><span class="tiny">generate, parse the label</span></div>
+    <div class="node purple">B · Microsoft-Decision-1<br><span class="tiny">state + options → probabilities</span></div>
+    <div class="node green">S · text-embedding-3-large<br><span class="tiny">similarity or a small classifier</span></div>
+  </div>
+
+  <p class="tiny">OpenAI Decisions API (same idea on GPT-6 Luna) is not yet available on Azure.</p>
+
+  <div class="footer">
+    <span>Part 1 · Products</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P1 — RESULTS -->
+<!-- ========================================================= -->
+
+<section class="slide dense">
+  <div class="eyebrow">Part 1 · Results</div>
+
+  <h2>Decision-1 is the best zero-shot product on both datasets</h2>
+
+  <div class="grid two">
+
+    <div>
+      <h3 class="cyan">ACE · 3 options</h3>
+      <div class="bars" style="grid-template-columns: minmax(150px, 46%) 1fr 52px">
+        <span>Embeddings + logreg <span class="tiny">trained</span></span>
+        <div class="bar-track"><div class="bar-fill fill-emb-trained" style="width:84.4%"></div></div><span class="num">0.844</span>
+
+        <span><strong>Decision-1</strong>, with criteria</span>
+        <div class="bar-track"><div class="bar-fill fill-dec" style="width:74.1%"></div></div><span class="num"><strong>0.741</strong></span>
+
+        <span>GPT-6 Luna + verbalized conf.</span>
+        <div class="bar-track"><div class="bar-fill fill-api" style="width:70.7%"></div></div><span class="num">0.707</span>
+
+        <span>GPT-6 Luna, label only</span>
+        <div class="bar-track"><div class="bar-fill fill-api" style="width:70.1%"></div></div><span class="num">0.701</span>
+
+        <span>Decision-1, label names only</span>
+        <div class="bar-track"><div class="bar-fill fill-dec" style="width:61.9%"></div></div><span class="num">0.619</span>
+
+        <span>Embedding label similarity</span>
+        <div class="bar-track"><div class="bar-fill fill-emb" style="width:34.5%"></div></div><span class="num">0.345</span>
+      </div>
+    </div>
+
+    <div>
+      <h3 class="cyan">BANKING77 · 77 options</h3>
+      <div class="bars" style="grid-template-columns: minmax(150px, 46%) 1fr 52px">
+        <span>Embeddings + logreg <span class="tiny">trained</span></span>
+        <div class="bar-track"><div class="bar-fill fill-emb-trained" style="width:94.4%"></div></div><span class="num">0.944</span>
+
+        <span>Embeddings + kNN <span class="tiny">trained</span></span>
+        <div class="bar-track"><div class="bar-fill fill-emb-trained" style="width:93.6%"></div></div><span class="num">0.936</span>
+
+        <span><strong>Decision-1</strong></span>
+        <div class="bar-track"><div class="bar-fill fill-dec" style="width:87.0%"></div></div><span class="num"><strong>0.870</strong></span>
+
+        <span>GPT-6 Luna + verbalized conf.</span>
+        <div class="bar-track"><div class="bar-fill fill-api" style="width:82.9%"></div></div><span class="num">0.829</span>
+
+        <span>GPT-6 Luna, label only</span>
+        <div class="bar-track"><div class="bar-fill fill-api" style="width:82.9%"></div></div><span class="num">0.829</span>
+
+        <span>Embedding label similarity</span>
+        <div class="bar-track"><div class="bar-fill fill-emb" style="width:57.0%"></div></div><span class="num">0.570</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <span><span class="swatch fill-dec"></span>Decision-1</span>
+    <span><span class="swatch fill-api"></span>GPT-6 Luna</span>
+    <span><span class="swatch fill-emb"></span>embeddings, zero-shot</span>
+    <span><span class="swatch fill-emb-trained"></span>embeddings + classifier trained on the dataset's labels</span>
+  </div>
+
+  <div class="callout small" style="margin-top:14px">
+    Have a few thousand labelled examples? <strong>Embeddings + logistic regression</strong> win: 0.944 on BANKING77
+    at <strong>$0.002 per 1k</strong> decisions, ~120 ms. Without labels, embeddings are weak (label similarity 0.57 / 0.35).
+  </div>
+
+  <div class="footer">
+    <span>Part 1 · Results</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P1 — DECISION-1 VS GPT-6 LUNA -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Part 1 · Finding</div>
+
+  <h2>Decision-1: more accurate, and its probabilities are usable as-is</h2>
+
+  <table>
+    <thead>
+      <tr><th>BANKING77 (unless noted)</th><th>Decision-1</th><th>GPT-6 Luna, label only</th><th>GPT-6 Luna + verbalized confidence</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Accuracy (ACE, best wording)</td><td><strong>0.870 (0.741)</strong></td><td>0.829 (0.701)</td><td>0.829 (0.707)</td></tr>
+      <tr><td>Calibration error, ECE ↓, no tuning</td><td><strong>0.015</strong></td><td>0.171</td><td>0.078</td></tr>
+      <tr><td>Accuracy on its most confident ~80%</td><td><strong>0.936</strong></td><td>can't abstain: always "100% sure"</td><td>0.888</td></tr>
+      <tr><td>Median latency</td><td><strong>744 ms</strong></td><td>1.5 s</td><td>1.1 s</td></tr>
+      <tr><td>Cost per 1k decisions</td><td><strong>$0.034</strong></td><td>$0.083</td><td>$0.139</td></tr>
+    </tbody>
+  </table>
+
+  <div class="grid two" style="margin-top:18px">
+    <div class="card">
+      <h3 class="orange">But it leans on the option wording</h3>
+      <p class="small">ACE with label names only: 0.62, and it almost never says <em>Not-Applicable</em> (recall 0.10).
+        With one-sentence criteria per option: 0.74, recall 0.52.</p>
+    </div>
+    <div class="card">
+      <h3 class="orange">Asking an LLM for its confidence helps, partly</h3>
+      <p class="small">Verbalized confidence makes GPT-6 Luna able to abstain, but it does not survive ACE's
+        harder test set (calibration error stays at 0.19 even after recalibration).</p>
+    </div>
+  </div>
+
+  <p class="tiny">Calibration error (ECE): average gap between stated confidence and observed accuracy. "90% sure" should be right 9 times in 10.</p>
+
+  <div class="footer">
+    <span>Part 1 · Decision-1</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P2 — DIVIDER -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Part 2</div>
+
+  <h1>One open model, nine readouts</h1>
+
+  <p class="subtitle">
+    <strong>gpt-oss-20b</strong>, same weights in every run. We can't see inside Jev or Decision-1,
+    but we can see inside this one, so we test the "possibilities" from earlier directly.
+  </p>
+
+  <div class="flow" style="margin-top:24px">
+    <div class="node">state + options</div><div class="arrow">→</div>
+    <div class="node cyan">same model, same weights</div><div class="arrow">→</div>
+    <div class="node highlight">readout?</div><div class="arrow">→</div>
+    <div class="node">P(option 1) … P(option K)</div>
+  </div>
+
+  <div class="callout">
+    <strong>Readout</strong> = how we turn the model's internal state into a decision:
+    let it write the answer, score each label, read one token's probabilities, or put a small trained layer on its activations.
+  </div>
+
+  <div class="footer">
+    <span>Part 2 · Open model</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P2 — NINE WAYS TO ASK -->
+<!-- ========================================================= -->
+
+<section class="slide dense">
+  <div class="eyebrow">Part 2 · Same model, nine ways to ask</div>
+
+  <h2>The readouts we built</h2>
+
+  <div class="methods">
+
+    <div class="mcard reason">
+      <h3>C1 · Generate <span class="badge orange">baseline</span></h3>
+      <p>Think, write the label, parse it.</p>
+      <div class="code">prompt → reasoning → "Non-Compliant"
+→ parse → one-hot</div>
+    </div>
+
+    <div class="mcard">
+      <h3>C2 / C3 · Score each label</h3>
+      <p>Force every label as the answer, compare likelihoods. C3 encodes the state once and branches the KV cache.</p>
+      <div class="code">P("Compliant")  P("Non-Compliant")
+P("Not-Applicable") → softmax</div>
+    </div>
+
+    <div class="mcard">
+      <h3>C4 · Yes/No per candidate</h3>
+      <p>Cross-encoder: "is this the right decision?", one option at a time.</p>
+      <div class="code">(state, A) → Yes/No   (state, B) → Yes/No
+(state, C) → Yes/No → softmax</div>
+    </div>
+
+    <div class="mcard">
+      <h3>C6 · List options, read one token</h3>
+      <p>All options in the prompt, ONE forward pass, read the letter distribution.</p>
+      <div class="code">[A] Compliant [B] Non-Compliant [C] N/A
+→ P(A) P(B) P(C)</div>
+    </div>
+
+    <div class="mcard">
+      <h3>C2+ / C6+ · Debiased</h3>
+      <p>Average over option orders; subtract the model's prior from a content-free input.</p>
+      <div class="code">mean over orders  −  prior("N/A")</div>
+    </div>
+
+    <div class="mcard reason">
+      <h3>C8 · Reason, then read</h3>
+      <p>Let it think, then <em>read</em> P(A..C) at the answer instead of sampling.</p>
+      <div class="code">prompt → reasoning → read P(A) P(B) P(C)</div>
+    </div>
+
+    <div class="mcard reason">
+      <h3>C9 · Cascade</h3>
+      <p>Fast readout first; escalate to reasoning only when unsure.</p>
+      <div class="code">C6+ → max P ≥ t ? answer : C8</div>
+    </div>
+
+    <div class="mcard trained">
+      <h3>C5 · Listwise head <span class="badge green">trained</span></h3>
+      <p>Hidden state of each listed option → one shared linear scorer. Base model frozen.</p>
+      <div class="code">h(option k) at layer 16 → w·h → softmax</div>
+    </div>
+
+    <div class="mcard trained">
+      <h3>C7 · Early-exit head <span class="badge green">trained</span></h3>
+      <p>Run only 16–20 of 24 layers; linear head on the answer position.</p>
+      <div class="code">layers 1..16 → h(answer) → W·h → softmax</div>
+    </div>
+
+  </div>
+
+  <p class="tiny" style="margin-top:10px">
+    Maps to the possibilities: cross-encoder (#2) = C4 · shared state (#3) = C3 · listwise (#4) = C5/C6.
+    "Trained" = a linear layer fit on the dataset's train labels (2k–6k examples); everything else is zero-shot.
+    Diagrams per method: docs/methods.md
+  </p>
+
+  <div class="footer">
+    <span>Part 2 · Readouts</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P2 — RESULTS BANKING77 -->
+<!-- ========================================================= -->
+
+<section class="slide dense">
+  <div class="eyebrow">Part 2 · Results · BANKING77 · 77 intents</div>
+
+  <h2>Intent routing: one forward pass gets close to generating</h2>
+
+  <div class="bars">
+    <span class="hdr">Readout (gpt-oss-20b)</span><span class="hdr">Test accuracy</span><span class="hdr num">Acc</span><span class="hdr num">p50</span>
+
+    <span>C7 early-exit head <span class="tiny">trained</span></span>
+    <div class="bar-track"><div class="bar-fill fill-trained" style="width:90.8%"></div></div>
+    <span class="num">0.908</span><span class="num muted">93 ms</span>
+
+    <span>C5 listwise head <span class="tiny">trained</span></span>
+    <div class="bar-track"><div class="bar-fill fill-trained" style="width:90.3%"></div></div>
+    <span class="num">0.903</span><span class="num muted">114 ms</span>
+
+    <span>C8 reason, then read</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:83.1%"></div></div>
+    <span class="num">0.831</span><span class="num muted">1.1 s</span>
+
+    <span>C9 cascade</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:82.7%"></div></div>
+    <span class="num">0.827</span><span class="num muted">662 ms</span>
+
+    <span>C1 generate <span class="tiny">baseline</span></span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:80.6%"></div></div>
+    <span class="num">0.806</span><span class="num muted">949 ms</span>
+
+    <span>C6+ letter, debiased</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:80.4%"></div></div>
+    <span class="num">0.804</span><span class="num muted">660 ms</span>
+
+    <span>C6 letter, one pass</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:79.1%"></div></div>
+    <span class="num">0.791</span><span class="num muted">116 ms</span>
+
+    <span>C2+ / C2 / C3 score each label</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:78.2%"></div></div>
+    <span class="num">0.78</span><span class="num muted">4.1–4.6 s</span>
+
+    <span>C4 Yes/No per candidate</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:74.4%"></div></div>
+    <span class="num">0.744</span><span class="num muted">4.2 s</span>
+  </div>
+
+  <div class="legend">
+    <span><span class="swatch fill-oss"></span>zero-shot readout</span>
+    <span><span class="swatch fill-trained"></span>trained linear head on frozen activations</span>
+    <span>latency = A100 GPU time, batch 1</span>
+  </div>
+
+  <div class="callout small" style="margin-top:14px">
+    Reading one token after listing the options (C6) lands within 1.5 points of generating, at 1/8 of the latency.
+    Scoring all 77 labels one by one (C2–C4) is 35–39× slower and no more accurate.
+  </div>
+
+  <div class="footer">
+    <span>Part 2 · BANKING77</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P2 — RESULTS ACE -->
+<!-- ========================================================= -->
+
+<section class="slide dense">
+  <div class="eyebrow">Part 2 · Results · ACE · contract compliance, 3 options</div>
+
+  <h2>Compliance: zero-shot readouts without reasoning collapse</h2>
+
+  <div class="bars">
+    <span class="hdr">Readout (gpt-oss-20b)</span><span class="hdr">Test accuracy</span><span class="hdr num">Acc</span><span class="hdr num">p50</span>
+
+    <span>C5 listwise head <span class="tiny">trained</span></span>
+    <div class="bar-track"><div class="bar-fill fill-trained" style="width:93.7%"></div></div>
+    <span class="num">0.937</span><span class="num muted">104 ms</span>
+
+    <span>C7 early-exit head <span class="tiny">trained</span></span>
+    <div class="bar-track"><div class="bar-fill fill-trained" style="width:93.1%"></div></div>
+    <span class="num">0.931</span><span class="num muted">69 ms</span>
+
+    <span>C9 cascade</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:76.9%"></div></div>
+    <span class="num">0.769</span><span class="num muted">2.3 s</span>
+
+    <span>C1 generate <span class="tiny">baseline</span></span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:75.7%"></div></div>
+    <span class="num">0.757</span><span class="num muted">2.3 s</span>
+
+    <span>C8 reason, then read</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:75.3%"></div></div>
+    <span class="num">0.753</span><span class="num muted">2.4 s</span>
+
+    <span>C4 Yes/No per candidate</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:61.9%"></div></div>
+    <span class="num">0.619</span><span class="num muted">265 ms</span>
+
+    <span>C6 letter, one pass</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:58.9%"></div></div>
+    <span class="num">0.589</span><span class="num muted">114 ms</span>
+
+    <span>C2+ score labels + prior *</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:54.9%"></div></div>
+    <span class="num">0.549</span><span class="num muted">268 ms</span>
+
+    <span>C2 / C3 score each label</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:49.7%"></div></div>
+    <span class="num">0.497</span><span class="num muted">0.26 s</span>
+
+    <span>C6+ letter, debiased *</span>
+    <div class="bar-track"><div class="bar-fill fill-oss" style="width:46.2%"></div></div>
+    <span class="num">0.462</span><span class="num muted">279 ms</span>
+  </div>
+
+  <div class="legend">
+    <span>Best label wording per readout (names vs. names + criteria)</span>
+    <span>* our debiasing has a flaw on ACE: the "content-free" input <code>N/A</code> reads as <em>Not-Applicable</em></span>
+    <span>chance = 0.33</span>
+  </div>
+
+  <div class="callout small" style="margin-top:14px">
+    Readouts that reason first land at 0.75–0.77. Zero-shot readouts without reasoning fall to 0.46–0.62.
+    A linear head on the <em>same activations</em> reaches 0.93.
+  </div>
+
+  <div class="footer">
+    <span>Part 2 · ACE</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P2 — FINDING 1: SYSTEM ONE WORKS FOR SYSTEM ONE TASKS -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Part 2 · Finding 1 · BANKING77</div>
+
+  <h2>For "at a glance" decisions, one forward pass ≈ generating an answer</h2>
+
+  <div class="flow">
+    <div class="node">state</div><div class="arrow">+</div>
+    <div class="node">[1] Refund_not_showing_up … [77] wrong_exchange_rate_for_cash_withdrawal</div><div class="arrow">→</div>
+    <div class="node cyan">ONE forward pass</div><div class="arrow">→</div>
+    <div class="node">P(1) … P(77)</div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="label">Accuracy</div>
+      <div class="vs"><span class="a cyan">0.791</span><span class="b">0.806</span></div>
+      <div class="who">1.5 points lower</div></div>
+    <div class="kpi"><div class="label">Median latency</div>
+      <div class="vs"><span class="a cyan">116 ms</span><span class="b">949 ms</span></div>
+      <div class="who">8× faster</div></div>
+    <div class="kpi"><div class="label">Confidence ranking (AURC ↓)</div>
+      <div class="vs"><span class="a cyan">0.078</span><span class="b">0.186</span></div>
+      <div class="who">top-80% accuracy 0.875 vs. can't abstain</div></div>
+    <div class="kpi"><div class="label">Invented labels</div>
+      <div class="vs"><span class="a cyan">0</span><span class="b">30</span></div>
+      <div class="who">e.g. <code>get_virtual_card</code></div></div>
+  </div>
+
+  <p class="small" style="margin:4px 0 0">
+    <span class="cyan"><strong>Big number: C6</strong></span> (list options, read one token)
+    · <span class="muted">small number: C1 (reason, then generate the label)</span>
+  </p>
+
+  <div class="callout">
+    1.5 points less accurate, 8× faster, and the probabilities are
+    <strong>usable for policy</strong> (automate / escalate). Bounded output really does remove
+    invented categories: generation made up 1% of its labels.
+  </div>
+
+  <div class="footer">
+    <span>Part 2 · Finding 1</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P2 — FINDING 2: DELIBERATIVE DECISIONS NEED THINKING -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Part 2 · Finding 2 · ACE</div>
+
+  <h2>…but decisions that need deliberation still need the thinking</h2>
+
+  <div class="grid two">
+
+    <div class="card">
+      <h3 class="red">No reasoning, zero-shot</h3>
+      <div class="bars" style="grid-template-columns: 140px 1fr 56px">
+        <span>C2 score labels</span><div class="bar-track"><div class="bar-fill fill-oss" style="width:49.7%"></div></div><span class="num">0.50</span>
+        <span>C6 letter</span><div class="bar-track"><div class="bar-fill fill-oss" style="width:58.9%"></div></div><span class="num">0.59</span>
+        <span>C4 Yes/No</span><div class="bar-track"><div class="bar-fill fill-oss" style="width:61.9%"></div></div><span class="num">0.62</span>
+      </div>
+      <p class="muted" style="margin-top:12px">~0.1–0.3 s per decision</p>
+    </div>
+
+    <div class="card">
+      <h3 class="green">Reason first</h3>
+      <div class="bars" style="grid-template-columns: 140px 1fr 56px">
+        <span>C1 generate</span><div class="bar-track"><div class="bar-fill fill-oss" style="width:75.7%"></div></div><span class="num">0.76</span>
+        <span>C8 reason → read</span><div class="bar-track"><div class="bar-fill fill-oss" style="width:75.3%"></div></div><span class="num">0.75</span>
+        <span>C9 cascade</span><div class="bar-track"><div class="bar-fill fill-oss" style="width:76.9%"></div></div><span class="num">0.77</span>
+      </div>
+      <p class="muted" style="margin-top:12px">~2.3 s per decision (~65 generated tokens)</p>
+    </div>
+
+  </div>
+
+  <ul class="small">
+    <li>ACE asks whether a scenario violates clauses with <em>conditions, exceptions and deadlines</em>: a multi-step check.</li>
+    <li>Not a test-set artefact: the same gap appears on the train-derived calibration split (C6 0.48 vs. C1 0.82).</li>
+  </ul>
+
+  <div class="callout">
+    Jev is pitched as a <strong>"System One"</strong> model. Our data says a zero-shot System One readout works for
+    System-One questions, and falls over when the question needs System Two.
+  </div>
+
+  <div class="footer">
+    <span>Part 2 · Finding 2</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P2 — FINDING 3: READOUT BIAS -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Part 2 · Finding 3 · ACE</div>
+
+  <h2>Same weights, different readout → different "opinion"</h2>
+
+  <p class="muted small" style="margin-top:0">Share of test predictions per class (short labels):
+    <span class="swatch s-c"></span>Compliant
+    <span class="swatch s-nc" style="margin-left:10px"></span>Non-Compliant
+    <span class="swatch s-na" style="margin-left:10px"></span>Not-Applicable</p>
+
+  <div class="stack-row"><strong>True labels</strong>
+    <div class="stack"><div class="s-c" style="width:34.5%">35%</div><div class="s-nc" style="width:36.4%">36%</div><div class="s-na" style="width:29.1%">29%</div></div>
+    <span class="num muted">acc</span></div>
+
+  <div class="stack-row"><span>C1 generate (reasoning)</span>
+    <div class="stack"><div class="s-c" style="width:34.7%">35%</div><div class="s-nc" style="width:45.9%">46%</div><div class="s-na" style="width:19.4%">19%</div></div>
+    <span class="num">0.74</span></div>
+
+  <div class="stack-row"><span>C2 score each label</span>
+    <div class="stack"><div class="s-c" style="width:3.7%"></div><div class="s-nc" style="width:23.5%">24%</div><div class="s-na" style="width:72.7%">73%</div></div>
+    <span class="num">0.47</span></div>
+
+  <div class="stack-row"><span>C6 read option letter</span>
+    <div class="stack"><div class="s-c" style="width:9.8%">10%</div><div class="s-nc" style="width:86.8%">87%</div><div class="s-na" style="width:3.4%"></div></div>
+    <span class="num">0.47</span></div>
+
+  <div class="stack-row"><span>C4 Yes/No per candidate</span>
+    <div class="stack"><div class="s-c" style="width:31.2%">31%</div><div class="s-nc" style="width:62.8%">63%</div><div class="s-na" style="width:6.0%"></div></div>
+    <span class="num">0.62</span></div>
+
+  <div class="stack-row"><span>C7 trained head (same activations)</span>
+    <div class="stack"><div class="s-c" style="width:33.5%">33%</div><div class="s-nc" style="width:37.5%">37%</div><div class="s-na" style="width:29.1%">29%</div></div>
+    <span class="num">0.93</span></div>
+
+  <div class="callout">
+    Each zero-shot readout brings its own prior: label-string likelihood, letter/position preference, judging options in isolation.
+    The model's knowledge didn't change; <strong>how we asked did</strong>.
+  </div>
+
+  <div class="footer">
+    <span>Part 2 · Finding 3</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P2 — FINDING 4: THE DECISION IS ALREADY INSIDE -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Part 2 · Finding 4 · the most interesting one</div>
+
+  <h2>The decision is already inside the model, two-thirds of the way up</h2>
+
+  <div class="flow">
+    <div class="node">prompt + options</div><div class="arrow">→</div>
+    <div class="node cyan">layers 1–16 of 24</div><div class="arrow">→</div>
+    <div class="node cyan">hidden state</div><div class="arrow">→</div>
+    <div class="node green">linear head (trained)</div><div class="arrow">→</div>
+    <div class="node green">ACE <strong>0.93</strong> · 69 ms</div>
+    <div class="node dim">layers 17–24 never run</div>
+  </div>
+
+  <div class="flow">
+    <div class="node">prompt + options</div><div class="arrow">→</div>
+    <div class="node">all 24 layers</div><div class="arrow">→</div>
+    <div class="node">vocabulary logits</div><div class="arrow">→</div>
+    <div class="node">read the letter (zero-shot)</div><div class="arrow">→</div>
+    <div class="node" style="border-color:var(--red)">ACE <strong>0.47–0.59</strong></div>
+  </div>
+
+  <div class="grid two" style="margin-top:12px">
+    <div class="card">
+      <h3 class="green">Within this model</h3>
+      <ul class="small">
+        <li>Best readout on both datasets: ACE 0.93, BANKING77 0.91</li>
+        <li>Fastest too: C7 skips the last 4–8 layers (69–93 ms)</li>
+        <li>Best confidence: 0.99 accuracy on the ~70% of ACE cases it is most sure about</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 class="orange">Honest caveats</h3>
+      <ul class="small">
+        <li>Trained on 2k (ACE) / 6k (BANKING77) labelled examples; not zero-shot</li>
+        <li>Learns the dataset's labelling conventions</li>
+        <li>Base model never fine-tuned: one vector (C5) or one matrix (C7)</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    Knowledge isn't the bottleneck; <strong>reading it out</strong> is. A tiny trained readout turns
+    0.47 into 0.93 on the same activations.
+  </div>
+
+  <div class="footer">
+    <span>Part 2 · Finding 4</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- P2 — FINDING 5: REASON THEN READ -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Part 2 · Finding 5 · calibration</div>
+
+  <h2>Reason, then <em>read</em>: same accuracy, confidence you can act on</h2>
+
+  <table>
+    <thead>
+      <tr><th></th><th>C8 reason → read</th><th>C1 reason → generate</th><th>Why it matters</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Accuracy (ACE / BANKING77)</td><td>0.753 / <strong>0.831</strong></td><td>0.757 / 0.806</td><td class="muted">same thinking, same answers</td></tr>
+      <tr><td>Confidence ranking, AURC ↓ (ACE / BANKING77)</td><td><strong>0.130 / 0.134</strong></td><td>0.243 / 0.186</td><td class="muted">errors sit at low confidence</td></tr>
+      <tr><td>Accuracy on the most confident 80% (BANKING77)</td><td><strong>0.850</strong></td><td>can't abstain</td><td class="muted">one-hot = always "100% sure"</td></tr>
+      <tr><td>Invented labels (BANKING77)</td><td><strong>0</strong></td><td>30</td><td class="muted">bounded by construction</td></tr>
+    </tbody>
+  </table>
+
+  <div class="grid two" style="margin-top:18px">
+    <div class="card">
+      <h3 class="cyan">Cascade (C9) on BANKING77</h3>
+      <p>Fast readout answers 78% of cases; only 22% escalate to reasoning.
+        Accuracy 0.827 vs. 0.831, at <strong>58% of the latency</strong>.</p>
+    </div>
+    <div class="card">
+      <h3 class="orange">But reasoning collapses uncertainty</h3>
+      <p>After thinking, the answer token is near-certain (raw log-loss 4–6).
+        It still ranks well, but needs temperature scaling to read as a probability.</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Part 2 · Finding 5</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- UNDER THE HOOD, REVISITED -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Back to the core question</div>
+
+  <h2>Model or readout? Our evidence says: <span class="cyan">both, but differently</span></h2>
+
+  <div class="grid two">
+    <div class="card">
+      <h3 class="green">For "it's mostly a new readout"</h3>
+      <ul class="small evidence">
+        <li><span class="badge">Part 2</span> One forward pass gives speed, valid outputs and usable probabilities (BANKING77)</li>
+        <li><span class="badge">Part 2</span> The answer already lives in mid-layer activations (C7 at layer 16)</li>
+        <li><span class="badge">Part 2</span> Sharing the encoded state across options changes nothing (C3 = C2)</li>
+        <li><span class="badge orange">Context</span> OpenAI reportedly built Decisions v1 on existing Luna weights in about a week</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 class="purple">For "the training matters"</h3>
+      <ul class="small evidence">
+        <li><span class="badge">Part 2</span> Untrained readouts carry strong format-specific biases (ACE)</li>
+        <li><span class="badge">Part 2</span> A tiny trained head fixes that: 0.47 → 0.93 on the same activations</li>
+        <li><span class="badge orange">Part 1</span> Decision-1 is calibrated out of the box; prompted GPT-6 Luna is not</li>
+        <li><span class="badge">Part 2</span> Deliberative questions still need reasoning somewhere</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="big-quote" style="font-size:clamp(22px,2.1vw,34px); margin-top:22px">
+    Our current read: a <span class="blue">strong base model</span> plus a
+    <span class="cyan">trained decision readout</span>. The training seems to matter less for
+    <em>what the model knows</em> and more for <em>how it answers</em> and how honest its confidence is.
+  </p>
+
+  <p class="tiny">A hypothesis, not a measured comparison: Parts 1 and 2 use different models. Jev and Decision-1 internals are not public.</p>
+
+  <div class="footer">
+    <span>Under the hood</span>
+    <span></span>
+  </div>
+</section>
+
+
+<!-- ========================================================= -->
+<!-- CAVEATS & NEXT -->
+<!-- ========================================================= -->
+
+<section class="slide">
+  <div class="eyebrow">Keep us honest</div>
+
+  <h2>Caveats and what's next</h2>
+
+  <div class="grid two">
+    <div class="card">
+      <h3 class="orange">Caveats</h3>
+      <ul class="small">
+        <li>Parts 1 and 2 use different models and infrastructure: don't rank across them</li>
+        <li>ACE test differs from its train data (labels look LLM-filtered; scenario text leaks the label)</li>
+        <li>Trained heads/classifiers use labels, zero-shot methods don't; compare within each group</li>
+        <li>Part 2 latency/cost: one A100, batch 1, no serving engine (upper bounds)</li>
+        <li>Our debiasing prior <code>N/A</code> collides with ACE's <em>Not-Applicable</em>; needs a rerun</li>
+        <li>One run per configuration</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 class="cyan">Next</h3>
+      <ul class="small">
+        <li>A harder, more ambiguous dataset (legal clauses, contract NLI, privacy norms)</li>
+        <li>OpenAI Decisions API vs. GPT-6 Luna: the same-model test for Part 1, once available on Azure</li>
+        <li>Part 2: train the readout <em>without</em> target labels (a small LoRA "decision fine-tune", in the spirit of Tev1 / RLCD)</li>
+        <li>Fix the neutral prior; try a C6 → C8 cascade</li>
+        <li>Multiple questions over one shared encoded state</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="tiny" style="margin-top:14px">~37 GPU-hours on low-priority A100s · 30 jobs · full write-up: docs/results/2026-10-14-c-series-banking77</p>
+
+  <div class="footer">
+    <span>Caveats</span>
+    <span></span>
   </div>
 </section>
 
@@ -1496,24 +2474,30 @@ decisions</div>
 <section class="slide">
   <div class="eyebrow">Discussion</div>
 
-  <h2>Three questions I'd leave us with</h2>
+  <h2>Questions I'd leave us with</h2>
 
   <div class="question">
     <strong>1.</strong>
-    Are decision models actually a new model class —
-    or a new way of using foundation models?
+    Are decision models a new model class, or a <em>trained readout</em> on top of foundation models?
+    Our data: the answer already sits in mid-layer activations.
   </div>
 
   <div class="question">
     <strong>2.</strong>
-    Is calibration the real innovation —
-    rather than structured output or speed?
+    Is calibration the real innovation? In both parts, generating the answer is always "100% sure";
+    the decision API and the probability readouts know when they don't know.
   </div>
 
   <div class="question">
     <strong>3.</strong>
-    If language generation is only one possible readout from a foundation model,
-    what other useful readouts are we currently underusing?
+    How do we tell, before deploying, whether a decision is "System One" (read it in one pass)
+    or needs deliberation (reason first, or cascade)?
+  </div>
+
+  <div class="question">
+    <strong>4.</strong>
+    With a few thousand labels, a simple trained layer (on embeddings, or on the open model's activations)
+    tops its part on both datasets. When is a general-purpose, zero-shot decision model worth it?
   </div>
 
   <div class="footer">
@@ -1532,7 +2516,9 @@ decisions</div>
 
   <h1>Maybe the model doesn't always need to talk.</h1>
 
-  <div class="code" style="font-size:clamp(22px,2vw,34px); max-width:900px; margin-top:20px;">state
+  <div class="grid two" style="align-items:center; margin-top:10px">
+
+    <div class="code" style="font-size:clamp(20px,1.8vw,32px);">state
   ↓
 bounded question
   ↓
@@ -1542,11 +2528,19 @@ policy
   ↓
 action</div>
 
-  <p class="subtitle" style="margin-top:30px">
-    Jev made the idea explicit.
-    OpenAI's rapid response suggests the pattern may be broader than
-    one model, one architecture, or one vendor.
-  </p>
+    <div>
+      <p class="subtitle">
+        Jev made the idea explicit.
+        OpenAI's rapid response suggests the pattern may be broader than
+        one model, one architecture, or one vendor.
+      </p>
+      <p class="subtitle">
+        Our experiments agree: the decision is often already inside the model.
+        The hard part is <span class="cyan">reading it out honestly</span>, and knowing when it needs to think first.
+      </p>
+    </div>
+
+  </div>
 
   <div class="footer">
     <span>Decision Models</span>
@@ -1568,6 +2562,11 @@ action</div>
 <script>
 const slides = [...document.querySelectorAll(".slide")];
 let current = 0;
+
+slides.forEach((s, i) => {
+  const n = s.querySelector(".footer span:last-child");
+  if (n) n.textContent = i + 1;
+});
 
 function showSlide(index) {
   if (index < 0 || index >= slides.length) return;

@@ -1,6 +1,6 @@
 id: c1_oss_autoregressive
 description: "gpt-oss-20b, autoregressive generation (harmony, reasoning=low); one-hot."
-leaderboards: [product, controlled]
+leaderboards: [controlled]
 supervision: zero_shot
 dataset: ace
 label_catalogs: [short, verbose]

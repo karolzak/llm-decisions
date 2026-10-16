@@ -1,6 +1,6 @@
 id: c3_oss_kv_scoring
 description: "gpt-oss-20b, candidate sequence likelihood with shared-prefix KV reuse (should equal C2)."
-leaderboards: [product, controlled]
+leaderboards: [controlled]
 supervision: zero_shot
 dataset: ace
 label_catalogs: [short, verbose]

@@ -1,6 +1,6 @@
 id: c2p_oss_sequence_prior
 description: "gpt-oss-20b, C2 sequence likelihood with content-free prior correction (contextual calibration)."
-leaderboards: [product, controlled]
+leaderboards: [controlled]
 supervision: zero_shot
 dataset: ace
 label_catalogs: [short, verbose]
