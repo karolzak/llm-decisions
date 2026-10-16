@@ -6,8 +6,8 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    # 3.26.0+ adds `client.decisions`; the internal feed proxy lags PyPI, so Decisions
-    # calls go over raw HTTP until the SDK version is available.
+    # 3.26.0+ adds `client.decisions`; the package mirror used for development lags PyPI, so
+    # Decisions calls go over raw HTTP until the SDK version is available.
     "openai>=3.20.0",
     "azure-identity>=1.19",
     "httpx>=0.27",
@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Local open-weight model stack (gpt-oss-20b). Install on the Azure ML GPU compute instance:
+# Local open-weight model stack (gpt-oss-20b), for Linux GPU machines / Azure ML jobs:
 #   uv sync --extra local
 local = [
     "torch>=2.8",
@@ -55,10 +55,9 @@ module-name = "edb"
 
 [tool.uv]
 default-groups = ["dev"]
-# Reproducible package snapshot. Also keeps resolution within what the internal feed proxy
-# (packagefeedproxy.microsoft.io, which lags PyPI by several days) has mirrored.
+# Reproducible package snapshot (also keeps resolution within what a lagging PyPI mirror serves).
 exclude-newer = "2026-10-04T00:00:00Z"
-# regex 2026.9.29 ships no Windows wheel via the feed proxy (sdist needs MSVC).
+# regex 2026.9.29 had no Windows wheel on the mirror at lock time (sdist needs MSVC).
 constraint-dependencies = ["regex<2026.9.29"]
 # Dev on Windows; GPU runs on Linux x86_64 (Azure ML compute instance).
 environments = [

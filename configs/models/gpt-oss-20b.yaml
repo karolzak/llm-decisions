@@ -1,8 +1,8 @@
 name: gpt-oss-20b
 provider: local_hf
 hf_model_id: openai/gpt-oss-20b
-# Cost = GPU seconds x hourly price. On-demand price of Standard_NC24ads_A100_v4 (1x A100 80GB,
-# swedencentral) for product comparisons; runs use the low-priority cluster (~$0.94/h).
+# Cost = GPU seconds x hourly price: Azure retail on-demand price of Standard_NC24ads_A100_v4
+# (1x A100 80GB, 2026-10). Low-priority (spot) capacity is roughly 5x cheaper.
 gpu_hourly_price_usd: 4.775
 params:
   dtype: bfloat16

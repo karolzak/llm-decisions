@@ -1,8 +1,14 @@
 # Experiment Plan: Enterprise Text Decisions Benchmark
 
+> This is the original plan. What was actually built and run, and any deviations (A2 disabled
+> because Azure does not serve the OpenAI Decisions API; A3 infeasible because GPT-6 Luna
+> rejects logprobs; added readouts C2+, C6–C9, a second dataset, BANKING77), are described in
+> the [README](README.md), [docs/methods.md](docs/methods.md) and
+> [docs/results/](docs/results/).
+
 ## Background context
 
-This experiment plan comes from recent news about SystemOne's Jev decision model and OpenAI Decisions API which followed a month later.
+This experiment plan comes from recent news about TypeSafe AI's Jev decision model (a "System One" model) and the OpenAI Decisions API, which followed two weeks later.
 The goal is to set some baselines and try out different approaches to figure out what Jev/Decisions API is doing behind the scenes and get a better understanding/intuition of how it performs.
 
 ## Objective

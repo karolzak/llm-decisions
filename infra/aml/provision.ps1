@@ -1,6 +1,9 @@
 <#
 .SYNOPSIS
-  Provision the Azure ML workspace + GPU compute instance for open-weight model runs.
+  Optional: provision an Azure ML workspace + interactive GPU compute instance.
+
+  The benchmark itself runs C-series experiments as Azure ML jobs on a compute *cluster*
+  (see docs/azure-ml.md); this script is only for an interactive GPU VM.
 
 .DESCRIPTION
   1. Checks Azure ML dedicated vCPU quota for the requested GPU size (fails fast if 0).
@@ -10,18 +13,17 @@
      benchmark can call gpt-6-luna / Decision-1 from the VM with Entra ID.
 
 .EXAMPLE
-  .\infra\aml\provision.ps1 -CheckOnly
-  .\infra\aml\provision.ps1 -Size Standard_NC24ads_A100_v4
-  .\infra\aml\provision.ps1 -Location eastus2 -Workspace kz-exp-aml-eus2 -Size Standard_NC40ads_H100_v5
+  .\infra\aml\provision.ps1 -ResourceGroup my-rg -Workspace my-aml -Location eastus2 -FoundryResource my-foundry -CheckOnly
+  .\infra\aml\provision.ps1 -ResourceGroup my-rg -Workspace my-aml -Location eastus2 -FoundryResource my-foundry -Size Standard_NC40ads_H100_v5
 #>
 [CmdletBinding()]
 param(
-    [string]$ResourceGroup = "kz-exp-rg",
-    [string]$Workspace = "kz-exp-aml",
-    [string]$Location = "swedencentral",
-    [string]$ComputeName = "kz-gpu-ci",
+    [Parameter(Mandatory)][string]$ResourceGroup,
+    [Parameter(Mandatory)][string]$Workspace,
+    [Parameter(Mandatory)][string]$Location,
+    [Parameter(Mandatory)][string]$FoundryResource,
+    [string]$ComputeName = "llm-decisions-gpu",
     [string]$Size = "Standard_NC24ads_A100_v4",
-    [string]$FoundryResource = "llm-decisions-resource",
     [switch]$CheckOnly
 )
 $ErrorActionPreference = "Stop"

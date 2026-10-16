@@ -1,6 +1,6 @@
 name: text-embedding-3-large
 provider: azure_openai
-deployment: text-embedding-3-large   # GlobalStandard, 282K TPM / 282 requests per 10 s
+deployment: text-embedding-3-large   # GlobalStandard deployment
 params:
   max_input_chars: 24000   # model limit is 8191 tokens per input
 pricing:

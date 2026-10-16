@@ -150,9 +150,10 @@ def main() -> int:
     args = parser.parse_args()
 
     s = get_settings()
-    console.print(f"[bold]Foundry:[/] {s.azure_ai_resource} / {s.azure_ai_project}")
-    console.print(f"[bold]OpenAI base URL:[/] {s.openai_base_url}")
-    console.print(f"[bold]Decision-1 URL:[/]  {s.decision1_url}\n")
+    if not args.skip_api:
+        console.print(f"[bold]Foundry:[/] {s.azure_ai_resource} / {s.azure_ai_project}")
+        console.print(f"[bold]OpenAI base URL:[/] {s.openai_base_url}")
+        console.print(f"[bold]Decision-1 URL:[/]  {s.decision1_url}\n")
 
     checks: list[tuple[str, Callable]] = [(f"dataset[{args.dataset}]", check_dataset(args.dataset))]
     if not args.skip_api:

@@ -223,4 +223,6 @@ __marimo__/
 data/
 artifacts/*
 !artifacts/.gitkeep
+# The generic `env/` rule above would hide the pinned Azure ML job requirements.
+!infra/aml/env/
 

@@ -1,6 +1,7 @@
 $schema: https://azuremlschemas.azureedge.net/latest/workspace.schema.json
-name: kz-exp-aml
-location: swedencentral
+# `name` and `location` are overridden by provision.ps1 (--set name=... location=...).
+name: llm-decisions-aml
+location: eastus2
 display_name: LLM decisions benchmark
 description: GPU compute for open-weight (gpt-oss-20b) decision readout experiments.
 tags:

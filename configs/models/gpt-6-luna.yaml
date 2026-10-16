@@ -2,7 +2,7 @@ name: gpt-6-luna
 provider: azure_openai
 deployment: gpt-6-luna
 pricing:
-  # Azure retail prices, Global Standard, swedencentral, short context (<= long-context threshold).
+  # Azure retail prices (USD per 1M tokens), Global Standard, short context.
   input: 0.10
   cached_input: 0.01
   cache_write: 0.125

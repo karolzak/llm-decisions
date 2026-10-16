@@ -13,4 +13,4 @@ method:
     stream: true
 run:
   concurrency: 8
-  max_rpm: 240       # deployment limit: 250 requests/min, 250K tokens/min
+  max_rpm: 240       # keep below your deployment's requests/min limit

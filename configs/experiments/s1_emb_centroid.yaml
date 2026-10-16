@@ -14,4 +14,4 @@ method:
     tau: 0.05
 run:
   concurrency: 8
-  max_rpm: 240   # ~1K tokens per ACE example vs 282K TPM deployment limit
+  max_rpm: 240   # keep within your deployment's tokens/min limit (~1K tokens per ACE example)

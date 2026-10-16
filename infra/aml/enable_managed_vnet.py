@@ -1,6 +1,7 @@
 """One-off: enable the AML managed VNet (allow internet outbound) and recreate the GPU cluster
-inside it with unchanged settings. Workspace storage is private (SFI policy), so compute must
-reach it through the managed private endpoints. Managed network cannot be enabled while computes
+inside it with unchanged settings. Use it when the workspace storage account is private (e.g.
+an organisation policy disables public network access), so compute must reach it through the
+managed private endpoints. Managed network cannot be enabled while computes
 exist, so the cluster is deleted first and recreated afterwards.
 
 Usage: uv run --extra aml python infra/aml/enable_managed_vnet.py
@@ -25,6 +26,7 @@ DEFAULT_SPEC = {"size": "Standard_NC24ads_A100_v4", "tier": "low_priority", "min
 
 def main() -> None:
     s = get_settings()
+    s.require("aml_workspace", "aml_compute")
     ml = ml_client()
 
     try:

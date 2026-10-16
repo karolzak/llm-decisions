@@ -1,6 +1,6 @@
 $schema: https://azuremlschemas.azureedge.net/latest/computeInstance.schema.json
 # `name` and `size` are overridden by provision.ps1 (--set name=... size=...).
-name: kz-gpu-ci
+name: llm-decisions-gpu
 type: computeinstance
 size: Standard_NC24ads_A100_v4
 # Stop paying for an idle GPU.

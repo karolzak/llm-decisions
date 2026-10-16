@@ -10,5 +10,5 @@ method:
     include_descriptions: true
 run:
   concurrency: 4
-  max_rpm: 9          # deployment limit on kz-exp-foundry: 10 requests/min (capacity 10)
+  max_rpm: 9          # keep below your deployment's requests/min limit (ours: 10)
   max_retries: 12

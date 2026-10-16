@@ -20,12 +20,14 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Environment-specific values come from `.env` / environment variables only (no defaults),
+    # so nothing about a particular subscription is baked into the code.
     azure_subscription_id: str | None = None
     azure_tenant_id: str | None = None
-    azure_resource_group: str = "kz-exp-rg"
+    azure_resource_group: str | None = None
     # Foundry (AIServices) resource + project hosting the model deployments.
-    azure_ai_resource: str = "kz-exp-foundry"
-    azure_ai_project: str = "proj-default"
+    azure_ai_resource: str | None = None
+    azure_ai_project: str | None = None
 
     # Entra ID scope for Azure OpenAI and Foundry model endpoints.
     azure_token_scope: str = "https://cognitiveservices.azure.com/.default"
@@ -41,8 +43,8 @@ class Settings(BaseSettings):
     hf_token: str | None = Field(default=None, repr=False)
 
     # Azure ML workspace + GPU cluster for local-model (C-series) jobs.
-    aml_workspace: str = "kz-exp-aml"
-    aml_compute: str = "cc-nc24ads-a100"
+    aml_workspace: str | None = None
+    aml_compute: str | None = None
 
     configs_dir: Path = REPO_ROOT / "configs"
     data_dir: Path = REPO_ROOT / "data"
@@ -57,20 +59,29 @@ class Settings(BaseSettings):
             self.cache_dir = self.artifacts_dir / "cache"
         return self
 
+    def require(self, *fields: str) -> None:
+        """Raise a clear error naming the missing `.env` variables."""
+        missing = [f.upper() for f in fields if not getattr(self, f)]
+        if missing:
+            raise RuntimeError(f"{', '.join(missing)} not set (see .env.example)")
+
     @property
     def openai_base_url(self) -> str:
         if self.azure_openai_base_url:
             return self.azure_openai_base_url.rstrip("/") + "/"
+        self.require("azure_ai_resource")
         return f"https://{self.azure_ai_resource}.openai.azure.com/openai/v1/"
 
     @property
     def ai_endpoint(self) -> str:
         if self.azure_ai_endpoint:
             return self.azure_ai_endpoint.rstrip("/")
+        self.require("azure_ai_resource")
         return f"https://{self.azure_ai_resource}.services.ai.azure.com"
 
     @property
     def project_endpoint(self) -> str:
+        self.require("azure_ai_project")
         return f"{self.ai_endpoint}/api/projects/{self.azure_ai_project}"
 
     @property

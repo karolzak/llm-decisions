@@ -45,8 +45,7 @@ def ml_client():
     from azure.ai.ml import MLClient
 
     s = get_settings()
-    if not s.azure_subscription_id:
-        raise RuntimeError("AZURE_SUBSCRIPTION_ID is not set (.env)")
+    s.require("azure_subscription_id", "azure_resource_group", "aml_workspace")
     credential = _credential()
     return MLClient(credential, s.azure_subscription_id, s.azure_resource_group, s.aml_workspace)
 
@@ -104,6 +103,8 @@ def submit(ml, *, environment: str, dataset: str, experiment: str, catalog: str,
     args = ["scripts/run_experiment.py", "--experiment", experiment, "--catalog", catalog,
             "--dataset", dataset, "--split", *splits, *extra_args]
     compute = compute or get_settings().aml_compute
+    if not compute:
+        raise RuntimeError("AML_COMPUTE not set (see .env.example) and no --compute given")
     job = command(
         code=str(REPO_ROOT),
         command="bash infra/aml/run_job.sh ${{outputs.artifacts}} -- " + " ".join(args),
