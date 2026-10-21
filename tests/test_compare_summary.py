@@ -72,6 +72,16 @@ def test_summary_chunks_reassemble(monkeypatch):
     assert _load_script("aml_summaries").assemble({}) is None
 
 
+def test_probe_summaries_merge_across_jobs():
+    pytest.importorskip("azure.ai.ml")
+    merge = _load_script("aml_summaries").merge_probe_summary
+    merged: dict = {}
+    merge(merged, "t", {"probes": {"order": {"r": 1}}, "forensics": {"answers": 800}})
+    merge(merged, "t", {"probes": {"long_options": {"r": 2}}, "forensics": {"answers": 100}})
+    assert set(merged["t"]["probes"]) == {"order", "long_options"}
+    assert merged["t"]["forensics"]["answers"] == 800
+
+
 def test_job_summary_on_sandbox(sandbox, tmp_path, monkeypatch):
     import asyncio
 

@@ -45,6 +45,7 @@ def main() -> int:
     root = get_settings().artifacts_dir
     out_dir = root / "aml" / "summaries" / args.tag
     out_dir.mkdir(parents=True, exist_ok=True)
+    merged: dict[str, dict] = {}  # probe target -> summary merged over this tag's jobs
     for run_id, e in sorted(entries.items()):
         job = ml.jobs.get(e["name"])
         tags = dict(job.tags or {})
@@ -54,21 +55,35 @@ def main() -> int:
                   "tail": tags.get("edb_tail"), "summary": summary}
         (out_dir / f"{run_id}.json").write_text(json.dumps(record, indent=1, ensure_ascii=False),
                                                 encoding="utf-8")
-        installed = []
+        targets = []
         for target, s in ((summary or {}).get("probes") or {}).items():
-            d = root / "probes" / target
-            if d.exists() and any(d.glob("*.jsonl")):
-                continue  # raw local records win
-            d.mkdir(parents=True, exist_ok=True)
-            (d / "summary.json").write_text(json.dumps(forensics.refresh(s), indent=1,
-                                                       ensure_ascii=False), encoding="utf-8")
-            installed.append(target)
+            merge_probe_summary(merged, target, s)
+            targets.append(target)
         print(f"{run_id:42s} {record['status']:10s} exit={record['exit']} "
-              f"summary={'yes' if summary else 'no'} probes={installed}")
+              f"summary={'yes' if summary else 'no'} probes={targets}")
         if args.tail and record["tail"]:
             print("    | " + "\n    | ".join(record["tail"].splitlines()[-15:]))
+    for target, s in merged.items():
+        d = root / "probes" / target
+        if d.exists() and any(d.glob("*.jsonl")):
+            continue  # raw local records win
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "summary.json").write_text(json.dumps(forensics.refresh(s), indent=1,
+                                                   ensure_ascii=False), encoding="utf-8")
     print(f"-> {out_dir}")
     return 0
+
+
+def merge_probe_summary(merged: dict[str, dict], target: str, s: dict) -> None:
+    """Several jobs may probe one target with different probes: keep every probe (a later job
+    wins for the same probe) and the forensics computed over the most answers."""
+    if target not in merged:
+        merged[target] = json.loads(json.dumps(s))
+        return
+    m = merged[target]
+    m.setdefault("probes", {}).update(s.get("probes") or {})
+    if (s.get("forensics") or {}).get("answers", 0) > (m.get("forensics") or {}).get("answers", 0):
+        m["forensics"] = s["forensics"]
 
 
 if __name__ == "__main__":
