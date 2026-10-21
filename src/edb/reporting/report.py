@@ -21,6 +21,8 @@ from edb.settings import get_settings  # noqa: E402
 LEADERBOARDS = {
     "product": "Products and baselines: GPT-6 Luna, Decision-1, embeddings (A / B / S)",
     "controlled": "Open-weight model: gpt-oss-20b, same weights, different readout (C-series)",
+    "replication": "Decision-1 vs. its frozen base (Qwen3.5) and small trained deciders "
+                   "(R-series)",
 }
 
 

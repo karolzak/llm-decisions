@@ -1,0 +1,10 @@
+name: decision-1
+kind: systemone
+description: Microsoft-Decision-1 on Microsoft Foundry (post-trained Qwen3.5-9B).
+url: settings:decision1_url
+auth: entra
+model: Decision-1   # Foundry deployment name (configs/models/decision-1.yaml)
+max_options: 255    # TypeSafe systemone schema limit (Decision-1 docs do not state one)
+concurrency: 4
+max_rpm: 9          # keep below the deployment's requests/min limit (ours: 10)
+max_retries: 12

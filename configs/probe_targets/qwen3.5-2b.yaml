@@ -1,0 +1,7 @@
+name: qwen3.5-2b
+kind: local_readout
+description: Frozen Qwen3.5-2B (base of the Part 3 training arms), option-letter readout.
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-2b

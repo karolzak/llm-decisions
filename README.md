@@ -30,6 +30,7 @@ reported separately and never ranked against each other.
 | Microsoft-Decision-1 v1 | Microsoft Foundry decision API (`/providers/microsoft/v1/systemone`) | B1: state + options → probability per option |
 | text-embedding-3-large | Azure OpenAI | S1: label similarity (zero-shot), centroid / kNN / logistic regression (supervised) |
 | gpt-oss-20b | Open weights (Hugging Face), bf16 on one 80 GB GPU via Azure ML | C1–C9 readouts (reasoning effort `low`) |
+| Qwen3.5-9B / Qwen3.5-2B | Open weights, bf16 via Azure ML | R2 frozen letter readout (9B is Decision-1's base); R3 LoRA training arms (2B) |
 | GPT-6 Luna Decisions API | OpenAI platform | A2: implemented but disabled (not served by Azure yet) |
 
 ## Experiments
@@ -51,10 +52,15 @@ reported separately and never ranked against each other.
 | C8 | Reason first, then read the option-letter probabilities | zero-shot |
 | C9 | Offline cascade: C6+, escalate to C8 when unsure | zero-shot |
 | D2 | Diagnostic: unbatched C2 (bf16 numerics check, no leaderboard) | – |
+| R0 | Probes: perturbed requests to Decision-1 (Jev / OpenAI Decisions with a key) + forensics on the returned numbers | – |
+| R2 | Frozen Qwen3.5-9B (Decision-1's base) and Qwen3.5-2B, option-letter readout, compared example by example with Decision-1 | zero-shot |
+| R3 | Qwen3.5-2B + LoRA trained on 8 other public tasks (shuffled vs. fixed option order, CE vs. Brier loss), evaluated on ACE/BANKING77 | zero-shot (not trained on these tasks) |
 
 Every experiment runs once per label catalog: `short` (label names) and, where available,
 `verbose` (names + one-sentence criteria). Plain-language explanations with a diagram per
-experiment: [docs/methods.md](docs/methods.md).
+experiment: [docs/methods.md](docs/methods.md). The R-series (how decision models work):
+[docs/replication.md](docs/replication.md); first results on Decision-1:
+[docs/results/2026-10-20-decision1-probes](docs/results/2026-10-20-decision1-probes/README.md).
 
 ## Datasets
 
@@ -110,6 +116,7 @@ exp-plan.md             original experiment plan and hypotheses (H1–H6)
 presentation.html       slide deck for the team (open in a browser; arrow keys to navigate)
 docs/
   methods.md            how every method works, one diagram per experiment
+  replication.md        R-series: probes, frozen-base comparison and training arms
   setup.md              install, .env, workflow, outputs, adding a dataset
   azure-ml.md           running the C-series as Azure ML GPU jobs
   results/              dated result snapshots (write-ups, generated reports, plots)
@@ -118,15 +125,20 @@ configs/
   label_catalogs/       label sets with optional descriptions (short vs. verbose)
   models/               deployments, local model settings, pricing
   experiments/          one YAML per experiment: method, model, catalogs, leaderboard, rate limits
+  probe_targets/        decision APIs and local readouts to probe (decision-1, jev, ...)
+  training/             R3 corpus sources and training arms
 src/edb/
   datasets/             loading, state rendering, grouped/stratified splits
   providers/            API methods (A, B, S), auth, retries, rate limiting
-  local/                gpt-oss-20b readouts (C1–C8): scoring, listwise and early-exit heads
+  local/                gpt-oss-20b readouts (C1–C8) and the chat-model letter readout (R2/R3)
+  probing/              vendor-neutral decision-API client, probes, forensics, probe report
+  training/             LoRA, decision corpus, training loop (R3)
   calibration/          metrics (accuracy, NLL, Brier, ECE, AURC) and temperature scaling
   runners/              resumable prediction runner, latency benchmark, Azure ML submission
   reporting/            leaderboards, reliability and risk-coverage plots, markdown reports
 scripts/                prepare_data, run_preflight, run_experiment, run_latency, build_cascade,
-                        build_report, aml_submit, aml_collect, check_pilot, probe_artifacts
+                        build_report, aml_submit, aml_run, aml_collect, check_pilot,
+                        probe_artifacts, run_probes, probe_report, compare_runs, train_decider
 infra/aml/              Azure ML job entry point, pinned requirements, optional setup scripts
 tests/                  unit tests (incl. every gpt-oss readout on a tiny random gpt-oss model)
 artifacts/              run outputs, caches and reports (git-ignored)

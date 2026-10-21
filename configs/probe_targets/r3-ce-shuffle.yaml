@@ -1,0 +1,8 @@
+name: r3-ce-shuffle
+kind: local_readout
+description: Qwen3.5-2B + LoRA arm `ce_shuffle` (cross-entropy, options shuffled every example).
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-2b
+  adapter: training/ce_shuffle

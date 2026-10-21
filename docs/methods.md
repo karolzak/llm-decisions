@@ -7,13 +7,15 @@ All methods answer the same bounded question: given a **state** (e.g. contract c
 scenario, or a customer message) and a fixed list of **K options** (labels, optionally with a
 description), return a probability for each option.
 
-The methods fall into two separate parts that are evaluated and reported separately, never
+The methods fall into separate parts that are evaluated and reported separately, never
 ranked against each other:
 
 - **Part 1 — products and baselines (A, B, S):** hosted models called through APIs (GPT-6 Luna,
   Microsoft-Decision-1, `text-embedding-3-large`). We control only the request.
 - **Part 2 — open-weight model (C):** one local model, `openai/gpt-oss-20b`, with identical
   weights in every experiment. Only the readout changes.
+- **Part 3 — replication study (R):** probes of Decision-1 itself, its frozen base model
+  (Qwen3.5-9B) and small trained deciders, to understand how decision models work.
 
 ## Key terms
 
@@ -336,3 +338,41 @@ flowchart LR
 C2 with one forward pass per candidate (no batching or padding). It is not on the leaderboard;
 it showed that C2 vs. C3 differences come from bf16 numerics that depend on the batch shape
 (median about 0.1 nats), not from a bug.
+
+---
+
+# Part 3 — How do decision models work? (R-series)
+
+Full description, hypotheses and commands: [replication.md](replication.md).
+
+```mermaid
+flowchart LR
+  subgraph R0["R0 probes (API)"]
+    P["perturbed requests:<br/>reorder, rename, duplicate options,<br/>change the question, empty state,<br/>2 questions, K = 2..256"] --> D1["Decision-1<br/>(Jev, OpenAI Decisions)"]
+    D1 --> F["forensics: bf16 logit grid,<br/>confidence formula, tokens"]
+  end
+  subgraph R2["R2 frozen base"]
+    Q9["Qwen3.5-9B, untrained<br/>letter readout"] --> CMP["example-by-example<br/>comparison with Decision-1"]
+  end
+  subgraph R3["R3 training arms"]
+    C["8 public tasks<br/>(not ACE / BANKING77)"] --> L["Qwen3.5-2B + LoRA<br/>shuffle vs. fixed order,<br/>CE vs. Brier"]
+    L --> E["zero-shot ACE / BANKING77<br/>+ the same probes"]
+  end
+```
+
+## R2 / R3 — Chat-model letter readout (`local_chat_readout`)
+
+```mermaid
+flowchart LR
+  P["one user message:<br/>&lt;state&gt; &lt;question&gt;<br/>A. option: criterion<br/>B. ..."] --> T["model's own chat template<br/>(thinking off)"]
+  T --> M["ONE forward pass"]
+  M --> V["next-token distribution"]
+  V --> S["sum every token that decodes<br/>to each letter (A, ' A', ...)"]
+  S --> SM["renormalise over the K letters"]
+```
+
+The recipe of the open "System One" replicas that read instruct models (Cygnet, SemIf, Quyet,
+H2O-Lightning). Unlike C6, it uses a non-reasoning chat template (no skipped analysis channel)
+and sums all token variants of each letter. More than 26 options are scored in groups, then
+the group winners against each other. R3 trains a LoRA adapter on exactly this prompt and
+readout.

@@ -1,0 +1,24 @@
+# Part 3 training arms (scripts/train_decider.py). Each arm trains a LoRA adapter on the
+# corpus with the letter readout of edb.local.chat_readout (the same prompt used to evaluate
+# it) and differs from `ce_shuffle` in one setting only.
+base_model: qwen3.5-2b       # configs/models
+corpus: corpus               # configs/training/corpus.yaml
+max_steps: 1500              # optimizer steps
+batch_size: 16               # examples per step (gradient accumulation, one sequence at a time)
+lr: 1.0e-4
+warmup_steps: 50
+max_tokens: 1024             # longer prompts are dropped, never truncated
+lora: {r: 16, alpha: 32, dropout: 0.05}
+eval_every: 250
+eval_rows: 400
+seed: 0
+arms:
+  ce_shuffle:     # cross-entropy on the gold option; options re-shuffled every example
+    loss: ce
+    shuffle: true
+  ce_fixed:       # same, options always in the dataset's canonical label order
+    loss: ce
+    shuffle: false
+  brier_shuffle:  # Brier score (a proper scoring rule) instead of cross-entropy
+    loss: brier
+    shuffle: true

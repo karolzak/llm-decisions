@@ -33,11 +33,14 @@ class LoadedModel:
 
 
 def load(model_id: str, dtype: str = "bfloat16", attn_implementation: str | None = None,
-         dequantize: bool | None = None) -> LoadedModel:
-    """Load (or reuse) a causal LM + tokenizer. `dequantize=None` lets transformers decide."""
-    key = (model_id, dtype, attn_implementation, dequantize)
+         dequantize: bool | None = None, adapter: str | None = None,
+         cache: bool = True) -> LoadedModel:
+    """Load (or reuse) a causal LM + tokenizer. `dequantize=None` lets transformers decide.
+    `adapter`: directory of a LoRA adapter saved by `edb.training.lora` (separate cached copy).
+    `cache=False`: a private copy (e.g. for training, which modifies the model)."""
+    key = (model_id, dtype, attn_implementation, dequantize) + ((adapter,) if adapter else ())
     with _LOCK:
-        if key in _CACHE:
+        if cache and key in _CACHE:
             return _CACHE[key]
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -53,8 +56,14 @@ def load(model_id: str, dtype: str = "bfloat16", attn_implementation: str | None
         path = _fetch(model_id)
         tokenizer = AutoTokenizer.from_pretrained(path)
         model = AutoModelForCausalLM.from_pretrained(path, **kwargs).eval()
+        adapter_info = None
+        if adapter:
+            from edb.training.lora import load_adapter
+
+            adapter_info = load_adapter(model, adapter)
         info = {
             "model_id": model_id,
+            "adapter": adapter_info,
             "load_s": round(time.perf_counter() - t0, 1),
             "device": str(device),
             "gpu": torch.cuda.get_device_name(0) if device.type == "cuda" else None,
@@ -67,7 +76,8 @@ def load(model_id: str, dtype: str = "bfloat16", attn_implementation: str | None
         if device.type == "cuda":
             info["vram_after_load_gb"] = round(torch.cuda.memory_allocated() / 1024**3, 2)
         loaded = LoadedModel(model, tokenizer, device, info)
-        _CACHE[key] = loaded
+        if cache:
+            _CACHE[key] = loaded
         return loaded
 
 

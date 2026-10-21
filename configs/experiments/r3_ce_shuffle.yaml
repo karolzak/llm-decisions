@@ -1,0 +1,15 @@
+id: r3_ce_shuffle
+description: "Qwen3.5-2B + LoRA trained on the decision corpus (cross-entropy, options shuffled every example); letter readout. ACE/BANKING77 not in training."
+leaderboards: [replication]
+supervision: zero_shot   # trained on other tasks only (configs/training/corpus.yaml)
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_chat_readout
+  model: qwen3.5-2b
+  params:
+    adapter: training/ce_shuffle   # under ARTIFACTS_DIR, written by scripts/train_decider.py
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

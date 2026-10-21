@@ -6,7 +6,7 @@ from edb.providers.base import DecisionMethod, MethodContext
 
 LOCAL_TYPES = ("local_autoregressive", "local_sequence_scoring", "local_cross_encoder",
                "local_listwise_head", "local_letter_readout", "local_early_exit_head",
-               "local_reason_then_read")
+               "local_reason_then_read", "local_chat_readout")
 
 
 def _registry(include_local: bool = False) -> dict[str, type[DecisionMethod]]:

@@ -93,3 +93,18 @@ includes jobs that are still running, so wait for them (or cancel them) first.
 **Pilot gate.** `check_pilot.py` requires, for every expected run: predictions exist, zero
 errors, every distribution sums to 1, and (optionally) accuracy above chance. It also projects
 the full-run time from pilot latencies.
+
+## Other scripts as jobs (R-series)
+
+`scripts/aml_run.py` submits any repo script as a job, with the same bootstrap, resume and
+sync. The output folder `edb/<tag>/<group>/<key>/` mirrors `ARTIFACTS_DIR`, and
+`aml_collect.py` downloads its `runs/`, `latency/`, `probes/` and `training/` folders.
+
+```powershell
+uv run --extra aml python scripts/aml_run.py --key probes-qwen3.5-9b --tag replication -- scripts/run_probes.py --target qwen3.5-9b
+uv run --extra aml python scripts/aml_run.py --key r3-ce_shuffle --tag replication -- scripts/train_decider.py --arm ce_shuffle --split calibration test --allow-test
+uv run --extra aml python scripts/aml_collect.py --tag replication --wait
+```
+
+Submitting uploads the repository snapshot to the workspace storage account, so the submitting
+machine needs the same network access to it as `aml_collect.py` (see *Private storage*).
