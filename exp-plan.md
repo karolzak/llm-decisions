@@ -4,7 +4,8 @@
 > because Azure does not serve the OpenAI Decisions API; A3 infeasible because GPT-6 Luna
 > rejects logprobs; added readouts C2+, C6–C9, a second dataset, BANKING77), are described in
 > the [README](README.md), [docs/methods.md](docs/methods.md) and
-> [docs/results/](docs/results/).
+> [docs/results/](docs/results/). The follow-up study of *how* decision models work (R-series),
+> with its findings and next experiments, is in [docs/replication.md](docs/replication.md).
 
 ## Background context
 

@@ -10,6 +10,9 @@ they work*, in three parts that each test a specific hypothesis about Microsoft-
 | 2. Frozen base | How much of Decision-1 is already in its base model? | Qwen3.5-9B (Decision-1's base), untrained, read like Decision-1, on the same datasets and probes | ≈ 2–3 GPU-hours |
 | 3. Training arms | What does decision training change? | Small LoRA runs on Qwen3.5-2B that differ in one setting (option shuffling, loss), evaluated zero-shot and probed | ≈ 1.5 GPU-hours per arm |
 
+Parts 1–3 have run. [What we learned](#findings-so-far) and
+[what to run next](#next-experiments) are at the end of this page.
+
 ## Background: what is known
 
 - **Microsoft-Decision-1** is Qwen3.5-9B, "post-trained for fast, single-pass decision
@@ -79,10 +82,16 @@ Outputs: `artifacts/probes/<target>/<probe>.jsonl` (one record per request; resu
 
 `local_chat_readout` ([`chat_readout.py`](../src/edb/local/chat_readout.py)) reads any chat
 model the way the open replicas read frozen instruct models: one user message with the state,
-the question and lettered options through the model's own chat template (thinking off), one
-forward pass, probability summed over every token that decodes to each letter (`A`, ` A`, …),
-renormalised over the letters. More than 26 options are scored in groups and then group
-winners (P(option) = P(group winner) × P(option | group)).
+the question and labelled options through the model's own chat template (thinking off), one
+forward pass, probability summed over every token that decodes to each label (`A`, ` A`, …),
+renormalised over the labels. Option labels (`readout: {labels: ...}`):
+- `letters` (default): A–Z. More than 26 options are scored in groups and then group
+  winners (P(option) = P(group winner) × P(option | group)).
+- `codes`: A–Z, then single-token two-letter codes (`AA`, `AB`, …). Up to 588 options fit one
+  pass on Qwen3.5. Identical to `letters` for ≤ 26 options.
+- `numbers`: `1.`, `2.`, …; multi-digit labels are scored exactly:
+  P(`3`) × P(`7` | `3`) × P(next token is not a digit | `37`). Any number of options in one
+  pass.
 
 - `r2_qwen35_9b_letter`: Qwen3.5-9B, Decision-1's base, on ACE and BANKING77 (same catalog
   order and descriptions as B1). Leaderboard `replication`, next to B1.
@@ -160,3 +169,64 @@ If the workspace storage is not reachable from your machine (e.g. behind a corpo
 add `--git-ref <pushed branch>` to every `aml_run.py` / `aml_submit.py` command and use
 `aml_summaries.py`; see [azure-ml.md](azure-ml.md#when-the-workspace-storage-is-unreachable).
 Results of the first full round: [results/2026-10-21-replication](results/2026-10-21-replication/README.md).
+
+## Findings so far
+
+Evidence: [Decision-1 probes](results/2026-10-20-decision1-probes/README.md) (Part 1) and
+[frozen base + training arms](results/2026-10-21-replication/README.md) (Parts 2–3).
+Strength: **strong** = follows directly from the data, **likely** = best explanation,
+**open** = untested.
+
+| # | Finding | Strength |
+|---|---|---|
+| F1 | The answer is read at one position per question; the state is billed once per request; the questions of a request are evaluated together | strong |
+| F2 | Probabilities are a plain softmax over one bf16 score per option, with no post-hoc temperature, token summing, order averaging or grouping, up to 255 options | strong |
+| F3 | Options are scored jointly (the score gap between two options changes when others are added), but their order hardly reaches the model, and it cannot say which option is listed where | strong |
+| F4 | It prefers an option's original name over an identical copy named `…-2`, wherever the copy sits. No local model, trained or not, does this | strong (cause open) |
+| F5 | Limits are TypeSafe's System One limits (2–255 options, 2–10 score levels, ≤ 255 questions). 255 also caps questions, so it is most likely a request-format constant, not a label vocabulary | strong / likely |
+| F6 | Qwen3.5 tokenizer; ≈ 21 tokens of hidden template; ≈ 2 billed tokens per option beyond its name and description (a one-token label plus a separator) | strong |
+| F7 | On ACE, Decision-1 is indistinguishable from its frozen base: same accuracy, 81–83% agreement, while prompt layout alone moves the frozen base's decisions by 15–35%. A question-first prompt makes the frozen base *beat* Decision-1 (0.775 vs. 0.619 names only) | strong |
+| F8 | On BANKING77, Decision-1 is 12 points better (0.870 vs. 0.750) and calibrated (T 1.02 vs. 1.41). Part of the gap may be our grouped letter readout and prompt | likely (R4, R5 test it) |
+| F9 | Decision training of a 2B model on 8 other tasks makes it position-blind with or without option shuffling, flattens the empty-state prior and improves negation; Brier loss calibrates best on BANKING77. It does not reach 0% order flips (6–11% on ACE) | strong (one seed) |
+| F10 | Letters cap a single pass at 26 options. Single-token two-letter codes (562 in Qwen3.5) or exact multi-digit numbers lift that without training; gpt-oss already has single-token numbers 1–999 | strong |
+
+**Working model:** Decision-1 = Qwen3.5-9B's judgement + a trained decision interface
+(compact format, one score per option read jointly and order-free, calibration on
+routing-style tasks) + better many-way routing.
+
+**Open questions:**
+1. How much of the BANKING77 gain is post-training, and how much our readout and prompt (F8)?
+2. Does plain decision training of the same 9B reproduce Decision-1's whole profile, or is
+   something architectural needed (0% order flips, F3, F4)?
+3. What causes the name preference (F4)?
+4. What are the option labels (F5, F6)?
+
+## Next experiments
+
+Ordered by value for cost. R4 is running; R6–R8 need only the Decision-1 API (≈ 9
+requests/min, a few cents) and can run in parallel with the GPU work.
+
+| ID | Experiment | Question it answers | Decision rule | Cost |
+|---|---|---|---|---|
+| **R4** (running) | Frozen 9B on BANKING77 with one-pass `codes` and `numbers` labels vs. grouped `letters`; `numbers` also on ACE | Is part of the BANKING77 gap the grouped readout (F8)? Do number labels change ACE? | If a one-pass scheme closes most of the 12 points, F8 is mostly readout | ≈ 3 GPU-h (3 jobs) |
+| **R5** | Frozen 9B on BANKING77: best label scheme × the three prompt layouts | Upper bound of the untrained base on routing; settles open question 1 | Gap to Decision-1 < 3 points: post-training adds calibration, not accuracy | ≈ 1–3 GPU-h |
+| **R6** | Decision-1 robustness: paraphrased instructions and criteria, opaque option names, reversed order (≈ 50 dev items per dataset); the same perturbations on the frozen 9B | Microsoft reports 1.3% flips; the frozen base moves 15–35% with layout. Is robustness to wording the core of post-training? | Decision-1 flips ≪ frozen 9B flips under the same perturbations | API ≈ 600 requests + ≈ 0.5 GPU-h |
+| **R7** | Name-preference dissection: original renamed `…-2` and copy given the original name; both renamed to neutral ids; copy suffixed `-copy` / `(duplicate)` / an unrelated name | Is F4 a "suffix = duplicate" heuristic, name–description consistency, or first-seen preference? | Mass follows the plain name → suffix heuristic; follows the original slot → first-seen | API ≈ 200 requests |
+| **R8** | Long options: descriptions of 50–2,000 tokens, with the deciding fact at the start vs. the end of the description; very long option names | Are options truncated or held in fixed per-option slots (F5, F6)? | Billing linear and the late fact used → no slots; rejection or ignored late fact → per-option limit | API ≈ 100 requests |
+| **R9** | Decision-trained **9B**: LoRA on Qwen3.5-9B with the best recipe (shuffled options, Brier loss, best labels and prompt from R4/R5, broader routing data), evaluated zero-shot and probed | Open question 2: does plain training of the same base reproduce Decision-1 (BANKING77 gain, T ≈ 1, 0% order flips, position blindness)? | Matches on most → no special architecture needed | ≈ 6 GPU-h |
+| **R10** | Option-token arm (2B): 255 new label tokens `<opt_k>` added to the vocabulary and trained, vs. the `codes` arm | Open question 4: do dedicated label tokens help one-pass scoring of many options and order invariance? | Better order invariance or BANKING77 → dedicated tokens matter | ≈ 2 GPU-h |
+| **R11** | Strict fixed-order control (2B): each source always lists its labels in one fixed order, so the gold class sits at a fixed position | `ce_fixed` kept varied positions, so it could not show order bias. Does position bias appear when position predicts the label? | Bias appears → shuffling matters only when positions are informative | ≈ 1.5 GPU-h |
+| **R12** | Seeds: `ce_shuffle`, `ce_fixed`, `brier_shuffle` with two more seeds | Are F9's differences between arms (≈ 1–5 points, probe shares) larger than seed noise? | Keep only differences that hold across seeds | ≈ 9 GPU-h |
+| **R13** | Jev and the OpenAI Decisions API through the same probes, plus the 256-question test | Same family? Same limits, readout fingerprint and position blindness? | – | needs API keys |
+
+**Changed or dropped from earlier plans:**
+- **Grouping options into passes of < 30** is kept only as the `letters` baseline. R4 tests
+  one-pass alternatives instead, since Decision-1 shows no grouping (F2).
+- **Option isolation through attention masks** is not planned. Qwen3.5 has 24 linear-attention
+  (recurrent) layers out of 32, so options cannot be hidden from each other by masking
+  alone. And F3 shows Decision-1 does not score options in isolation anyway.
+- **More frozen-model prompt engineering** is limited to R5. F7 already shows the frozen base
+  is at least as good as Decision-1 on ACE.
+
+**Dependencies:** R4 → R5 → R9 (R9 uses the best labels and prompt). R6–R8 and R13 are
+independent; R10–R12 reuse the Part 3 training setup.

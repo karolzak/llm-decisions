@@ -55,6 +55,7 @@ reported separately and never ranked against each other.
 | R0 | Probes: perturbed requests to Decision-1 (Jev / OpenAI Decisions with a key) + forensics on the returned numbers | – |
 | R2 | Frozen Qwen3.5-9B (Decision-1's base) and Qwen3.5-2B, option-letter readout, compared example by example with Decision-1 | zero-shot |
 | R3 | Qwen3.5-2B + LoRA trained on 8 other public tasks (shuffled vs. fixed option order, CE vs. Brier loss), evaluated on ACE/BANKING77 | zero-shot (not trained on these tasks) |
+| R4–R13 | Next: one-pass option labels, prompt sweeps, Decision-1 robustness and name-preference probes, a decision-trained 9B, option tokens, controls ([plan](docs/replication.md#next-experiments)) | – |
 
 Every experiment runs once per label catalog: `short` (label names) and, where available,
 `verbose` (names + one-sentence criteria). Plain-language explanations with a diagram per
