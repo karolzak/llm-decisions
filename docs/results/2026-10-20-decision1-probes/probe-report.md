@@ -1,6 +1,6 @@
-﻿# Decision-model probes
+# Decision-model probes
 
-Generated 2026-10-20T22:49:19+00:00. What each probe tests and what each readout design predicts: [docs/replication.md](../../replication.md).
+Generated 2026-10-21T11:56:41+00:00. What each probe tests and what each readout design predicts: [docs/replication.md](../../replication.md).
 
 | target | description |
 |---|---|
@@ -10,23 +10,23 @@ Generated 2026-10-20T22:49:19+00:00. What each probe tests and what each readout
 
 | metric | decision-1 |
 |---|---|
-| answers | 852 |
-| logit_grid_share / 0.125 | 0.7031 |
-| logit_grid_share / 0.25 | 0.1444 |
-| logit_grid_share / 0.0625 | 0.0587 |
-| logit_grid_share / 0.5 | 0.0516 |
-| logit_grid_share / 1 | 0.0399 |
-| logit_grid_share / none | 0.0023 |
+| answers | 1124 |
+| logit_grid_share / 0.125 | 0.742 |
+| logit_grid_share / 0.25 | 0.1406 |
+| logit_grid_share / 0.0625 | 0.0445 |
+| logit_grid_share / 0.5 | 0.04 |
+| logit_grid_share / 1 | 0.0311 |
+| logit_grid_share / none | 0.0018 |
 | logit_grid_main_step | 0.125 |
 | bf16_logit_magnitude_if_main_step | [16, 32) |
 | confidence_is_jev_formula | 1 |
 | confidence_is_max_prob | 0 |
 | max_abs_sum_error | 1.11e-16 |
-| choice_is_argmax | 0.9977 |
-| output_tokens / 1 | 820 |
+| choice_is_argmax | 0.9973 |
+| output_tokens / 1 | 1092 |
 | output_tokens / 2 | 32 |
-| latency_p50_ms | 471 |
-| latency_p95_ms | 810.3 |
+| latency_p50_ms | 488.6 |
+| latency_p95_ms | 1049 |
 
 ## order
 
@@ -295,8 +295,68 @@ _Which tokenizer is billed, and how large is the hidden prompt?_ (decision-1: 18
 | billed_input_tokens / emoji | 46 |
 | billed_input_tokens / apple_x08 | 47 |
 | tokens_per_apple | 1 |
-| tokenizer_fits / Qwen/Qwen3.5-9B / hidden_prompt_tokens | 39 |
-| tokenizer_fits / Qwen/Qwen3.5-9B / exact_fit_fraction | 0.667 |
-| tokenizer_fits / openai/gpt-oss-20b / hidden_prompt_tokens | 38 |
-| tokenizer_fits / openai/gpt-oss-20b / exact_fit_fraction | 0.333 |
-| best_tokenizer | Qwen/Qwen3.5-9B |
+
+## duplicate_names
+
+_What makes a model prefer one of two identical options?_ (decision-1: 160 requests, 0 errors)
+
+| metric | decision-1 |
+|---|---|
+| ace / items | 16 |
+| ace / first_share_neutral | 0.4505 |
+| ace / original_share_suffix_copy | 0.8499 |
+| ace / original_share_unrelated | 0.7784 |
+| ace / pair_mass_neutral | 0.7656 |
+| ace / pair_mass_suffix_copy | 0.7901 |
+| ace / pair_mass_swap_after | 0.7926 |
+| ace / pair_mass_swap_before | 0.7965 |
+| ace / pair_mass_unrelated | 0.7774 |
+| ace / plain_name_share_swap_after | 0.8413 |
+| ace / plain_name_share_swap_before | 0.8412 |
+| banking77 / items | 16 |
+| banking77 / first_share_neutral | 0.4249 |
+| banking77 / original_share_suffix_copy | 0.911 |
+| banking77 / original_share_unrelated | 0.994 |
+| banking77 / pair_mass_neutral | 0.838 |
+| banking77 / pair_mass_suffix_copy | 0.9481 |
+| banking77 / pair_mass_swap_after | 0.9465 |
+| banking77 / pair_mass_swap_before | 0.9475 |
+| banking77 / pair_mass_unrelated | 0.9433 |
+| banking77 / plain_name_share_swap_after | 0.8525 |
+| banking77 / plain_name_share_swap_before | 0.8567 |
+
+## long_options
+
+_Are long option descriptions truncated?_ (decision-1: 112 requests, 0 errors)
+
+| metric | decision-1 |
+|---|---|
+| per_variant / end_010 / n | 16 |
+| per_variant / end_010 / accuracy | 0.875 |
+| per_variant / end_010 / mean_p_gold | 0.9232 |
+| per_variant / end_010 / input_tokens | 536.9 |
+| per_variant / end_040 / n | 16 |
+| per_variant / end_040 / accuracy | 0.875 |
+| per_variant / end_040 / mean_p_gold | 0.9231 |
+| per_variant / end_040 / input_tokens | 1857 |
+| per_variant / end_150 / n | 16 |
+| per_variant / end_150 / accuracy | 0.9375 |
+| per_variant / end_150 / mean_p_gold | 0.9121 |
+| per_variant / end_150 / input_tokens | 6697 |
+| per_variant / start_000 / n | 16 |
+| per_variant / start_000 / accuracy | 1 |
+| per_variant / start_000 / mean_p_gold | 0.9375 |
+| per_variant / start_000 / input_tokens | 96.88 |
+| per_variant / start_010 / n | 16 |
+| per_variant / start_010 / accuracy | 0.9375 |
+| per_variant / start_010 / mean_p_gold | 0.9175 |
+| per_variant / start_010 / input_tokens | 536.9 |
+| per_variant / start_040 / n | 16 |
+| per_variant / start_040 / accuracy | 0.9375 |
+| per_variant / start_040 / mean_p_gold | 0.9194 |
+| per_variant / start_040 / input_tokens | 1857 |
+| per_variant / start_150 / n | 16 |
+| per_variant / start_150 / accuracy | 0.9375 |
+| per_variant / start_150 / mean_p_gold | 0.9226 |
+| per_variant / start_150 / input_tokens | 6697 |
+| tokens_per_filler_repeat | 44 |

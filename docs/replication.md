@@ -63,6 +63,8 @@ never touched.
 | `multi_question` | 1 vs. 2 questions per request (and the same question twice) | – | – | `shared_tokens_mean` (state billed once?), answer change alone vs. combined |
 | `determinism` | 5 identical repeats | – | – | identical share, max probability difference |
 | `tokens` | Only the state changes (digits, CJK, emoji, code, `apple ×n`) | – | – | best-fitting tokenizer, hidden prompt size |
+| `duplicate_names` (R7) | Two identical copies of the gold option under different names: original renamed `…-2` with the copy getting the plain name (before/after), both opaque ids, copy named `… (copy)` or an unrelated word | Position decides between identical options | Content is identical, so names decide | `plain_name_share_*`, `first_share_neutral`, `original_share_*` |
+| `long_options` (R8) | 4 BANKING77 options with opaque ids; the intent sits at the start or end of a description padded with 0–150 neutral sentences | – | – | billing per filler sentence, accuracy start vs. end |
 
 **Forensics** run on every stored answer (`forensics.py`): which log-probability grid the
 answers sit on (bf16 fingerprint), which formula produces `confidence`, output-token counts and
@@ -182,13 +184,15 @@ Strength: **strong** = follows directly from the data, **likely** = best explana
 | F1 | The answer is read at one position per question; the state is billed once per request; the questions of a request are evaluated together | strong |
 | F2 | Probabilities are a plain softmax over one bf16 score per option, with no post-hoc temperature, token summing, order averaging or grouping, up to 255 options | strong |
 | F3 | Options are scored jointly (the score gap between two options changes when others are added), but their order hardly reaches the model, and it cannot say which option is listed where | strong |
-| F4 | It prefers an option's original name over an identical copy named `…-2`, wherever the copy sits. No local model, trained or not, does this | strong (cause open) |
+| F4 | Between two identical options, the one whose name best fits the description wins (`…-2`, `(copy)` or unrelated names lose 78–99% of the pair), wherever it sits. With opaque names the split is near even. No local model, trained or not, does this: they favour the earlier copy | strong (R7) |
 | F5 | Limits are TypeSafe's System One limits (2–255 options, 2–10 score levels, ≤ 255 questions). 255 also caps questions, so it is most likely a request-format constant, not a label vocabulary | strong / likely |
 | F6 | Qwen3.5 tokenizer; ≈ 21 tokens of hidden template; ≈ 2 billed tokens per option beyond its name and description (a one-token label plus a separator) | strong |
 | F7 | On ACE, Decision-1 is indistinguishable from its frozen base: same accuracy, 81–83% agreement, while prompt layout alone moves the frozen base's decisions by 15–35%. A question-first prompt makes the frozen base *beat* Decision-1 (0.775 vs. 0.619 names only) | strong |
 | F8 | On BANKING77, Decision-1 is 12 points better (0.870 vs. 0.750) and calibrated (T 1.02 vs. 1.41). Part of the gap may be our grouped letter readout and prompt | likely (R4, R5 test it) |
 | F9 | Decision training of a 2B model on 8 other tasks makes it position-blind with or without option shuffling, flattens the empty-state prior and improves negation; Brier loss calibrates best on BANKING77. It does not reach 0% order flips (6–11% on ACE) | strong (one seed) |
 | F10 | Letters cap a single pass at 26 options. Single-token two-letter codes (562 in Qwen3.5) or exact multi-digit numbers lift that without training; gpt-oss already has single-token numbers 1–999 | strong |
+| F11 | Long option descriptions are billed in full and read to the end (up to ≈ 1,650 tokens per option tested): no fixed per-option slots | strong (R8) |
+| F12 | For the frozen 9B, one-pass two-letter codes are *worse* than grouped letters on BANKING77 (0.706 vs. 0.750), and number labels change only 7% of ACE decisions (0.646 vs. 0.647 names only). Grouping is not what holds the frozen base back | strong (R4, numbers on BANKING77 pending) |
 
 **Working model:** Decision-1 = Qwen3.5-9B's judgement + a trained decision interface
 (compact format, one score per option read jointly and order-free, calibration on
@@ -196,23 +200,25 @@ routing-style tasks) + better many-way routing.
 
 **Open questions:**
 1. How much of the BANKING77 gain is post-training, and how much our readout and prompt (F8)?
+   R4 so far: not the grouping (F12).
 2. Does plain decision training of the same 9B reproduce Decision-1's whole profile, or is
    something architectural needed (0% order flips, F3, F4)?
-3. What causes the name preference (F4)?
-4. What are the option labels (F5, F6)?
+3. ~~What causes the name preference (F4)?~~ Answered by R7: the name that fits the
+   description wins. Open: is it learned in post-training? (R7 on the frozen 9B is running.)
+4. What are the option labels (F5, F6)? R8 rules out fixed per-option slots (F11).
 
 ## Next experiments
 
-Ordered by value for cost. R4 is running; R6–R8 need only the Decision-1 API (≈ 9
-requests/min, a few cents) and can run in parallel with the GPU work.
+Ordered by value for cost. R4 and R7 (frozen 9B) are running; R6 needs only the Decision-1
+API (≈ 9 requests/min, a few cents) and can run in parallel with the GPU work.
 
 | ID | Experiment | Question it answers | Decision rule | Cost |
 |---|---|---|---|---|
-| **R4** (running) | Frozen 9B on BANKING77 with one-pass `codes` and `numbers` labels vs. grouped `letters`; `numbers` also on ACE | Is part of the BANKING77 gap the grouped readout (F8)? Do number labels change ACE? | If a one-pass scheme closes most of the 12 points, F8 is mostly readout | ≈ 3 GPU-h (3 jobs) |
+| **R4** (partly done) | Frozen 9B on BANKING77 with one-pass `codes` and `numbers` labels vs. grouped `letters`; `numbers` also on ACE | Is part of the BANKING77 gap the grouped readout (F8)? Do number labels change ACE? | If a one-pass scheme closes most of the 12 points, F8 is mostly readout. So far: codes 0.706 < letters 0.750; numbers on ACE ≈ letters (F12) | ≈ 3 GPU-h (3 jobs) |
 | **R5** | Frozen 9B on BANKING77: best label scheme × the three prompt layouts | Upper bound of the untrained base on routing; settles open question 1 | Gap to Decision-1 < 3 points: post-training adds calibration, not accuracy | ≈ 1–3 GPU-h |
 | **R6** | Decision-1 robustness: paraphrased instructions and criteria, opaque option names, reversed order (≈ 50 dev items per dataset); the same perturbations on the frozen 9B | Microsoft reports 1.3% flips; the frozen base moves 15–35% with layout. Is robustness to wording the core of post-training? | Decision-1 flips ≪ frozen 9B flips under the same perturbations | API ≈ 600 requests + ≈ 0.5 GPU-h |
-| **R7** | Name-preference dissection: original renamed `…-2` and copy given the original name; both renamed to neutral ids; copy suffixed `-copy` / `(duplicate)` / an unrelated name | Is F4 a "suffix = duplicate" heuristic, name–description consistency, or first-seen preference? | Mass follows the plain name → suffix heuristic; follows the original slot → first-seen | API ≈ 200 requests |
-| **R8** | Long options: descriptions of 50–2,000 tokens, with the deciding fact at the start vs. the end of the description; very long option names | Are options truncated or held in fixed per-option slots (F5, F6)? | Billing linear and the late fact used → no slots; rejection or ignored late fact → per-option limit | API ≈ 100 requests |
+| **R7** (done on Decision-1; frozen 9B running) | Name-preference dissection: original renamed `…-2` and copy given the original name; both renamed to neutral ids; copy suffixed `-copy` / `(duplicate)` / an unrelated name | Is F4 a "suffix = duplicate" heuristic, name–description consistency, or first-seen preference? | Result: mass follows the name that fits the description, not the slot (F4) | API ≈ 200 requests |
+| **R8** (done) | Long options: descriptions of 50–2,000 tokens, with the deciding fact at the start vs. the end of the description; very long option names | Are options truncated or held in fixed per-option slots (F5, F6)? | Result: billed in full, late facts used, no slots (F11) | API ≈ 100 requests |
 | **R9** | Decision-trained **9B**: LoRA on Qwen3.5-9B with the best recipe (shuffled options, Brier loss, best labels and prompt from R4/R5, broader routing data), evaluated zero-shot and probed | Open question 2: does plain training of the same base reproduce Decision-1 (BANKING77 gain, T ≈ 1, 0% order flips, position blindness)? | Matches on most → no special architecture needed | ≈ 6 GPU-h |
 | **R10** | Option-token arm (2B): 255 new label tokens `<opt_k>` added to the vocabulary and trained, vs. the `codes` arm | Open question 4: do dedicated label tokens help one-pass scoring of many options and order invariance? | Better order invariance or BANKING77 → dedicated tokens matter | ≈ 2 GPU-h |
 | **R11** | Strict fixed-order control (2B): each source always lists its labels in one fixed order, so the gold class sits at a fixed position | `ce_fixed` kept varied positions, so it could not show order bias. Does position bias appear when position predicts the label? | Bias appears → shuffling matters only when positions are informative | ≈ 1.5 GPU-h |

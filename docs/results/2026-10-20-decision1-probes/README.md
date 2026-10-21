@@ -1,7 +1,8 @@
 # How Microsoft-Decision-1 computes a decision: probe results (2026-10-20)
 
 Part 1 of the [replication study](../../replication.md): 854 perturbed requests to
-Microsoft-Decision-1 (852 answered; the other 2 are the deliberate 256-option test). Most
+Microsoft-Decision-1 (852 answered; the other 2 are the deliberate 256-option test), plus 272
+follow-up requests for findings 8 and 9 (R7, R8). Most
 probes use 16 `dev` items each from ACE and BANKING77; the repeat test uses 6, the empty-state
 test 1 item per dataset, and the token test synthetic inputs. Full tables:
 [probe-report.md](probe-report.md); raw summary: [summary-decision-1.json](summary-decision-1.json).
@@ -147,6 +148,41 @@ below includes about 400 ms of network and service overhead.
      (mean total-variation distance 0.005–0.006). The chosen option never changed (12 items).
    - This is consistent with batched bf16 GPU serving, where results depend slightly on what
      else is in the batch.
+8. **Between two identical options, the one whose name fits wins, not the original or the
+   first (R7).** The correct option is duplicated with its description kept, under different
+   names (160 requests, 16 items per dataset):
+
+   | Naming of the two identical options | Share of the pair (ACE / BANKING77) |
+   |---|---|
+   | Original renamed `…-2`, copy gets the original name, copy listed after | plain name 0.84 / 0.85 |
+   | Same, copy listed before | plain name 0.84 / 0.86 |
+   | Original kept, copy named `… (copy)` | original 0.85 / 0.91 |
+   | Original kept, copy named `zebra_crossing` (unrelated) | original 0.78 / 0.99 |
+   | Both renamed to opaque ids (`opt_3f2a`) | first-listed 0.45 / 0.42 |
+
+   - The probability follows the **plain name**, wherever it sits and whichever copy it is on.
+     Names that look like variants (`-2`, `(copy)`) or don't match the description lose
+     mass. Position plays no role.
+   - With no name information, the split is near even, with a slight lean to the
+     *later* copy.
+   - So finding 4's "original name" preference is really a preference for the name that
+     best fits the description, which also explains it without any architectural trick.
+9. **Long option descriptions are read in full, with no per-option limit (R8).** BANKING77
+   items with 4 options named by opaque ids; each description holds the real intent, plus
+   neutral filler of 0–150 sentences (up to ≈ 1,650 tokens per option, 6,700 per request),
+   with the intent at the start or at the end:
+
+   | Filler per option | Billed tokens | Accuracy, intent at start | Accuracy, intent at end |
+   |---|---|---|---|
+   | none | 97 | 1.00 | – |
+   | 10 sentences | 537 | 0.94 | 0.88 |
+   | 40 sentences | 1,857 | 0.94 | 0.88 |
+   | 150 sentences | 6,697 | 0.94 | 0.94 |
+
+   - Billing grows by exactly 11 tokens per filler sentence per option, with no cut-off.
+   - Facts at the end of a 1,650-token description are used as well as facts at the start
+     (16 items, differences of 1 item).
+   - So there are no fixed per-option slots that truncate long options.
 
 ## What this says about the architecture
 
@@ -195,11 +231,12 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
 - **Order invariance:** our trained arms still flip 6–11% of ACE decisions under
   reordering, against Decision-1's 0%.
 - **Names over positions:** every local model, trained or not, gives the earlier of two
-  identical options the larger share. Decision-1 prefers the original name wherever the
-  copy sits.
-- **What would explain the last two:** options that cannot see each other's positions, e.g.
-  sharing position indices. Such a design is order-invariant by construction while still
-  letting the answer compare all options. Neither it nor any alternative is confirmed.
+  identical options the larger share. Decision-1 gives it to the copy whose name best fits
+  the description, wherever it sits (finding 8).
+- **What would explain these:** a model that ignores option positions and reads names
+  semantically, which strong decision training could produce. An architectural design where
+  options cannot see each other's positions (e.g. shared position indices) would also be
+  order-invariant. Neither is confirmed.
 
 **Not settled by black-box probing:**
 - what the option tokens or head are;
@@ -226,8 +263,9 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
     scoring and calibration on familiar tasks.
 - **Many-way classification in the training data (likely).** It gains 12 points over its base
   on BANKING77 (next section).
-- **The name preference (speculation).** Preferring an option's original name over an
-  identical renamed copy may come from training data with near-duplicate or decoy options.
+- **The name preference (likely).** It favours option names that fit their description and
+  penalises variant-looking names (`-2`, `(copy)`), wherever they sit (finding 8). Training
+  data with near-duplicate or decoy options would teach exactly that.
 
 ## Is Decision-1 just Qwen3.5-9B with recalibrated probabilities?
 
@@ -348,13 +386,14 @@ such as `Option 137:`.
 - **Not part of calibration.** Choosing or adding label tokens belongs to format training.
   Calibration only adjusts weights so the probabilities on those labels are honest.
 
-**Checks that would narrow it down:** whether Jev also rejects the 256th question; and
-whether option names or descriptions above some length are truncated, which would hint at
-per-option slots.
+**Checks:**
+- Long descriptions are not truncated (finding 9), so there are no fixed per-option slots.
+- Still open: whether Jev also rejects the 256th question.
 
 ## Reproduce
 
 ```powershell
 uv run python scripts/run_probes.py --target decision-1          # ~95 min at 9 requests/min
+uv run python scripts/run_probes.py --target decision-1 --probe duplicate_names long_options   # R7, R8: ~30 min
 uv run python scripts/probe_report.py --target decision-1
 ```
