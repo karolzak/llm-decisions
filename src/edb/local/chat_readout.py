@@ -62,6 +62,22 @@ PROMPT = """Read the state and answer the question by choosing exactly one optio
 
 Answer with the letter of the correct option only."""
 
+# Alternative wordings/layouts of the same request (prompt-sensitivity experiment). Options are
+# always lettered A, B, C... in the given order, so only the surrounding text differs.
+PROMPT_MARKDOWN = """## Task
+{instructions}
+
+## Possible answers
+{options}
+
+## Input
+{state}
+
+Reply with a single letter: the best answer above."""
+
+PROMPTS = {"default": PROMPT, "markdown": PROMPT_MARKDOWN, "json": None}
+OPTION_LINES = {"default": "{letter}. {text}", "markdown": "({letter}) {text}"}
+
 
 @dataclass
 class ReadoutConfig:
@@ -72,6 +88,7 @@ class ReadoutConfig:
     group_size: int = 26
     temperature: float = 1.0  # p^(1/T), renormalised; applied once to the final distribution
     noul_order: tuple[str, str] = ("false", "true")  # as shown to the model (Cygnet: false first)
+    template: str = "default"  # default | markdown | json (see PROMPTS)
 
     @classmethod
     def from_params(cls, *params: dict[str, Any] | None) -> ReadoutConfig:
@@ -80,6 +97,8 @@ class ReadoutConfig:
             merged.update(p or {})
         if "noul_order" in merged:
             merged["noul_order"] = tuple(merged["noul_order"])
+        if merged.get("template", "default") not in PROMPTS:
+            raise ValueError(f"unknown template {merged['template']!r}; known: {list(PROMPTS)}")
         return cls(**merged)
 
 
@@ -89,8 +108,24 @@ def render_state(state: Any) -> str:
     return json.dumps(state, ensure_ascii=False, separators=(",", ":"))
 
 
-def option_line(letter: str, option: Option) -> str:
-    return f"{letter}. {option.value}" + (f": {option.description}" if option.description else "")
+def option_text(option: Option) -> str:
+    return option.value + (f": {option.description}" if option.description else "")
+
+
+def option_line(letter: str, option: Option, template: str = "default") -> str:
+    return OPTION_LINES.get(template, OPTION_LINES["default"]).format(
+        letter=letter, text=option_text(option))
+
+
+def render_body(template: str, state: Any, instructions: str, options: list[Option]) -> str:
+    if template == "json":
+        return json.dumps({"input": render_state(state), "question": instructions,
+                           "options": {LETTERS[i]: option_text(o) for i, o in enumerate(options)},
+                           "answer_format": "the key of the best option, nothing else"},
+                          ensure_ascii=False, indent=1)
+    return PROMPTS[template].format(
+        state=render_state(state), instructions=instructions,
+        options="\n".join(option_line(LETTERS[i], o, template) for i, o in enumerate(options)))
 
 
 class ChatLetterReadout:
@@ -103,9 +138,7 @@ class ChatLetterReadout:
     def prompt_text(self, state: Any, instructions: str, options: list[Option]) -> str:
         if len(options) > len(LETTERS):
             raise ValueError(f"at most {len(LETTERS)} options per pass, got {len(options)}")
-        body = PROMPT.format(state=render_state(state), instructions=instructions,
-                             options="\n".join(option_line(LETTERS[i], o)
-                                               for i, o in enumerate(options)))
+        body = render_body(self.cfg.template, state, instructions, options)
         msgs = ([{"role": "system", "content": self.cfg.system_prompt}]
                 if self.cfg.system_prompt else []) + [{"role": "user", "content": body}]
         rendered = self.lm.tokenizer.apply_chat_template(

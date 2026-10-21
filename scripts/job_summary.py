@@ -36,18 +36,21 @@ def reference_for(dataset: str, run_id: str, split: str) -> Path | None:
     return None
 
 
-def summarize_runs() -> tuple[dict, dict]:
+def summarize_runs() -> tuple[dict, dict, dict]:
     runs: dict[str, Any] = {}
     comparisons: dict[str, Any] = {}
+    pairwise: dict[str, Any] = {}
     root = get_settings().artifacts_dir / "runs"
     for ds_dir in sorted(p for p in root.glob("*") if p.is_dir()) if root.exists() else []:
         dataset = ds_dir.name
         labels = dataset_labels(dataset)
+        by_group: dict[tuple[str, str], list[str]] = {}
         for run_id in list_run_ids(dataset):
             for split_dir in sorted((runs_root(dataset) / run_id).glob("*")):
                 split = split_dir.name
                 if not (split_dir / "manifest.json").exists():
                     continue
+                by_group.setdefault((run_id.rsplit("__", 1)[-1], split), []).append(run_id)
                 m = run_metrics(dataset, run_id, split, labels)
                 if m:
                     runs.setdefault(dataset, {}).setdefault(run_id, {})[split] = m
@@ -58,7 +61,16 @@ def summarize_runs() -> tuple[dict, dict]:
                     c["reference"] = ref_path.name.split("__")[1] + "__" + \
                         ref_path.name.split("__")[2]
                     comparisons.setdefault(dataset, {}).setdefault(run_id, {})[split] = c
-    return runs, comparisons
+        # Runs of one job compared with each other (e.g. prompt variants of one model).
+        for (_catalog, split), run_ids in sorted(by_group.items()):
+            preds = {r: read_predictions(run_dir(dataset, r, split) / "predictions.jsonl")
+                     for r in run_ids}
+            for i, a in enumerate(run_ids):
+                for b in run_ids[i + 1:]:
+                    key = f"{a} vs {b}"
+                    pairwise.setdefault(dataset, {}).setdefault(key, {})[split] = \
+                        compare(preds[a], preds[b], labels)
+    return runs, comparisons, pairwise
 
 
 def summarize_probes() -> dict:
@@ -101,7 +113,7 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001 - a partial summary beats none
             summary[f"{name}_error"] = f"{type(exc).__name__}: {exc}"
     try:
-        summary["runs"], summary["compare"] = summarize_runs()
+        summary["runs"], summary["compare"], summary["pairwise"] = summarize_runs()
     except Exception as exc:  # noqa: BLE001
         summary["runs_error"] = f"{type(exc).__name__}: {exc}"
     args.out.write_text(json.dumps(summary, separators=(",", ":"), ensure_ascii=False),

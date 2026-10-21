@@ -83,7 +83,7 @@ def test_job_summary_on_sandbox(sandbox, tmp_path, monkeypatch):
     original = registry._registry
     monkeypatch.setattr(registry, "_registry",
                         lambda include_local=False: {**original(), "fake": FakeMethod})
-    for spec in resolve_runs("fake_exp", "toy", ["short"]):
+    for spec in resolve_runs("fake_exp", "toy", ["short", "verbose"]):
         asyncio.run(run_split(spec, "dev", limit=12))
     out = tmp_path / "s.json"
     job_summary = _load_script("job_summary")
@@ -92,3 +92,4 @@ def test_job_summary_on_sandbox(sandbox, tmp_path, monkeypatch):
     s = json.loads(out.read_text())
     assert s["runs"]["toy"]["fake_exp__short"]["dev"]["n"] == 12
     assert s["probes"] == {} and s["training"] == {}
+    assert s["pairwise"] == {}  # runs of different catalogs are never paired

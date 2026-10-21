@@ -77,6 +77,19 @@ def test_prompt_lists_letters_and_ends_at_answer(lm):
     assert '{"msg":"hi"}' in text and text.endswith("<|channel|>final<|message|>")
 
 
+def test_prompt_templates_differ_only_in_layout(lm):
+    texts = {t: readout(lm, template=t).prompt_text("STATE", "Pick one.", OPTS)
+             for t in ("default", "markdown", "json")}
+    assert "(A) alpha: first\n(B) beta\n(C) gamma: third" in texts["markdown"]
+    assert '"A": "alpha: first"' in texts["json"] and '"input": "STATE"' in texts["json"]
+    assert len(set(texts.values())) == 3
+    for t in texts:
+        probs, _ = readout(lm, template=t).score_options("STATE", "Pick one.", OPTS)
+        assert sum(probs) == pytest.approx(1.0)
+    with pytest.raises(ValueError, match="unknown template"):
+        ReadoutConfig.from_params({"template": "nope"})
+
+
 def test_letter_variants_include_bare_and_spaced_tokens(lm):
     variants = readout(lm).variant_ids()
     assert len(variants) == 26
