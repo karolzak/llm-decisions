@@ -35,7 +35,8 @@ def main() -> int:
     parser.add_argument("--tag", default="replication")
     parser.add_argument("--tail", action="store_true", help="print each job's log tail")
     args = parser.parse_args()
-    entries = {e["run_id"]: e for e in read_log(args.tag)}  # latest submission per unit
+    # latest submission per (output group, unit)
+    entries = {f"{e['dataset']}__{e['run_id']}": e for e in read_log(args.tag)}
     if not entries:
         print(f"no jobs with tag {args.tag!r}")
         return 1
@@ -61,7 +62,7 @@ def main() -> int:
             (d / "summary.json").write_text(json.dumps(s, indent=1, ensure_ascii=False),
                                             encoding="utf-8")
             installed.append(target)
-        print(f"{run_id:28s} {record['status']:10s} exit={record['exit']} "
+        print(f"{run_id:42s} {record['status']:10s} exit={record['exit']} "
               f"summary={'yes' if summary else 'no'} probes={installed}")
         if args.tail and record["tail"]:
             print("    | " + "\n    | ".join(record["tail"].splitlines()[-15:]))

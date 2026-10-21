@@ -18,32 +18,11 @@ from pathlib import Path
 from typing import Any
 
 from edb.datasets.store import dataset_labels
-from edb.reporting.collect import evaluate_run, list_run_ids, runs_root
+from edb.reporting.collect import list_run_ids, runs_root
 from edb.reporting.compare import compare, load_reference
+from edb.reporting.summary import run_metrics
 from edb.runners.predict import read_predictions, run_dir
 from edb.settings import get_settings
-
-RAW = ("n", "errors", "accuracy", "macro_f1", "nll", "brier", "ece", "aurc", "acc@80")
-
-
-def _r(v: Any) -> Any:
-    return round(v, 4) if isinstance(v, float) else v
-
-
-def run_metrics(dataset: str, run_id: str, split: str, labels: list[str]) -> dict | None:
-    ev = evaluate_run(dataset, run_id, split, labels)
-    if ev is None:
-        return None
-    out = {k: _r(ev.raw.get(k)) for k in RAW}
-    out["T"] = _r(ev.temperature)
-    if ev.calibrated:
-        out["nll_cal"], out["ece_cal"] = _r(ev.calibrated.get("nll")), \
-            _r(ev.calibrated.get("ece"))
-        pol = (ev.calibrated.get("threshold_policy") or {}).get("80") or {}
-        out["cov80"] = {k: _r(pol.get(k)) for k in ("coverage", "accuracy")} if pol else None
-    out["p50_ms"] = _r(ev.ops.get("latency_p50_ms"))
-    out["in_tok"] = _r(ev.ops.get("input_tokens_mean"))
-    return out
 
 
 def reference_for(dataset: str, run_id: str, split: str) -> Path | None:
