@@ -52,6 +52,9 @@ class CorpusSpec(BaseModel):
     rows_per_source: int = 3000
     max_options: int = 10
     min_options: int = 2
+    # Also draw a random option subset (min_options..all) when a source has <= max_options
+    # labels, so option-set sizes vary for every source.
+    subsample: bool = False
     max_state_chars: int = 3000
     holdout_fraction: float = 0.05
     seed: int = 0
@@ -120,12 +123,16 @@ def fetch_rows(src: SourceSpec, n: int, seed: int) -> tuple[list[dict[str, Any]]
     return rows[:n], features
 
 
+def label_key(raw: Any) -> str:
+    """Label as text: booleans lowercased (`true`/`false`), everything else kept as is."""
+    return str(raw).lower() if isinstance(raw, bool) else str(raw)
+
+
 def label_names(src: SourceSpec, features: dict[str, Any], rows: list[dict]) -> list[str]:
     ftype = features.get(src.label, {})
     if ftype.get("_type") == "ClassLabel":
         return list(ftype["names"])
-    values = sorted({str(r[src.label]).lower() for r in rows})
-    return values
+    return sorted({label_key(r[src.label]) for r in rows})
 
 
 def to_decisions(src: SourceSpec, spec: CorpusSpec, rows: list[dict],
@@ -133,17 +140,21 @@ def to_decisions(src: SourceSpec, spec: CorpusSpec, rows: list[dict],
     names = label_names(src, features, rows)
     values = [src.rename.get(n, n) for n in names]
     allowed = [i for i, n in enumerate(names) if n not in src.exclude_labels]
+    class_label = features.get(src.label, {}).get("_type") == "ClassLabel"
     rng = random.Random(f"{spec.seed}:{src.name}:rows")
     out = []
     for row in rows:
         raw = row[src.label]
-        idx = raw if isinstance(raw, int) else names.index(str(raw).lower())
+        idx = raw if class_label else names.index(label_key(raw))
         if idx < 0 or idx not in allowed:
             continue  # unlabeled (-1) or excluded
         state = src.state.format(**row)[: spec.max_state_chars]
         k = len(allowed)
         if k > spec.max_options:
             k = rng.randint(spec.min_options, spec.max_options)
+        elif spec.subsample:
+            k = rng.randint(spec.min_options, k)
+        if k < len(allowed):
             chosen = sorted([idx, *rng.sample([i for i in allowed if i != idx], k - 1)])
         else:
             chosen = allowed

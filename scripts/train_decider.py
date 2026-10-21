@@ -11,6 +11,8 @@ qwen3.5-2b probe target), the control every trained arm is compared with.
 Usage (GPU; on Azure ML via scripts/aml_run.py):
     python scripts/train_decider.py --arm ce_shuffle --split calibration test --allow-test
     python scripts/train_decider.py --arm frozen --split calibration test --allow-test
+    python scripts/train_decider.py --arms-file arms-r9 --arm r9_qwen9b \
+        --split calibration test --allow-test          # R9: decision-trained Qwen3.5-9B
     python scripts/train_decider.py --arm ce_shuffle --max-steps 2 --max-rows 64 \
         --split dev --limit 8 --items 2      # smoke test
 """
@@ -37,13 +39,15 @@ from edb.training.lora import CONFIG
 from edb.training.train import arm_dir, load_arm, train
 
 DEFAULT_PROBES = ["order", "letter_names", "duplicate", "question", "empty_state",
-                  "cardinality"]
+                  "cardinality", "duplicate_names", "long_options"]
 
 
-def names_for(arm: str) -> tuple[str, str]:
+def names_for(arm: str, arms_file: str = "arms") -> tuple[str, str]:
     if arm == "frozen":
         return "r2_qwen35_2b_letter", "qwen3.5-2b"
-    return f"r3_{arm}", f"r3-{arm.replace('_', '-')}"
+    cfg = load_arm(arm, arms_file)
+    return (cfg.experiment or f"r3_{arm}",
+            cfg.probe_target or f"r3-{arm.replace('_', '-')}")
 
 
 async def probe(target_name: str, probes: list[str], items: int) -> list[dict]:
@@ -59,7 +63,8 @@ async def probe(target_name: str, probes: list[str], items: int) -> list[dict]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Train and evaluate one Part 3 arm")
-    parser.add_argument("--arm", required=True, help="configs/training/arms.yaml arm, or frozen")
+    parser.add_argument("--arm", required=True, help="arm in --arms-file, or frozen")
+    parser.add_argument("--arms-file", default="arms", help="configs/training/<name>.yaml")
     parser.add_argument("--datasets", nargs="+", default=["ace", "banking77"])
     parser.add_argument("--split", nargs="+", default=["dev"])
     parser.add_argument("--allow-test", action="store_true")
@@ -72,12 +77,12 @@ def main() -> int:
     parser.add_argument("--max-rows", type=int)
     args = parser.parse_args()
 
-    experiment, target = names_for(args.arm)
+    experiment, target = names_for(args.arm, args.arms_file)
     report: dict = {"arm": args.arm, "experiment": experiment, "probe_target": target}
     trained = False
     if args.arm != "frozen" and not args.skip_train:
         if args.retrain or not (arm_dir(args.arm) / CONFIG).exists():
-            cfg = load_arm(args.arm)
+            cfg = load_arm(args.arm, args.arms_file)
             updates = {k: v for k, v in (("max_steps", args.max_steps),
                                          ("max_rows", args.max_rows)) if v}
             report["train"] = train(cfg.model_copy(update=updates))

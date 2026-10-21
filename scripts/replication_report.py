@@ -37,6 +37,7 @@ METHODS = [
     ("r3_ce_shuffle", "2B + LoRA, CE, shuffled options", "jobs"),
     ("r3_ce_fixed", "2B + LoRA, CE, fixed option order", "jobs"),
     ("r3_brier_shuffle", "2B + LoRA, Brier, shuffled options", "jobs"),
+    ("r9_qwen9b", "R9: 9B + LoRA decision training", "jobs"),
     ("c6_oss_letter_readout", "gpt-oss-20b letter readout (C6, context)", "local"),
 ]
 DETAIL = ("accuracy", "macro_f1", "nll", "ece", "T", "nll_cal", "ece_cal", "acc@80", "p50_ms",
@@ -44,8 +45,8 @@ DETAIL = ("accuracy", "macro_f1", "nll", "ece", "T", "nll_cal", "ece_cal", "acc@
 AGREE = ("acc_run", "top1_agreement", "chance_agreement", "kappa", "both_wrong",
          "same_answer_when_both_wrong", "error_correlation_phi", "p_gold_pearson",
          "p_gold_spearman", "mean_js_divergence", "prediction_mix_run")
-PROBE_TARGETS = ["decision-1", "qwen3.5-9b", "qwen3.5-2b", "r3-ce-shuffle", "r3-ce-fixed",
-                 "r3-brier-shuffle"]
+PROBE_TARGETS = ["decision-1", "qwen3.5-9b", "r9-qwen9b", "qwen3.5-2b", "r3-ce-shuffle",
+                 "r3-ce-fixed", "r3-brier-shuffle"]
 
 
 def load_job_summaries(tag: str) -> list[dict[str, Any]]:

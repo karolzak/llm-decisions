@@ -1,0 +1,9 @@
+name: r9-qwen9b
+kind: local_readout
+description: "R9: Qwen3.5-9B decision-trained (LoRA, code labels, CE+Brier, KL to base, interface augmentations)."
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-9b
+  adapter: training/r9_qwen9b
+  readout: {labels: codes}

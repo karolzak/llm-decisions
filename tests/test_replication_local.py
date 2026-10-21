@@ -221,6 +221,76 @@ def test_lora_starts_as_identity_and_roundtrips(tmp_path, lm, tiny_model, tokeni
     assert torch.allclose(fresh(input_ids=ids).logits, changed, atol=1e-5)
 
 
+def test_adapters_disabled_restores_base_and_state_roundtrips(lm):
+    from edb.training.lora import (
+        adapters_disabled,
+        apply_lora,
+        load_lora_state,
+        lora_parameters,
+        lora_state,
+    )
+
+    ids = torch.tensor([lm.encode("hello world")])
+    before = lm.model(input_ids=ids).logits
+    apply_lora(lm.model, r=4, alpha=8)
+    for p in lora_parameters(lm.model):
+        torch.nn.init.normal_(p, std=0.05)
+    changed = lm.model(input_ids=ids).logits
+    with adapters_disabled(lm.model):
+        assert torch.allclose(lm.model(input_ids=ids).logits, before, atol=1e-6)
+    assert torch.allclose(lm.model(input_ids=ids).logits, changed)
+    state = {k: v.clone() for k, v in lora_state(lm.model).items()}
+    for p in lora_parameters(lm.model):
+        torch.nn.init.zeros_(p)
+    load_lora_state(lm.model, state)
+    assert torch.allclose(lm.model(input_ids=ids).logits, changed)
+
+
+# --------------------------------------------------------------------------- augmentations
+def test_augmentations_build_the_right_targets():
+    import random
+
+    from edb.training.train import AugConfig, augment
+
+    row = {"state": "s", "instructions": "Which?"}
+    opts = [Option("a", "da"), Option("b"), Option("c")]
+    seen = set()
+    for kind, aug in [("empty", AugConfig(empty=1)), ("negation", AugConfig(negation=1)),
+                      ("decoy", AugConfig(decoy=1)), ("paraphrase", AugConfig(paraphrase=1)),
+                      ("plain", AugConfig())]:
+        for seed in range(20):
+            state, q, o, target, got = augment(row, opts, 1, aug, random.Random(seed))
+            assert got == kind and len(o) == len(target)
+            assert sum(target) == pytest.approx(1.0)
+            seen.add(kind)
+            if kind == "empty":
+                assert target == [pytest.approx(1 / 3)] * 3 and state != "s"
+            elif kind == "negation":
+                assert len(o) == 2 and "NOT" in q and "b" in [x.value for x in o]
+                assert o[target.index(1.0)].value != "b"  # target is the distractor
+            elif kind == "decoy":
+                values = [x.value for x in o]
+                assert len(o) == 4 and len(set(values)) == 4
+                assert o[target.index(1.0)].value == "b"  # the original name wins
+            elif kind == "paraphrase":
+                assert "Which?" in q and o == opts
+            else:
+                assert (state, q, o) == ("s", "Which?", opts) and target == [0, 1, 0]
+    assert len(seen) == 5
+
+
+def test_soft_target_losses():
+    from edb.training.train import loss_fn
+
+    logp = torch.log(torch.tensor([0.5, 0.25, 0.25]))
+    assert float(loss_fn(logp, 0, "ce")) == pytest.approx(-math.log(0.5))
+    assert float(loss_fn(logp, [1.0, 0, 0], "ce_brier")) == pytest.approx(
+        float(loss_fn(logp, 0, "ce_brier")))
+    uniform = [1 / 3] * 3
+    assert float(loss_fn(logp, uniform, "brier")) == pytest.approx(
+        (0.5 - 1 / 3) ** 2 + 2 * (0.25 - 1 / 3) ** 2)
+
+
 # --------------------------------------------------------------------------- training
 def _write_corpus(root, n=12):
     from edb.training.corpus import corpus_dir
@@ -275,3 +345,87 @@ def test_load_arm_merges_defaults():
     assert cfg.base_model == "qwen3.5-2b" and cfg.lora.r == 16
     with pytest.raises(KeyError):
         load_arm("nope")
+    r9 = load_arm("r9_qwen9b", "arms-r9")
+    assert r9.base_model == "qwen3.5-9b" and r9.readout == {"labels": "codes"}
+    assert r9.experiment == "r9_qwen9b" and r9.probe_target == "r9-qwen9b"
+    assert r9.kl_weight > 0 and r9.aug.decoy > 0 and r9.checkpoint_every
+
+
+def _wide_corpus(root, n=8, k=30):
+    """Rows with more options than letters, so training must use code labels."""
+    from edb.training.corpus import corpus_dir
+
+    (root / "configs" / "training").mkdir(parents=True, exist_ok=True)
+    (root / "configs" / "training" / "wide.yaml").write_text(
+        "name: wide-mix\nsources: []\n", encoding="utf-8")
+    out = corpus_dir() / "wide-mix"
+    out.mkdir(parents=True, exist_ok=True)
+    rows = [{"source": "s", "state": f"text {i}", "instructions": "Pick.",
+             "options": [{"value": f"v{j}", "description": None} for j in range(k)],
+             "gold": f"v{i % k}"} for i in range(n)]
+    for split in ("train", "holdout"):
+        (out / f"{split}.jsonl").write_text("\n".join(json.dumps(r) for r in rows),
+                                            encoding="utf-8")
+
+
+def _r9_like(**kw):
+    from edb.training.train import AugConfig, LoraConfig, TrainConfig
+
+    base = dict(arm="w", base_model="tiny-oss", corpus="wide", loss="ce_brier", max_steps=3,
+                batch_size=2, lr=1e-2, warmup_steps=1, eval_every=3, eval_rows=2,
+                max_tokens=4096, lora=LoraConfig(r=4, alpha=8, dropout=0.0),
+                readout={"labels": "codes"}, kl_weight=0.5,
+                aug=AugConfig(decoy=0.2, negation=0.2, empty=0.2, paraphrase=0.2))
+    return TrainConfig(**{**base, **kw})
+
+
+def test_train_with_codes_kl_and_augmentations(tiny_cfg, lm):
+    from edb.training.train import arm_dir, train
+
+    _wide_corpus(tiny_cfg)
+    summary = train(_r9_like(), lm=lm, log=lambda *_: None)
+    assert summary["examples_seen"] == 6 and sum(summary["examples_by_kind"].values()) == 6
+    assert summary["final"]["holdout"]["n"] == 2
+    assert not (arm_dir("w") / "checkpoint.pt").exists()
+
+
+def test_training_resumes_from_checkpoint(tiny_cfg, tiny_model, tokenizer, monkeypatch):
+    import edb.training.train as tr
+    from edb.training.lora import lora_state
+
+    class Crash(Exception):
+        pass
+
+    def crash(*_a, **_k):
+        raise Crash
+
+    def fresh_lm():
+        return LoadedModel(copy.deepcopy(tiny_model), tokenizer, torch.device("cpu"),
+                           {"model_id": "tiny-oss"})
+
+    def interrupted(cfg):
+        """Train until the final save, leaving the last periodic checkpoint behind."""
+        with monkeypatch.context() as m:
+            m.setattr(tr, "save_adapter", crash)
+            with pytest.raises(Crash):
+                tr.train(cfg, lm=fresh_lm(), log=lambda *_: None)
+        assert (tr.arm_dir(cfg.arm) / "checkpoint.pt").exists()
+
+    _wide_corpus(tiny_cfg)
+    reference = fresh_lm()
+    tr.train(_r9_like(arm="ref", checkpoint_every=1), lm=reference, log=lambda *_: None)
+
+    interrupted(_r9_like(arm="cut", checkpoint_every=1))
+    logs: list[str] = []
+    resumed = fresh_lm()
+    summary = tr.train(_r9_like(arm="cut", checkpoint_every=1), lm=resumed, log=logs.append)
+    assert json.loads(logs[0]) == {"resumed_at_step": 2}
+    assert summary["examples_seen"] == 6
+    assert not (tr.arm_dir("cut") / "checkpoint.pt").exists()
+    ref_state, got = lora_state(reference.model), lora_state(resumed.model)
+    assert all(torch.allclose(ref_state[k], got[k], atol=1e-6) for k in ref_state)
+
+    interrupted(_r9_like(arm="cut2", checkpoint_every=1))
+    with pytest.raises(RuntimeError, match="different config"):
+        tr.train(_r9_like(arm="cut2", checkpoint_every=1, lr=5e-3), lm=fresh_lm(),
+                 log=lambda *_: None)

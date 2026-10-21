@@ -277,6 +277,23 @@ independent; R10–R12 reuse the Part 3 training setup.
 - the name that fits the description wins (F4);
 - R6's paraphrase flip rate, once measured, as an extra robustness target.
 
+**As launched** ([arms-r9.yaml](../configs/training/arms-r9.yaml),
+[corpus-r9.yaml](../configs/training/corpus-r9.yaml)):
+- Qwen3.5-9B, LoRA r=16, 600 steps × 16 examples, rows up to 2,048 tokens. A checkpoint
+  every 50 steps lets a pre-empted job resume.
+- Code labels (A–Z, then single-token pairs). This is the only scheme that reads 100+
+  options in one pass. Untrained, codes scored 4.4 points below grouped letters on
+  BANKING77 (R4); whether training closes that gap is part of what R9 measures.
+- Data: the Part 3 sources plus MASSIVE intents (60 classes), DBpedia level-3 (219 classes)
+  and 20 Newsgroups. Option subsets of 2–100 are drawn per row.
+- Loss: CE + Brier, plus 0.3 × KL(frozen base ‖ adapter) on ordinary and paraphrased rows.
+- Augmentations (share of examples): decoy duplicate 8% (target: the original name),
+  negated question 5% (2 options, target: the wrong one), uninformative state 4% (uniform
+  target), paraphrased question 25%.
+- Not tuned on R5. R5's best prompt can be applied at evaluation time afterwards.
+- Evaluated zero-shot on ACE and BANKING77 (calibration + test), then probed with the
+  same probe set as Decision-1, including R7 and R8.
+
 **If R9 misses a target:**
 - **Order flips or the name effect:** R10 (dedicated option tokens), then an architectural
   change.

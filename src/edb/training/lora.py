@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import re
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -73,6 +74,34 @@ def apply_lora(model: nn.Module, r: int = 16, alpha: float = 32.0, dropout: floa
 
 def lora_parameters(model: nn.Module) -> list[nn.Parameter]:
     return [p for n, p in model.named_parameters() if "lora_" in n]
+
+
+@contextmanager
+def adapters_disabled(model: nn.Module):
+    """Temporarily run the frozen base model (every LoRA update scaled to zero)."""
+    mods = [m for m in model.modules() if isinstance(m, LoRALinear)]
+    scales = [m.scale for m in mods]
+    for m in mods:
+        m.scale = 0.0
+    try:
+        yield
+    finally:
+        for m, s in zip(mods, scales, strict=True):
+            m.scale = s
+
+
+def lora_state(model: nn.Module) -> dict[str, torch.Tensor]:
+    return {n: p.detach().float().cpu().clone() for n, p in model.named_parameters()
+            if "lora_" in n}
+
+
+def load_lora_state(model: nn.Module, state: dict[str, torch.Tensor]) -> None:
+    params = dict(model.named_parameters())
+    missing = set(state) - set(params)
+    if missing:
+        raise KeyError(f"checkpoint has unknown LoRA parameters: {sorted(missing)[:3]}")
+    for name, tensor in state.items():
+        params[name].data.copy_(tensor.to(params[name].device, params[name].dtype))
 
 
 def save_adapter(model: nn.Module, path: str | Path, config: dict[str, Any]) -> Path:
