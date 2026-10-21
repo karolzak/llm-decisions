@@ -1,6 +1,6 @@
 # Decision-model probes
 
-Generated 2026-10-21T05:29:58+00:00. What each probe tests and what each readout design predicts: [docs/replication.md](../../replication.md).
+Generated 2026-10-21T09:23:34+00:00. What each probe tests and what each readout design predicts: [docs/replication.md](../../replication.md).
 
 | target | description |
 |---|---|

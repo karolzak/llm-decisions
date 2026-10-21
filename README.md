@@ -107,10 +107,10 @@ New datasets need only a YAML config: see [docs/setup.md](docs/setup.md#adding-a
   reaches 0.93 on ACE.
 - **How Decision-1 works (R-series):** it reads its answer at one position per question over
   the listed options, as bf16 probabilities, and cannot tell which option is listed where.
-  On ACE its decisions match its
-  *frozen* base model (Qwen3.5-9B read in one pass: 0.741 vs. 0.741). Post-training pays
-  off on many-way routing (BANKING77 +12 points) and calibration. Small decision-trained
-  models reproduce most of its traits; see
+  On ACE its decisions match its *frozen* base model (Qwen3.5-9B read in one pass: 0.741 vs.
+  0.741), and a different prompt layout alone makes the frozen base *better* (0.767–0.775).
+  Post-training pays off on many-way routing (BANKING77 +12 points) and calibration there.
+  Small decision-trained models reproduce most of its traits; see
   [docs/results/2026-10-21-replication](docs/results/2026-10-21-replication/README.md).
 
 Full results, calibration metrics, latency and cost:

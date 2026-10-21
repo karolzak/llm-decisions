@@ -212,13 +212,16 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
 - **Calibration is trained in, and only for some tasks (strong).**
   - No calibration step follows the model (finding 2), so its calibration comes from
     training.
-  - It is calibrated on BANKING77 (fitted T = 1.02) but overconfident on ACE (T = 1.65–2.75),
-    *more* so than its untrained base read in one pass (T = 1.33–1.61).
+  - It is calibrated on BANKING77 (fitted T = 1.02) but overconfident on ACE (T = 1.65–2.75).
+    Its untrained base, read in one pass, ranges from T = 0.64 to 2.51 on ACE depending only
+    on the prompt layout (next section), so ACE shows no calibration gain from training.
   - The calibration objective worked on routing-style data and did not carry over to
     compliance reasoning.
 - **Light-touch post-training that kept the base model's judgement (likely).**
   - The answer scores keep the output layer's natural size.
-  - On ACE it matches its base model's accuracy and mistakes (next section).
+  - On ACE its accuracy and decisions are within what changing the prompt of its untrained
+    base produces, and a better prompt makes the untrained base more accurate than
+    Decision-1 (next section).
   - The changes are concentrated in the interface: format, order robustness, option-set
     scoring and calibration on familiar tasks.
 - **Many-way classification in the training data (likely).** It gains 12 points over its base
@@ -228,36 +231,62 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
 
 ## Is Decision-1 just Qwen3.5-9B with recalibrated probabilities?
 
-Partly. Its judgement on ACE is the base model's, but post-training changed more than the
-probabilities. The comparison model is `Qwen/Qwen3.5-9B` as released (the chat model, read
-in one pass with thinking off) through our own letter readout, not Decision-1's prompt.
+**On ACE, nothing measurable separates it from its base model. On BANKING77 and in the
+probes, post-training clearly changed more than calibration.** The comparison model is
+`Qwen/Qwen3.5-9B` as released (the chat model, read in one pass with thinking off) through
+our own letter readout, not Decision-1's hidden prompt.
 
-**Where Decision-1 and its base agree:**
+### ACE: the differences are within what a prompt change alone produces
 
-| ACE test | Decision-1 | Qwen3.5-9B frozen |
+Same frozen Qwen3.5-9B, same options in the same order, same letter readout. Only the
+prompt layout changes:
+- **default:** state, question, then options, in XML-style tags;
+- **markdown:** question and options first, state last;
+- **json:** the whole request as one JSON object.
+
+| ACE test | Accuracy (names only / with criteria) | Agreement with Decision-1 (names / criteria) |
 |---|---|---|
-| Accuracy with criteria / names only | 0.741 / 0.619 | 0.741 / 0.647 |
-| Same decision | 81% / 83% (kappa 0.68 / 0.66) | |
-| Same wrong answer when both are wrong | 91% / 91% | |
+| Decision-1 | 0.619 / 0.741 | – |
+| Qwen3.5-9B frozen, default prompt | 0.647 / 0.741 | 83% / 81% |
+| Qwen3.5-9B frozen, JSON prompt | 0.596 / 0.678 | 80% / 79% |
+| Qwen3.5-9B frozen, markdown prompt | **0.775 / 0.767** | 63% / 69% |
 
-For comparison, gpt-oss-20b read the same way agrees with Decision-1 at kappa 0.35–0.42.
+| Frozen 9B with one prompt vs. another (ACE test) | Agreement (names / criteria) |
+|---|---|
+| default vs. JSON | 85% / 85% |
+| default vs. markdown | 67% / 69% |
+| JSON vs. markdown | 65% / 68% |
 
-**Why it is more than recalibration.** Temperature scaling, or any recalibration that keeps
-the ranking of options, cannot change which option wins. Yet:
+- **Prompt layout alone changes 15–35% of the frozen model's ACE decisions.** Decision-1
+  differs from the default-prompt frozen model on 17–19%, inside that range. The ACE
+  decision differences cannot be attributed to post-training.
+- **A different prompt makes the frozen base beat Decision-1 on ACE:** 0.775 vs. 0.619 with
+  names only, 0.767 vs. 0.741 with criteria. Post-training did not add compliance ability;
+  the base model already has more than Decision-1 shows.
+- **Calibration varies with the prompt too.** The fitted temperature of the frozen model on
+  ACE ranges from 0.64 (markdown, underconfident) to 2.51 (JSON names only, overconfident).
+  Decision-1's ACE temperatures (1.65 / 2.75) are inside that range.
+- **Decision-1 agrees most with the state-first prompts** (default, JSON: 79–83%) and least
+  with the state-last one (markdown: 63–69%). That is consistent with Decision-1's hidden
+  template putting the state first. Sharing one state across several questions (finding 1)
+  requires that anyway.
+- The default prompt, rerun in this job, reproduced the earlier run exactly (0.6473 /
+  0.7409), so the readout is deterministic. BANKING77 was not re-run with other prompts.
 
-1. **Decisions differ on 17–19% of examples** (ACE and BANKING77).
-   - Some of this is our different prompt: renaming options alone changed up to 2 of 16
-     answers (13%) in the probes.
-   - Measuring how many decisions a prompt change alone flips for the frozen model would
-     settle this; it has not been run.
-2. **BANKING77 accuracy is 12 points higher:** 0.870 vs. 0.750. Decision-1 alone is right on
-   13.6% of examples, the base alone on 1.6%. Our readout scores 77 options in groups of 26,
-   which may cost the base some accuracy.
-3. **Calibration changed unevenly.**
-   - BANKING77 improved: raw ECE 0.097 → 0.015, T 1.41 → 1.02.
-   - ACE got more overconfident: T 1.33 → 1.65 with criteria (raw ECE unchanged at 0.106),
-     and T 1.61 → 2.75 without (ECE 0.188 → 0.222).
-4. **Behaviour changed in ways no recalibration can produce:**
+For comparison, gpt-oss-20b read the same way agrees with Decision-1 at kappa 0.35–0.42,
+against 0.66–0.68 for the default-prompt frozen 9B.
+
+### Where post-training clearly changed more than calibration
+
+Temperature scaling, or any recalibration that keeps the ranking of options, cannot change
+which option wins. Yet:
+
+1. **BANKING77 accuracy is 12 points higher:** 0.870 vs. 0.750 (default prompt).
+   - Decision-1 alone is right on 13.6% of examples, the base alone on 1.6%.
+   - Caveat: our readout scores 77 options in groups of 26, and other prompts were not
+     tested on BANKING77, so part of this gap may be readout and prompt.
+2. **BANKING77 calibration improved:** raw ECE 0.097 → 0.015, temperature 1.41 → 1.02.
+3. **Behaviour changed in ways no recalibration can produce:**
 
    | Probe | Decision-1 | Qwen3.5-9B frozen |
    |---|---|---|
@@ -269,9 +298,9 @@ the ranking of options, cannot change which option wins. Yet:
    It also works from a ≈ 21-token hidden template and scores up to 255 options in one
    softmax.
 
-In short: Decision-1 = Qwen3.5-9B's judgement + a trained decision interface (compact
-format, joint option scoring that ignores order, calibration on routing-style tasks) + better
-many-way routing.
+In short: Decision-1 = Qwen3.5-9B's judgement, unchanged on compliance reasoning, + a
+trained decision interface (compact format, joint option scoring that ignores order,
+calibration on routing-style tasks) + better many-way routing.
 
 ## Where the 255 limit comes from
 
@@ -281,19 +310,43 @@ many-way routing.
   - It caps a request at 255 questions, with the error "invalid TypeSafe request".
   - It uses the same request schema and the same confidence formula.
   - Open implementations of the same API inherit the cap too: strands-decider's docs call
-    "the schema's 255" its only option limit.
-- **Microsoft added a cap Jev's docs don't have (strong).** Jev's documentation states "no
-  separate limit on the number of questions", while Decision-1 rejects the 256th question.
-  The same number appears for both options and questions.
+    "the schema's 255" its only option limit, although its pointer head has no per-option
+    parameters and could score any number of options.
+- **The same 255 caps questions, which need no label tokens (strong).** Jev's documentation
+  states "no separate limit on the number of questions", while Decision-1 rejects the 256th
+  question. A limit shared by options and questions looks like a constant of the request
+  format (e.g. counts or indices stored in one byte), not of the vocabulary.
 - **Not a capacity limit of the model (strong).** 255 options cost ≈ 3,550 tokens, far below
   the context length, and are still scored in one softmax.
-- **Not letters or numbers (strong).** Letters give 26 single-token labels, and Qwen spells
-  numbers digit by digit.
-- **Why 255 (speculation).** 255 = 2⁸ − 1 is the largest index that fits in one byte with
-  one value reserved (e.g. for padding or "no option"). It is the classic signature of an
-  8-bit index, or a table of 256 option tokens with one reserved. Qwen3.5's embedding table
-  has 243 unused rows (248,320 rows for 248,077 tokens), so the existing spare rows alone
-  would not provide 255 option tokens.
+- **Why 255 (speculation).** 255 = 2⁸ − 1 is the largest value of one unsigned byte, with one
+  value left for "none" or padding: a common engineering default for a per-request index.
+  TypeSafe's launch post says applications needing more options chain two stages, so the cap
+  is a product decision.
+- **The score cap may come from the tokenizer (speculation).** Score questions allow at most
+  10 levels, and Qwen has exactly 10 single-digit tokens (`0`–`9`). Reading score levels as
+  digit tokens would explain that cap.
+
+### What the 255 option labels could be
+
+Whatever Decision-1 reads, it reads exactly one bf16 score per option (finding 2). The
+billing also limits what an option costs. Fitted over 530 requests, each option is billed
+its name's tokens, plus its description's tokens, plus **about 2 more** (2 is the best
+integer fit; individual requests scatter by a few tokens). So the label and its separator
+take about 2 tokens: something like `<label>` + newline. That rules out multi-token labels
+such as `Option 137:`.
+
+| Possible labels | Vocabulary change | What Qwen3.5-9B offers | Drawback |
+|---|---|---|---|
+| Existing single tokens | None | 26 + 26 letters, 10 digits, 562 two-letter codes (`AA`, `AB`, …), thousands of CJK characters | Labels keep their old meanings, and option names can collide with labels |
+| Repurposed unused rows | New tokens on existing rows | 243 spare embedding rows (248,320 rows for 248,077 tokens), plus ≈ 30 multimodal special tokens that a text-only service never uses | Spare rows alone fall short of 255 |
+| New tokens | Embedding and output tables grow by 255–256 rows | Routine in fine-tuning | The new rows must be trained; LoRA on the existing layers alone does not train them |
+
+- **Not plain letters or numbers (strong).** Letters give 26 single-token labels, and Qwen
+  spells numbers digit by digit.
+- **Not distinguishable from outside.** The API never returns tokens. The tokenizer check
+  (finding 6) only covers our text; label tokens would sit in the hidden template.
+- **Not part of calibration.** Choosing or adding label tokens belongs to format training.
+  Calibration only adjusts weights so the probabilities on those labels are honest.
 
 **Checks that would narrow it down:** whether Jev also rejects the 256th question; and
 whether option names or descriptions above some length are truncated, which would hint at

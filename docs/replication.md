@@ -86,6 +86,10 @@ winners (P(option) = P(group winner) × P(option | group)).
 
 - `r2_qwen35_9b_letter`: Qwen3.5-9B, Decision-1's base, on ACE and BANKING77 (same catalog
   order and descriptions as B1). Leaderboard `replication`, next to B1.
+- `r2_qwen35_9b_letter_markdown` / `_json`: the same model and readout with two other prompt
+  layouts (`readout: {template: ...}`), to measure how much the prompt alone moves the
+  decisions. Run them in one job: `scripts/job_summary.py` then compares every pair of runs
+  of the job (`pairwise`).
 - `qwen3.5-9b` probe target: the same model through every Part 1 probe.
 - [`scripts/compare_runs.py`](../scripts/compare_runs.py): example-by-example comparison with
   Decision-1: top-1 agreement and Cohen's kappa, shared mistakes, error correlation,

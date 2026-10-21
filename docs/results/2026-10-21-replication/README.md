@@ -22,8 +22,13 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
    read with a plain letter readout, scores exactly what Decision-1 scores with criteria text
    (0.741 vs. 0.741) and slightly more with label names (0.647 vs. 0.619). The two agree on
    81–83% of examples (kappa 0.66–0.68), and when both are wrong they give the *same* wrong
-   answer 91% of the time. Post-training did not make Decision-1 better at compliance
-   reasoning; its judgement there is the base model's.
+   answer 91% of the time.
+   - **Prompt control:** changing only the prompt layout changes 15–35% of the frozen
+     model's own ACE decisions, more than it differs from Decision-1 (17–19%).
+   - **A better prompt beats Decision-1:** with question and options before the state, the
+     frozen base scores 0.775 / 0.767 (names / criteria), above Decision-1's 0.619 / 0.741.
+   - Post-training did not make Decision-1 better at compliance reasoning; its judgement
+     there is the base model's (see [prompt sensitivity](#prompt-sensitivity-of-the-frozen-base)).
 2. **On BANKING77, post-training adds 12 points and fixes calibration.** Frozen 9B: 0.750,
    raw ECE 0.097, fitted temperature 1.41. Decision-1: 0.870, ECE 0.015, temperature 1.02.
    This is the kind of task decision training data is made of (many-way routing over named
@@ -82,6 +87,38 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
 | Empty state, normalised entropy (BANKING77) | 0.95 | 0.75 | Decision-1 is closer to "I don't know" |
 | "Which option does NOT…" (BANKING77) | 1.00 | 0.97 | both follow the question |
 | Names that look like answer letters | no effect | no effect | – |
+
+### Prompt sensitivity of the frozen base
+
+To check whether the ACE differences between Decision-1 and its base come from post-training
+or just from a different prompt, the frozen Qwen3.5-9B was re-run on ACE with two more prompt
+layouts. Options, option order and the letter readout stay the same:
+- **default:** state, question, then lettered options, in XML-style tags;
+- **markdown:** question and options first as `(A) …`, state last;
+- **json:** the whole request as one JSON object.
+
+| ACE test | Accuracy (names / criteria) | Fitted T (names / criteria) | Agreement with Decision-1 |
+|---|---|---|---|
+| Decision-1 | 0.619 / 0.741 | 2.75 / 1.65 | – |
+| Frozen 9B, default prompt | 0.647 / 0.741 | 1.61 / 1.33 | 83% / 81% |
+| Frozen 9B, JSON prompt | 0.596 / 0.678 | 2.51 / 1.78 | 80% / 79% |
+| Frozen 9B, markdown prompt | **0.775 / 0.767** | 0.64 / 0.82 | 63% / 69% |
+
+| Frozen 9B, prompt vs. prompt | Agreement (names / criteria) |
+|---|---|
+| default vs. JSON | 85% / 85% |
+| default vs. markdown | 67% / 69% |
+| JSON vs. markdown | 65% / 68% |
+
+- **The prompt matters more than post-training on ACE.** Layout alone changes 15–35% of
+  the frozen model's decisions and moves its accuracy by up to 18 points (names only).
+  Decision-1 sits within that spread, below the best prompt.
+- **Calibration on ACE also depends on the prompt:** the fitted temperature ranges from
+  0.64 (underconfident) to 2.51 (overconfident) without any training.
+- **Decision-1 agrees most with the state-first prompts**, consistent with a hidden template
+  that puts the state first (required to share it across questions).
+- The default prompt rerun reproduced the earlier run exactly. BANKING77 was not re-run
+  with other prompts, so its 12-point gap could also be partly prompt.
 
 ## Part 3: what decision training changes
 
@@ -147,6 +184,9 @@ about 500 steps in every arm, so 1,500 steps is enough at this size.
   pass, which is a different (and probably weaker) readout than Decision-1's.
 - **ACE test ≠ calibration distribution** (see the ACE baseline), so ACE temperatures and
   calibrated ECE are less reliable than BANKING77's.
+- **Prompt sensitivity:** the frozen models were run with our own prompt templates. On ACE the
+  choice of template alone moves the 9B's accuracy by up to 18 points; none of our templates
+  is Decision-1's hidden one.
 - The `ce_fixed` job was pre-empted once (low-priority VM) and retrained from scratch.
 
 ## Reproduce
@@ -156,6 +196,7 @@ git push origin replication-study
 uv run --extra aml python scripts/aml_submit.py --experiment r2_qwen35_9b_letter --dataset ace --split calibration test --allow-test --parallel --tag replication --git-ref replication-study
 uv run --extra aml python scripts/aml_submit.py --experiment r2_qwen35_9b_letter --dataset banking77 --split calibration test --allow-test --parallel --tag replication --git-ref replication-study
 uv run --extra aml python scripts/aml_run.py --key probes-qwen3.5-9b --tag replication --git-ref replication-study -- scripts/run_probes.py --target qwen3.5-9b
+uv run --extra aml python scripts/aml_run.py --key r2-prompt-variants --tag replication --git-ref replication-study -- scripts/run_experiment.py --experiment r2_qwen35_9b_letter r2_qwen35_9b_letter_markdown r2_qwen35_9b_letter_json --dataset ace --split calibration test --allow-test
 foreach ($arm in 'ce_shuffle','ce_fixed','brier_shuffle','frozen') { uv run --extra aml python scripts/aml_run.py --key "r3-$arm" --tag replication --git-ref replication-study -- scripts/train_decider.py --arm $arm --split calibration test --allow-test }
 uv run --extra aml python scripts/aml_summaries.py --tag replication
 uv run python scripts/replication_report.py --tag replication

@@ -29,6 +29,8 @@ COLUMNS = [("ace", "short", "ACE short"), ("ace", "verbose", "ACE verbose"),
 METHODS = [
     ("b1_decision1", "Decision-1 (post-trained Qwen3.5-9B)", "local"),
     ("r2_qwen35_9b_letter", "Qwen3.5-9B frozen, letter readout", "jobs"),
+    ("r2_qwen35_9b_letter_markdown", "Qwen3.5-9B frozen, markdown prompt", "jobs"),
+    ("r2_qwen35_9b_letter_json", "Qwen3.5-9B frozen, JSON prompt", "jobs"),
     ("r2_qwen35_2b_letter", "Qwen3.5-2B frozen, letter readout", "jobs"),
     ("r3_ce_shuffle", "2B + LoRA, CE, shuffled options", "jobs"),
     ("r3_ce_fixed", "2B + LoRA, CE, fixed option order", "jobs"),
@@ -49,15 +51,21 @@ def load_job_summaries(tag: str) -> list[dict[str, Any]]:
     return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(folder.glob("*.json"))]
 
 
-def collect(tag: str, split: str) -> tuple[dict, dict, dict, list]:
-    """metrics[(exp, dataset, catalog)], agreement[...], training[arm], job status rows."""
+def collect(tag: str, split: str) -> tuple[dict, dict, dict, list, dict]:
+    """metrics[(exp, dataset, catalog)], agreement[...], training[arm], job status rows,
+    pairwise[(dataset, "run_a vs run_b")] (runs of one job compared with each other)."""
     metrics: dict[tuple, dict] = {}
     agreement: dict[tuple, dict] = {}
     training: dict[str, dict] = {}
+    pairwise: dict[tuple, dict] = {}
     jobs = []
     for rec in load_job_summaries(tag):
         s = rec.get("summary") or {}
         jobs.append((rec["run_id"], rec["status"], rec.get("exit")))
+        for ds, pairs in (s.get("pairwise") or {}).items():
+            for pair, splits in pairs.items():
+                if split in splits:
+                    pairwise[(ds, pair)] = splits[split]
         for ds, runs in (s.get("runs") or {}).items():
             for run_id, splits in runs.items():
                 exp, cat = run_id.rsplit("__", 1)
@@ -83,7 +91,7 @@ def collect(tag: str, split: str) -> tuple[dict, dict, dict, list]:
                     ref = read_predictions(run_dir(ds, ref_id, split) / "predictions.jsonl")
                     other = read_predictions(run_dir(ds, run_id, split) / "predictions.jsonl")
                     agreement[(exp, ds, cat)] = compare(ref, other, dataset_labels(ds))
-    return metrics, agreement, training, jobs
+    return metrics, agreement, training, jobs, pairwise
 
 
 def table(header: list[str], rows: list[list[Any]]) -> list[str]:
@@ -92,7 +100,7 @@ def table(header: list[str], rows: list[list[Any]]) -> list[str]:
 
 
 def build(tag: str, split: str) -> Path:
-    metrics, agreement, training, jobs = collect(tag, split)
+    metrics, agreement, training, jobs, pairwise = collect(tag, split)
     lines = [f"# Replication study report (`{split}`)", "",
              "Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries "
              f"(tag `{tag}`). Design: [docs/replication.md](../../docs/replication.md).", ""]
@@ -117,6 +125,15 @@ def build(tag: str, split: str) -> Path:
                       "`kappa`: agreement beyond chance; `same_answer_when_both_wrong`: shared "
                       "mistakes; `p_gold_*`: correlation of the probability given to the right "
                       "answer.", "", *table(["method", *AGREE], rows), ""]
+    if pairwise:
+        rows = [[ds, pair, c.get("n"), c.get("acc_reference"), c.get("acc_run"),
+                 c.get("top1_agreement"), c.get("kappa"), c.get("mean_js_divergence")]
+                for (ds, pair), c in sorted(pairwise.items())]
+        lines += ["## Same model, different runs (e.g. prompt templates)", "",
+                  "Runs of one job compared example by example: how much the decisions move "
+                  "when only the prompt changes.", "",
+                  *table(["dataset", "pair", "n", "acc A", "acc B", "agreement", "kappa",
+                          "mean JS"], rows), ""]
     if training:
         rows = []
         for arm, t in sorted(training.items()):
@@ -145,7 +162,9 @@ def build(tag: str, split: str) -> Path:
     (out_dir / f"data-{split}.json").write_text(json.dumps(
         {"metrics": {"|".join(k): v for k, v in metrics.items()},
          "agreement": {"|".join(k): v for k, v in agreement.items()},
-         "training": training}, indent=1), encoding="utf-8")
+         "training": training,
+         "pairwise": {"|".join(k): v for k, v in pairwise.items()}}, indent=1),
+        encoding="utf-8")
     return out
 
 
