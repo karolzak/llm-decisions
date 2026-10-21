@@ -167,6 +167,10 @@ below includes about 400 ms of network and service overhead.
      *later* copy.
    - So finding 4's "original name" preference is really a preference for the name that
      best fits the description, which also explains it without any architectural trick.
+   - **The untrained Qwen3.5-9B does not do this** (same probe, our letter readout): it gives
+     0.92 / 0.39 of the pair to the first of two opaque copies, and swapping the copies moves
+     the plain name's share from 0.97 to 0.41 on ACE (0.88 → 0.70 on BANKING77). So the
+     order-free name preference is added by post-training.
 9. **Long option descriptions are read in full, with no per-option limit (R8).** BANKING77
    items with 4 options named by opaque ids; each description holds the real intent, plus
    neutral filler of 0–150 sentences (up to ≈ 1,650 tokens per option, 6,700 per request),
@@ -183,6 +187,8 @@ below includes about 400 ms of network and service overhead.
    - Facts at the end of a 1,650-token description are used as well as facts at the start
      (16 items, differences of 1 item).
    - So there are no fixed per-option slots that truncate long options.
+   - The untrained Qwen3.5-9B behaves the same (0.94–1.00 accuracy at every length, intent
+     at the start or end), so this capability comes from the base model.
 
 ## What this says about the architecture
 
