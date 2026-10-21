@@ -21,7 +21,7 @@ import itertools
 import math
 import string
 from abc import ABC, abstractmethod
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field, replace
 from typing import Any, ClassVar
 
@@ -353,6 +353,137 @@ class DuplicateProbe(Probe):
                 "mass_conservation": mean(conserve),
             }
         return out
+
+
+class DuplicateNamesProbe(Probe):
+    """R7: why does a model prefer the original name over a renamed identical copy? The gold
+    option G (name v, description d) is duplicated, keeping d, under different namings:
+
+        swap_after     [.., G renamed "v-2", copy named "v", ..]  (plain name on the copy)
+        swap_before    [.., copy named "v", G renamed "v-2", ..]
+        neutral        [.., G renamed opt_x, copy named opt_y, ..]  (no name information)
+        suffix_copy    [.., G, copy named "v (copy)", ..]
+        unrelated      [.., G, copy named after an unrelated word, ..]
+
+    `plain_name_share_*` > 0.5 in both swaps: mass follows the plain name (a "suffix means
+    duplicate" heuristic or name meaning), not the original slot. `first_share_neutral`
+    shows the pure position preference. `original_share_unrelated` near 1: the copy is
+    penalised for a name that does not match its description."""
+
+    name = "duplicate_names"
+    summary = "What makes a model prefer one of two identical options?"
+    k_banking = 4
+    unrelated = "zebra_crossing"
+
+    def cases(self, items):
+        out = []
+        pool = [*items.get("ace", []), *(subset(i, self.k_banking, self.seed)
+                                         for i in items.get("banking77", []))]
+        for item in pool:
+            g = item.option(item.gold)
+            i = item.values.index(item.gold)
+            base = list(item.options)
+            ids = [f"opt_{hash_str(f'{item.id}:{s}') % 16**4:04x}" for s in ("a", "b")]
+            plain = Option(g.value, g.description)
+            renamed = Option(g.value + "-2", g.description)
+            variants = {
+                "swap_after": (renamed, plain, "after"),
+                "swap_before": (renamed, plain, "before"),
+                "neutral": (Option(ids[0], g.description), Option(ids[1], g.description), "after"),
+                "suffix_copy": (g, Option(g.value + " (copy)", g.description), "after"),
+                "unrelated": (g, Option(self.unrelated, g.description), "after"),
+            }
+            for name, (orig, copy, where) in variants.items():
+                pair = [orig, copy] if where == "after" else [copy, orig]
+                opts = base[:i] + pair + base[i + 1:]
+                out.append(self.case(item.id, name, choice_request(item, opts), gold=item.gold,
+                                     original=orig.value, copy=copy.value, where=where))
+        return out
+
+    def analyze(self, records):
+        out = {}
+        for source, recs in by_source(records).items():
+            shares: dict[str, list[float]] = defaultdict(list)
+            for r in recs:
+                p = probs_of(r)
+                if p is None:
+                    continue
+                m = r["meta"]
+                total = p[m["original"]] + p[m["copy"]]
+                if total <= 0:
+                    continue
+                order = order_of(r)
+                first = m["original"] if order.index(m["original"]) < order.index(m["copy"]) \
+                    else m["copy"]
+                if r["variant"].startswith("swap"):
+                    shares["plain_name_share_" + r["variant"]].append(p[m["copy"]] / total)
+                elif r["variant"] == "neutral":
+                    shares["first_share_neutral"].append(p[first] / total)
+                else:
+                    shares["original_share_" + r["variant"]].append(p[m["original"]] / total)
+                shares["pair_mass_" + r["variant"]].append(total)
+            out[source] = {"items": len({r["item_id"] for r in recs}),
+                           **{k: mean(v) for k, v in sorted(shares.items())}}
+        return out
+
+
+FILLER = "Additional note: this category follows the standard handling procedure. "
+
+
+class LongOptionsProbe(Probe):
+    """R8: are option descriptions truncated or held in fixed per-option slots? BANKING77
+    items with 4 options named by opaque ids; each description holds the real intent name
+    plus neutral filler of growing length, with the intent at the start or at the end:
+
+        start_<n>   "Intent: card_arrival. " + filler x n
+        end_<n>     filler x n + "Intent: card_arrival."
+
+    Billing should grow linearly with the filler. If long descriptions were cut to a fixed
+    per-option budget, `end_<n>` accuracy would collapse while `start_<n>` held."""
+
+    name = "long_options"
+    summary = "Are long option descriptions truncated?"
+    k_banking = 4
+    repeats = (0, 10, 40, 150)
+
+    def cases(self, items):
+        out = []
+        for item in items.get("banking77", []):
+            sub = subset(item, self.k_banking, self.seed)
+            for n in self.repeats:
+                for where in (("start",) if n == 0 else ("start", "end")):
+                    opts = []
+                    for o in sub.options:
+                        oid = f"opt_{hash_str(f'{item.id}:{o.value}') % 16**4:04x}"
+                        fact = f"Intent: {o.value}."
+                        desc = (fact + " " + FILLER * n if where == "start"
+                                else FILLER * n + fact).strip()
+                        opts.append(Option(oid, desc))
+                    gold_id = opts[sub.values.index(item.gold)].value
+                    out.append(self.case(item.id, f"{where}_{n:03d}", choice_request(sub, opts),
+                                         gold=gold_id, repeats=n, where=where))
+        return out
+
+    def analyze(self, records):
+        rows = defaultdict(lambda: defaultdict(list))
+        for r in records:
+            p = probs_of(r)
+            if p is None:
+                continue
+            key = r["variant"]
+            rows[key]["acc"].append(top(p) == r["meta"]["gold"])
+            rows[key]["p_gold"].append(p[r["meta"]["gold"]])
+            if r["response"].get("input_tokens") is not None:
+                rows[key]["tokens"].append(r["response"]["input_tokens"])
+        per = {k: {"n": len(v["acc"]), "accuracy": mean(v["acc"]), "mean_p_gold": mean(v["p_gold"]),
+                   "input_tokens": mean(v["tokens"])} for k, v in sorted(rows.items())}
+        reps = [(int(k.split("_")[1]), v["input_tokens"]) for k, v in per.items()
+                if k.startswith("start") and v["input_tokens"] is not None]
+        slope = float(np.polyfit(*zip(*reps, strict=True), 1)[0]) if len(reps) >= 2 else None
+        errors = Counter((r.get("error") or "")[:80] for r in records if r.get("error"))
+        return {"per_variant": per,
+                "tokens_per_filler_repeat": round(slope, 2) if slope is not None else None,
+                "errors": dict(errors)}
 
 
 class CardinalityProbe(Probe):
@@ -731,4 +862,5 @@ class TokensProbe(Probe):
 
 PROBES: dict[str, type[Probe]] = {p.name: p for p in (
     OrderProbe, LetterNamesProbe, DuplicateProbe, CardinalityProbe, QuestionProbe,
-    EmptyStateProbe, MultiQuestionProbe, DeterminismProbe, TokensProbe)}
+    EmptyStateProbe, MultiQuestionProbe, DeterminismProbe, TokensProbe, DuplicateNamesProbe,
+    LongOptionsProbe)}

@@ -246,6 +246,11 @@ def test_biased_readout_is_detected(sandbox):
     assert card["tokens_per_option"] == pytest.approx(2.0, abs=0.01)
     assert card["limits"] == {"k255": "accepted", "k256": "accepted"}
     assert s["forensics"]["confidence_is_jev_formula"] == 1.0
+    dn = p["duplicate_names"]["result"]["ace"]
+    assert dn["first_share_neutral"] > 0.5  # position bias, no name information
+    assert dn["plain_name_share_swap_after"] < 0.5 < dn["plain_name_share_swap_before"]
+    lo = p["long_options"]["result"]
+    assert lo["tokens_per_filler_repeat"] is not None and "start_150" in lo["per_variant"]
     # one record per case, resumable: a second run sends nothing new
     n = len(read_records(records_path("biased", "order")))
     target = ProbeTarget(name="biased", kind="systemone", url="http://x")
