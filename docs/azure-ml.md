@@ -108,3 +108,36 @@ uv run --extra aml python scripts/aml_collect.py --tag replication --wait
 
 Submitting uploads the repository snapshot to the workspace storage account, so the submitting
 machine needs the same network access to it as `aml_collect.py` (see *Private storage*).
+
+## When the workspace storage is unreachable
+
+A network security perimeter on the workspace storage only admits listed public IPs and
+resources of the subscription. A corporate **split-tunnel VPN** that routes Azure ranges
+(e.g. Azure Storage `57.150.0.0/15`) through an Azure-hosted gateway defeats IP rules: the
+storage account no longer sees the laptop's public IP, and adding the gateway's IP does not
+help either (its traffic reaches Storage over the Microsoft backbone). Check the route with
+`Find-NetRoute -RemoteIPAddress <storage IP>`. The subscription's activity log
+(`httpRequest.clientIpAddress`) shows the IP Azure sees for management calls.
+
+Jobs themselves are unaffected (they run inside the subscription), and the workspace API is
+not behind the perimeter. Two options keep everything else working without touching
+storage from the laptop:
+
+- **`--git-ref <branch>`** (`aml_run.py`, `aml_submit.py`): the job downloads that pushed
+  commit from GitHub (`origin` must be public) instead of uploading the working tree.
+- **Job summaries as tags**: on exit every job attaches a compact summary (all metrics,
+  example-by-example agreement with Decision-1 from `configs/reference/`, probe and training
+  summaries), its exit code and log tail as MLflow tags. `scripts/aml_summaries.py --tag <tag>`
+  reassembles them into `artifacts/aml/summaries/<tag>/` and installs probe summaries, so
+  `probe_report.py` and `replication_report.py` work without the raw files. Full outputs stay
+  in the datastore for `aml_collect.py` once storage is reachable again.
+
+```powershell
+git push origin <branch>
+uv run --extra aml python scripts/aml_run.py --key r3-ce_shuffle --tag replication --git-ref <branch> -- scripts/train_decider.py --arm ce_shuffle --split calibration test --allow-test
+uv run --extra aml python scripts/aml_summaries.py --tag replication --tail
+uv run python scripts/replication_report.py --tag replication
+```
+
+Low-priority jobs can be pre-empted and are then restarted by Azure ML. Evaluation and probes
+resume from the synced output; a training arm restarts from scratch (no checkpoints).

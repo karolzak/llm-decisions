@@ -143,3 +143,16 @@ uv run python scripts/probe_report.py --target decision-1 qwen3.5-2b r3-ce-shuff
 
 A retrained adapter changes the run's config hash (the adapter's weight hash is part of it), so
 predictions from an older adapter are archived rather than mixed in.
+
+## Collecting results
+
+```powershell
+uv run --extra aml python scripts/aml_collect.py --tag replication --wait         # raw outputs (needs storage access)
+uv run --extra aml python scripts/aml_summaries.py --tag replication              # summaries from job tags (no storage access)
+uv run python scripts/replication_report.py --tag replication                     # artifacts/reports/replication/
+```
+
+If the workspace storage is not reachable from your machine (e.g. behind a corporate VPN),
+add `--git-ref <pushed branch>` to every `aml_run.py` / `aml_submit.py` command and use
+`aml_summaries.py`; see [azure-ml.md](azure-ml.md#when-the-workspace-storage-is-unreachable).
+Results of the first full round: [results/2026-10-21-replication](results/2026-10-21-replication/README.md).
