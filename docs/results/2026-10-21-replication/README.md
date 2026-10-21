@@ -27,8 +27,8 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
 2. **On BANKING77, post-training adds 12 points and fixes calibration.** Frozen 9B: 0.750,
    raw ECE 0.097, fitted temperature 1.41. Decision-1: 0.870, ECE 0.015, temperature 1.02.
    This is the kind of task decision training data is made of (many-way routing over named
-   options), and it is where the gain is. Part of the gap is our readout: 77 options need four
-   passes of at most 26 letters, while Decision-1 reads all 77 at once.
+   options), and it is where the gain is. Part of the gap may be our readout: 77 options need
+   four passes of at most 26 letters, while Decision-1 shows no sign of such grouping.
 3. **Decision training on *other* tasks transfers.** Qwen3.5-2B, trained only on 8 public
    classification tasks, goes from 0.38 to 0.49–0.55 on ACE and from 0.51 to 0.64–0.65 on
    BANKING77, and its probabilities become usable (ACE temperature 7.7 → 1.4–1.8).
@@ -37,11 +37,11 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
    correctly (1.00), while Decision-1 is at chance (0.50), and so is every trained arm,
    including the fixed-order control (0.53 / 0.50 / 0.47). Training on many tasks where only
    the content of an option decides the answer is enough; option shuffling is not what
-   causes it. Every arm also flips less when options are reordered (ACE 31% ? 6?11%;
+   causes it. Every arm also flips less when options are reordered (ACE 31% → 6–11%;
    Decision-1 0%) and is closer to uniform on an empty state. What shuffling *does* add,
-   against the fixed-order control: better answers to "which option does NOT?" (0.63 ? 0.78;
-   Decision-1 1.00), less need for temperature correction on ACE (T 2.20 ? 1.80 short,
-   1.87 ? 1.41 verbose) and +5 points on ACE verbose.
+   against the fixed-order control: better answers to "which option does NOT…" (0.63 → 0.78;
+   Decision-1 1.00), less need for temperature correction on ACE (T 2.20 → 1.80 short,
+   1.87 → 1.41 verbose) and +5 points on ACE verbose.
 5. **A proper scoring rule calibrates in the weights.** The Brier arm matches cross-entropy's
    accuracy and needs less temperature correction on BANKING77 (raw ECE 0.062 vs. 0.128;
    T 1.17 vs. 1.40), the direction of Decision-1's "calibrated out of the box" (T 1.02). On
@@ -49,8 +49,8 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
    RLCD-style objective.
 6. **What we did not reproduce:** Decision-1 prefers the *original* option name over an exact
    copy named `…-2`, wherever the copy sits (0.84–0.85 of the pair's mass). Every local model,
-   trained or not, prefers the *earlier* copy instead. Decision-1 also shares the state across
-   questions and serves bf16 logits; our readout does neither by construction.
+   trained or not, prefers the *earlier* copy instead. Decision-1 also bills the state once
+   across questions and serves bf16 logits; our readout does neither by construction.
 
 ## Part 2: Decision-1 vs. its frozen base
 
@@ -105,7 +105,7 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
 | "Listed first?" (BANKING77) | 0.50 | 0.56 | 0.53 | 0.53 | 0.53 |
 | ACE decision flips across option orders | 0% | 31% | 11% | 6% | 7.5% |
 | BANKING77 first-vs-last log lift | 0.02 | 2.86 | 0.59 | 1.17 | 1.18 |
-| "Does NOT?" accuracy (BANKING77) | 1.00 | 0.50 | 0.78 | 0.63 | 0.84 |
+| "Does NOT…" accuracy (BANKING77) | 1.00 | 0.50 | 0.78 | 0.63 | 0.84 |
 | Empty state, normalised entropy (BANKING77) | 0.95 | 0.67 | 0.82 | 0.85 | 0.88 |
 | Duplicate before original: original-name share (ACE) | 0.84 | 0.44 | 0.26 | 0.29 | 0.34 |
 
@@ -133,8 +133,8 @@ about 500 steps in every arm, so 1,500 steps is enough at this size.
   named options (BANKING77: +12 points over the base for Decision-1, +14 for our 2B arms) is
   where training helps most.
 - **Still unexplained:** Decision-1's preference for the original option name over a
-  renamed duplicate, which no recipe here reproduces; and how Decision-1 scores 77 options in
-  one pass where our readout needs four.
+  renamed duplicate, which no recipe here reproduces; and how Decision-1 handles 77 options
+  without the grouping our readout needs.
 
 ## Caveats
 
