@@ -59,8 +59,9 @@ reported separately and never ranked against each other.
 Every experiment runs once per label catalog: `short` (label names) and, where available,
 `verbose` (names + one-sentence criteria). Plain-language explanations with a diagram per
 experiment: [docs/methods.md](docs/methods.md). The R-series (how decision models work):
-[docs/replication.md](docs/replication.md); first results on Decision-1:
-[docs/results/2026-10-20-decision1-probes](docs/results/2026-10-20-decision1-probes/README.md).
+[docs/replication.md](docs/replication.md); results:
+[Decision-1 probes](docs/results/2026-10-20-decision1-probes/README.md) and
+[frozen base + training arms](docs/results/2026-10-21-replication/README.md).
 
 ## Datasets
 
@@ -104,6 +105,12 @@ New datasets need only a YAML config: see [docs/setup.md](docs/setup.md#adding-a
   1/8 of the latency), but collapses on compliance, which needs reasoning.
 - **The decision is already in the mid-layer activations:** a linear head trained on them
   reaches 0.93 on ACE.
+- **How Decision-1 works (R-series):** it is one forward pass over listed options with a
+  bf16 probability readout, blind to option positions. On ACE its decisions match its
+  *frozen* base model (Qwen3.5-9B read in one pass: 0.741 vs. 0.741). Post-training pays
+  off on many-way routing (BANKING77 +12 points) and calibration. Small decision-trained
+  models reproduce most of its traits; see
+  [docs/results/2026-10-21-replication](docs/results/2026-10-21-replication/README.md).
 
 Full results, calibration metrics, latency and cost:
 [docs/results/2026-10-14-c-series-banking77](docs/results/2026-10-14-c-series-banking77/README.md).

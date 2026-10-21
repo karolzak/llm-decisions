@@ -3,7 +3,7 @@
 Part 1 of the [replication study](../../replication.md): 855 perturbed requests to
 Microsoft-Decision-1, built from 16 `dev` items each of ACE and BANKING77. Full tables:
 [probe-report.md](probe-report.md); raw summary: [summary-decision-1.json](summary-decision-1.json).
-Parts 2 and 3 (frozen Qwen3.5-9B, training arms) are implemented but not yet run.
+Parts 2 and 3 (frozen Qwen3.5-9B, training arms): [2026-10-21-replication](../2026-10-21-replication/README.md).
 
 ## TL;DR
 
