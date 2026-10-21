@@ -236,3 +236,49 @@ API (≈ 9 requests/min, a few cents) and can run in parallel with the GPU work.
 
 **Dependencies:** R4 → R5 → R9 (R9 uses the best labels and prompt). R6–R8 and R13 are
 independent; R10–R12 reuse the Part 3 training setup.
+
+## Can we replicate Decision-1 on Qwen3.5-9B?
+
+**Status (2026-10-21):**
+- **The target is specified:** F1–F12 define the interface and behaviour to match.
+- **The recipe is plausible:** the base supplies the judgement (F7), and decision training
+  supplies the interface (F9, at 2B).
+- **No 9B has been trained yet.** R9 is the deciding experiment.
+
+**What a replica must match** (Decision-1 vs. the untrained base today):
+
+| Target | Decision-1 | Frozen 9B | 2B arms |
+|---|---|---|---|
+| ACE / BANKING77 accuracy | 0.741 / 0.870 | 0.741–0.767 / 0.750 | 0.51–0.55 / 0.65 |
+| BANKING77 fitted temperature | 1.02 | 1.41 | 1.17–1.46 |
+| ACE decisions flipped by reordering | 0% | 7.5% | 6–11% |
+| "Which option is listed last?" (BANKING77) | 0.50 (blind) | 1.00 | 0.47–0.53 |
+| Two identical options: the name that fits the description wins | yes | pending (R7) | no |
+| Empty state, normalised entropy (BANKING77) | 0.95 | 0.75 | 0.82–0.88 |
+| Up to 255 options in one pass | yes | no (groups of 26) | no |
+
+**R9 design, updated with the findings:**
+- **Base and adapter:** Qwen3.5-9B, light LoRA, plus a KL term to the frozen base so its
+  ACE judgement is kept (F7).
+- **Readout:** one label token per option. Train on 2–100 options per row so one-pass
+  reading of many options is learned (F10, F12).
+- **Data:** the Part 3 mix plus more routing tasks. Add:
+  - decoy and near-duplicate options with variant or mismatched names (F4);
+  - negated and paraphrased questions;
+  - empty or uninformative states with uniform targets;
+  - options re-shuffled every example.
+- **Loss:** cross-entropy plus Brier (F9).
+
+**Pass criteria:**
+- within 3 points of Decision-1 on ACE and BANKING77;
+- BANKING77 fitted T within 0.9–1.2;
+- under 2% decision flips under reordering;
+- position-blind ("listed last" ≈ 0.5);
+- the name that fits the description wins (F4);
+- R6's paraphrase flip rate, once measured, as an extra robustness target.
+
+**If R9 misses a target:**
+- **Order flips or the name effect:** R10 (dedicated option tokens), then an architectural
+  change.
+- **BANKING77 accuracy:** more and broader routing data, then R5's best prompt.
+- **Calibration:** a different Brier weight, or a scoring-rule-only loss.
