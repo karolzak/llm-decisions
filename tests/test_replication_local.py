@@ -3,6 +3,7 @@
 import asyncio
 import copy
 import json
+import math
 import os
 import textwrap
 
@@ -96,6 +97,54 @@ def test_letter_variants_include_bare_and_spaced_tokens(lm):
     a_ids = variants[0]
     assert lm.encode("A")[0] in a_ids and lm.encode(" A")[0] in a_ids
     assert all(lm.tokenizer.decode([i]).strip() == "A" for i in a_ids)
+
+
+def test_code_labels_extend_letters_in_one_pass(lm):
+    r = readout(lm, labels="codes")
+    assert r.label_strings(3) == ["A", "B", "C"]
+    assert r.prompt_text("S", "Pick.", OPTS) == readout(lm).prompt_text("S", "Pick.", OPTS)
+    many = [Option(f"o{i}") for i in range(40)]
+    labels = r.label_strings(40)
+    assert labels[25] == "Z" and labels[26] == "AA" and len(set(labels)) == 40
+    assert all(len(lm.encode(lbl)) == 1 for lbl in labels)
+    text = r.prompt_text("S", "Pick.", many)
+    assert "\nAA. o26" in text and "letter code" in text
+    probs, diag = r.score_options("S", "Pick.", many)
+    assert diag["passes"] == 1 and sum(probs) == pytest.approx(1.0)
+
+
+def test_number_labels_are_scored_exactly(lm):
+    import torch as t
+
+    r = readout(lm, labels="numbers")
+    opts = [Option(f"o{i}") for i in range(12)]
+    ids = r.prompt_ids("S", "Pick.", opts)
+    assert "\n12. o11" in r.prompt_text("S", "Pick.", opts) and "number" in \
+        r.prompt_text("S", "Pick.", opts)
+    probs, diag = r.score_options("S", "Pick.", opts)
+    assert diag["passes"] == 1 and sum(probs) == pytest.approx(1.0)
+
+    digit = [lm.encode(str(d))[0] for d in range(10)]
+
+    def lp(seq):
+        with t.inference_mode():
+            return t.log_softmax(lm.model(input_ids=t.tensor([seq])).logits[0, -1].float(), -1)
+
+    def label_lp(n):
+        seq, total = list(ids), 0.0
+        for c in str(n):
+            total += float(lp(seq)[digit[int(c)]])
+            seq.append(digit[int(c)])
+        return total + math.log(1 - float(lp(seq)[digit].exp().sum()))
+
+    raw = [label_lp(n) for n in range(1, 13)]
+    z = t.logsumexp(t.tensor(raw), 0)
+    assert probs == pytest.approx([math.exp(x - float(z)) for x in raw], abs=1e-4)
+
+
+def test_unknown_label_scheme_rejected():
+    with pytest.raises(ValueError, match="unknown labels"):
+        ReadoutConfig.from_params({"labels": "emoji"})
 
 
 def test_single_pass_and_grouped_scores_are_distributions(lm):

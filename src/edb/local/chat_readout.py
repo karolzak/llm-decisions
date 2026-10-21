@@ -3,12 +3,16 @@
 The recipe of the open "System One" replicas that read a frozen or LoRA-tuned instruct model
 (Cygnet, SemIf/OpenJev, Quyet, H2O-Lightning):
 
-    1. Render the state, the question and the options as letters (A., B., ...) in one user
-       message through the model's own chat template (thinking disabled).
+    1. Render the state, the question and the labelled options in one user message through
+       the model's own chat template (thinking disabled).
     2. One forward pass; at the answer position, sum the probability of every vocabulary
-       token that decodes to each letter (`A`, ` A`, ...), then renormalise over the letters.
-    3. More than `group_size` options: score groups of options, then the group winners
-       against each other; P(option) = P(its group's winner) x P(option | its group).
+       token that decodes to each label (`A`, ` A`, ...), then renormalise over the labels.
+    3. Labels (`labels`): letters A..Z (default); `codes` adds single-token two-letter codes
+       (AA, AB, ...) so up to ~580 options fit one pass; `numbers` (1, 2, ...) reads
+       multi-digit labels exactly, digit by digit.
+    4. More options than the labels allow (letters: more than `group_size`): score groups of
+       options, then the group winners against each other;
+       P(option) = P(its group's winner) x P(option | its group).
 
 `ChatLetterReadout` is shared by the dataset method (`local_chat_readout`), the probe client
 (`LocalReadoutClient`) and training (`edb.training`), so all three see identical prompts.
@@ -60,7 +64,7 @@ PROMPT = """Read the state and answer the question by choosing exactly one optio
 {options}
 </options>
 
-Answer with the letter of the correct option only."""
+Answer with the {label_word} of the correct option only."""
 
 # Alternative wordings/layouts of the same request (prompt-sensitivity experiment). Options are
 # always lettered A, B, C... in the given order, so only the surrounding text differs.
@@ -73,10 +77,16 @@ PROMPT_MARKDOWN = """## Task
 ## Input
 {state}
 
-Reply with a single letter: the best answer above."""
+Reply with a single {label_word}: the best answer above."""
 
 PROMPTS = {"default": PROMPT, "markdown": PROMPT_MARKDOWN, "json": None}
 OPTION_LINES = {"default": "{letter}. {text}", "markdown": "({letter}) {text}"}
+# How options are labelled (and read back):
+#   letters  A..Z, one token each; more than 26 options are scored in groups (`group_size`)
+#   codes    A..Z, then single-token two-letter codes (AA, AB, ...): up to 255+ in one pass
+#   numbers  1, 2, 3, ...; multi-digit labels are scored exactly as
+#            P(d1) * P(d2 | d1) * ... * P(next token is not a digit | label)
+LABEL_SCHEMES = ("letters", "codes", "numbers")
 
 
 @dataclass
@@ -89,6 +99,7 @@ class ReadoutConfig:
     temperature: float = 1.0  # p^(1/T), renormalised; applied once to the final distribution
     noul_order: tuple[str, str] = ("false", "true")  # as shown to the model (Cygnet: false first)
     template: str = "default"  # default | markdown | json (see PROMPTS)
+    labels: str = "letters"  # letters | codes | numbers (see LABEL_SCHEMES)
 
     @classmethod
     def from_params(cls, *params: dict[str, Any] | None) -> ReadoutConfig:
@@ -99,6 +110,8 @@ class ReadoutConfig:
             merged["noul_order"] = tuple(merged["noul_order"])
         if merged.get("template", "default") not in PROMPTS:
             raise ValueError(f"unknown template {merged['template']!r}; known: {list(PROMPTS)}")
+        if merged.get("labels", "letters") not in LABEL_SCHEMES:
+            raise ValueError(f"unknown labels {merged['labels']!r}; known: {LABEL_SCHEMES}")
         return cls(**merged)
 
 
@@ -117,15 +130,17 @@ def option_line(letter: str, option: Option, template: str = "default") -> str:
         letter=letter, text=option_text(option))
 
 
-def render_body(template: str, state: Any, instructions: str, options: list[Option]) -> str:
+def render_body(template: str, state: Any, instructions: str, options: list[Option],
+                labels: list[str] | None = None, label_word: str = "letter") -> str:
+    labels = labels or list(LETTERS[:len(options)])
     if template == "json":
         return json.dumps({"input": render_state(state), "question": instructions,
-                           "options": {LETTERS[i]: option_text(o) for i, o in enumerate(options)},
+                           "options": {labels[i]: option_text(o) for i, o in enumerate(options)},
                            "answer_format": "the key of the best option, nothing else"},
                           ensure_ascii=False, indent=1)
     return PROMPTS[template].format(
-        state=render_state(state), instructions=instructions,
-        options="\n".join(option_line(LETTERS[i], o, template) for i, o in enumerate(options)))
+        state=render_state(state), instructions=instructions, label_word=label_word,
+        options="\n".join(option_line(labels[i], o, template) for i, o in enumerate(options)))
 
 
 class ChatLetterReadout:
@@ -133,12 +148,55 @@ class ChatLetterReadout:
         self.lm = lm
         self.cfg = cfg or ReadoutConfig()
         self._variants: list[list[int]] | None = None
+        self._by_text: dict[str, list[int]] | None = None
+        self._codes: list[str] | None = None
+
+    # ------------------------------------------------------------------ labels
+    def _token_texts(self) -> dict[str, list[int]]:
+        """Stripped text -> ids of every short non-special token that decodes to it."""
+        if self._by_text is None:
+            tok = self.lm.tokenizer
+            special = set(tok.all_special_ids)
+            pieces = tok.convert_ids_to_tokens(list(range(len(tok))))
+            short = [i for i, p in enumerate(pieces) if p is not None and len(p) <= 4
+                     and i not in special]
+            by_text: dict[str, list[int]] = {}
+            for i, t in zip(short, tok.batch_decode([[i] for i in short]), strict=True):
+                by_text.setdefault(t.strip(), []).append(i)
+            self._by_text = by_text
+        return self._by_text
+
+    def codes(self) -> list[str]:
+        """A..Z, then the two-letter codes AA..ZZ that are single tokens (alphabetical)."""
+        if self._codes is None:
+            pairs = [a + b for a in LETTERS for b in LETTERS]
+            self._codes = list(LETTERS) + [p for p in pairs
+                                           if len(self.lm.encode(p)) == 1]
+        return self._codes
+
+    def capacity(self) -> int:
+        """Most options one pass can label (more are scored in groups)."""
+        if self.cfg.labels == "numbers":
+            return 999
+        return len(self.codes()) if self.cfg.labels == "codes" else len(LETTERS)
+
+    def label_strings(self, k: int) -> list[str]:
+        if self.cfg.labels == "numbers":
+            return [str(i + 1) for i in range(k)]
+        pool = self.codes() if self.cfg.labels == "codes" else list(LETTERS)
+        if k > len(pool):
+            raise ValueError(f"at most {len(pool)} options per pass, got {k}")
+        return pool[:k]
+
+    def label_word(self, k: int) -> str:
+        if self.cfg.labels == "numbers":
+            return "number"
+        return "letter" if k <= len(LETTERS) else "letter code"
 
     # ------------------------------------------------------------------ prompt
     def prompt_text(self, state: Any, instructions: str, options: list[Option]) -> str:
-        if len(options) > len(LETTERS):
-            raise ValueError(f"at most {len(LETTERS)} options per pass, got {len(options)}")
-        body = render_body(self.cfg.template, state, instructions, options)
+        body = render_body(self.cfg.template, state, instructions, options,
+                           self.label_strings(len(options)), self.label_word(len(options)))
         msgs = ([{"role": "system", "content": self.cfg.system_prompt}]
                 if self.cfg.system_prompt else []) + [{"role": "user", "content": body}]
         rendered = self.lm.tokenizer.apply_chat_template(
@@ -148,24 +206,17 @@ class ChatLetterReadout:
     def prompt_ids(self, state: Any, instructions: str, options: list[Option]) -> list[int]:
         return self.lm.encode(self.prompt_text(state, instructions, options))
 
+    def label_variant_ids(self, labels: list[str]) -> list[list[int]]:
+        by_text = self._token_texts()
+        missing = [lbl for lbl in labels if lbl not in by_text]
+        if missing:
+            raise ValueError(f"tokenizer has no single token for labels {missing[:5]}")
+        return [by_text[lbl] for lbl in labels]
+
     def variant_ids(self) -> list[list[int]]:
         """Per letter A..Z: every non-special token that decodes to it (whitespace stripped)."""
         if self._variants is None:
-            tok = self.lm.tokenizer
-            special = set(tok.all_special_ids)
-            pieces = tok.convert_ids_to_tokens(list(range(len(tok))))
-            short = [i for i, p in enumerate(pieces) if p is not None and len(p) <= 4
-                     and i not in special]
-            texts = tok.batch_decode([[i] for i in short])
-            by_letter: dict[str, list[int]] = {c: [] for c in LETTERS}
-            for i, t in zip(short, texts, strict=True):
-                s = t.strip()
-                if s in by_letter:
-                    by_letter[s].append(i)
-            missing = [c for c, ids in by_letter.items() if not ids]
-            if missing:
-                raise ValueError(f"tokenizer has no token for letters {missing}")
-            self._variants = [by_letter[c] for c in LETTERS]
+            self._variants = self.label_variant_ids(list(LETTERS))
         return self._variants
 
     # ------------------------------------------------------------------ scoring
@@ -179,24 +230,56 @@ class ChatLetterReadout:
     @torch.inference_mode()
     def _pass(self, state: Any, instructions: str,
               options: list[Option]) -> tuple[list[float], dict[str, Any], int]:
+        if self.cfg.labels == "numbers":
+            return self._pass_numbers(state, instructions, options)
         ids = self.prompt_ids(state, instructions, options)
         device = self.lm.model.device
         logits, _ = _forward(self.lm.model, torch.tensor([ids], device=device),
                              torch.tensor([len(ids) - 1], device=device))
         logits = logits[0, -1]
-        letter_lp = self.letter_logprobs_from_logits(logits, len(options))
-        on_format = float(letter_lp.exp().sum())
-        lp = (letter_lp - torch.logsumexp(letter_lp, 0)).tolist()
-        best = int(torch.argmax(letter_lp))
+        variants = self.label_variant_ids(self.label_strings(len(options)))
+        lp_all = torch.log_softmax(logits.float(), dim=-1)
+        label_lp = torch.stack([torch.logsumexp(lp_all[v], dim=-1) for v in variants])
+        on_format = float(label_lp.exp().sum())
+        lp = (label_lp - torch.logsumexp(label_lp, 0)).tolist()
+        best = int(torch.argmax(label_lp))
         diag = {"on_format_mass": round(on_format, 6),
-                "top_letter_logit": round(float(logits[self.variant_ids()[best]].max()), 3),
+                "top_letter_logit": round(float(logits[variants[best]].max()), 3),
                 "top_vocab_token": self.lm.tokenizer.decode([int(torch.argmax(logits))])}
+        return lp, diag, len(ids)
+
+    def _pass_numbers(self, state: Any, instructions: str,
+                      options: list[Option]) -> tuple[list[float], dict[str, Any], int]:
+        """Exact log P(answer = "n") for n = 1..K over multi-token numbers: the digits of n,
+        then any non-digit token (the answer ends)."""
+        from edb.local.scoring import continuation_scores
+
+        ids = self.prompt_ids(state, instructions, options)
+        digit_ids = [self.lm.encode(str(d)) for d in range(10)]
+        if any(len(d) != 1 for d in digit_ids):
+            raise ValueError("number labels need single-token digits")
+        digit_ids = [d[0] for d in digit_ids]
+        labels = self.label_strings(len(options))
+        conts = [[digit_ids[int(c)] for c in lbl] for lbl in labels]
+        scores = continuation_scores(self.lm.model, ids, conts, mode="independent",
+                                     query_ids=digit_ids,
+                                     pad_id=self.lm.tokenizer.pad_token_id or 0)
+        raw = []
+        for s in scores:
+            p_more = min(1.0, sum(math.exp(q) for q in s.query_logprobs))
+            raw.append(s.total + math.log(max(1e-12, 1.0 - p_more)))
+        t = torch.tensor(raw)
+        on_format = float(t.exp().sum())
+        lp = (t - torch.logsumexp(t, 0)).tolist()
+        diag = {"on_format_mass": round(on_format, 6), "top_letter_logit": None,
+                "top_vocab_token": labels[int(torch.argmax(t))]}
         return lp, diag, len(ids)
 
     def score_options(self, state: Any, instructions: str,
                       options: list[Option]) -> tuple[list[float], dict[str, Any]]:
         """Probabilities over `options` (in order) + diagnostics."""
-        g = self.cfg.group_size
+        g = min(self.cfg.group_size, self.capacity()) if self.cfg.labels == "letters" \
+            else self.capacity()
         if len(options) <= g:
             lp, diag, n = self._pass(state, instructions, options)
             diag.update(passes=1, input_tokens=n)

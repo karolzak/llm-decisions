@@ -31,6 +31,8 @@ METHODS = [
     ("r2_qwen35_9b_letter", "Qwen3.5-9B frozen, letter readout", "jobs"),
     ("r2_qwen35_9b_letter_markdown", "Qwen3.5-9B frozen, markdown prompt", "jobs"),
     ("r2_qwen35_9b_letter_json", "Qwen3.5-9B frozen, JSON prompt", "jobs"),
+    ("r2_qwen35_9b_codes", "Qwen3.5-9B frozen, letter codes (one pass)", "jobs"),
+    ("r2_qwen35_9b_numbers", "Qwen3.5-9B frozen, numbers (one pass)", "jobs"),
     ("r2_qwen35_2b_letter", "Qwen3.5-2B frozen, letter readout", "jobs"),
     ("r3_ce_shuffle", "2B + LoRA, CE, shuffled options", "jobs"),
     ("r3_ce_fixed", "2B + LoRA, CE, fixed option order", "jobs"),
