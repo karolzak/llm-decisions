@@ -27,6 +27,7 @@ from edb.settings import get_settings
 
 ROWS_URL = "https://datasets-server.huggingface.co/rows"
 PAGE = 100
+PAGE_PAUSE_S = 0.5
 
 
 class SourceSpec(BaseModel):
@@ -65,22 +66,34 @@ def corpus_dir() -> Path:
     return get_settings().cache_dir / "training" / "corpus"
 
 
-def _get(params: dict[str, Any], attempts: int = 8) -> dict[str, Any]:
+def _get(params: dict[str, Any], attempts: int = 14) -> dict[str, Any]:
+    """GET with patient retries: parallel jobs share one egress IP, and the anonymous dataset
+    viewer API rate-limits it (429) or times out under load."""
     headers = {}
     token = get_settings().hf_token
     if token:
         headers["Authorization"] = "Bearer " + token
+    last = None
     for attempt in range(attempts):
+        wait = min(180.0, 5.0 * 2 ** attempt)
         try:
-            r = httpx.get(ROWS_URL, params=params, headers=headers, timeout=60)
+            r = httpx.get(ROWS_URL, params=params, headers=headers, timeout=120)
             if r.status_code == 200:
+                time.sleep(PAGE_PAUSE_S)
                 return r.json()
-            if r.status_code not in (429, 500, 502, 503, 504):
+            last = f"HTTP {r.status_code}: {r.text[:200]}"
+            if r.status_code not in (408, 425, 429, 500, 502, 503, 504):
                 r.raise_for_status()
-        except httpx.TransportError:
-            pass
-        time.sleep(min(60.0, 2.0 ** attempt))
-    raise RuntimeError(f"dataset viewer request failed: {params}")
+            retry_after = r.headers.get("retry-after")
+            if retry_after and retry_after.isdigit():
+                wait = max(wait, float(retry_after))
+        except httpx.TransportError as exc:
+            last = f"{type(exc).__name__}: {exc}"
+        wait *= random.uniform(0.75, 1.25)
+        print(f"[corpus] {params.get('dataset')} offset={params.get('offset')}: {last}; "
+              f"retry {attempt + 1}/{attempts - 1} in {wait:.0f}s", flush=True)
+        time.sleep(wait)
+    raise RuntimeError(f"dataset viewer request failed ({last}): {params}")
 
 
 def fetch_rows(src: SourceSpec, n: int, seed: int) -> tuple[list[dict[str, Any]], dict]:
