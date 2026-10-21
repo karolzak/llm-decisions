@@ -44,6 +44,25 @@ def bf16_magnitude(step: float) -> str | None:
     return f"[{2.0 ** e:g}, {2.0 ** (e + 1):g})"
 
 
+def main_grid_step(shares: dict[str, float]) -> str | None:
+    """Coarsest step s such that most answers sit on grid s or a coarser one (a coarser grid
+    is contained in a finer one); None when most answers are on no grid."""
+    for step in sorted((k for k in shares if k != "none"), key=float, reverse=True):
+        if sum(v for k, v in shares.items() if k != "none" and float(k) >= float(step)) > 0.5:
+            return step
+    return None
+
+
+def refresh(summary: dict[str, Any]) -> dict[str, Any]:
+    """Recompute derived forensics fields of a stored summary (older summaries)."""
+    f = summary.get("forensics") or {}
+    if "logit_grid_share" in f:
+        f["logit_grid_main_step"] = main_grid_step(f["logit_grid_share"])
+        step = f["logit_grid_main_step"]
+        f["bf16_logit_magnitude_if_main_step"] = bf16_magnitude(float(step)) if step else None
+    return summary
+
+
 def analyze(records: list[dict[str, Any]]) -> dict[str, Any]:
     grids: Counter[str] = Counter()
     conf_jev, conf_max, sums, argmax_ok = [], [], [], []
@@ -73,7 +92,7 @@ def analyze(records: list[dict[str, Any]]) -> dict[str, Any]:
     measured = sum(v for k, v in grids.items() if k != "n/a")
     on_grid = {k: round(v / measured, 4) for k, v in grids.most_common() if k != "n/a"} \
         if measured else {}
-    main = next((k for k in on_grid if k != "none"), None)
+    main = main_grid_step(on_grid)
     return {
         "answers": n_answers,
         "logit_grid_share": on_grid,

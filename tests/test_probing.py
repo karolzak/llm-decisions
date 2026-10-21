@@ -289,6 +289,17 @@ def test_logit_grid_detects_bf16_softmax():
     assert forensics.bf16_magnitude(0.125) == "[16, 32)"
 
 
+def test_main_grid_step_needs_a_majority():
+    def rec(probs):
+        return {"response": {"latency_ms": 1.0, "output_tokens": 1, "answers": {"q": {
+            "type": "choice", "probabilities": dict(enumerate(probs))}}}}
+
+    on = [math.exp(x) for x in (0.0, -0.125, -0.5)]
+    off = [0.5, 0.3, 0.2]
+    assert forensics.analyze([rec(on), rec(off), rec(off)])["logit_grid_main_step"] is None
+    assert forensics.analyze([rec(on), rec(on), rec(off)])["logit_grid_main_step"] == "0.125"
+
+
 def test_tokens_probe_identifies_tokenizer():
     class WordTok:
         def encode(self, text, add_special_tokens=False):

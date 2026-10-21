@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 
+from edb.probing import forensics
 from edb.runners.aml import ml_client, read_log, status_of
 from edb.settings import get_settings
 
@@ -59,8 +60,8 @@ def main() -> int:
             if d.exists() and any(d.glob("*.jsonl")):
                 continue  # raw local records win
             d.mkdir(parents=True, exist_ok=True)
-            (d / "summary.json").write_text(json.dumps(s, indent=1, ensure_ascii=False),
-                                            encoding="utf-8")
+            (d / "summary.json").write_text(json.dumps(forensics.refresh(s), indent=1,
+                                                       ensure_ascii=False), encoding="utf-8")
             installed.append(target)
         print(f"{run_id:42s} {record['status']:10s} exit={record['exit']} "
               f"summary={'yes' if summary else 'no'} probes={installed}")
