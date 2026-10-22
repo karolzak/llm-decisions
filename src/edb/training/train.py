@@ -12,10 +12,13 @@ uninformative states):
     ce_brier  both
 
 `shuffle` re-orders the options of every example every time it is seen (the label follows).
-`kl_weight` adds KL(frozen base || model) on the label distribution of ordinary rows, which
-keeps the base model's judgement (the frozen base is the same network with LoRA disabled).
-`aug` mixes in rows that teach interface behaviour (see `augment`). With `checkpoint_every`,
-training state is saved periodically and a restarted job resumes from it.
+`kl_weight` adds KL(frozen base || model) on the label distribution of the example kinds in
+`kl_kinds` (default: ordinary and paraphrased rows), which keeps the base model's judgement
+(the frozen base is the same network with LoRA disabled).
+`aug` mixes in rows that teach interface behaviour (see `augment`), including R9b's "none"
+option: uninformative or mismatched states should pick it when it is listed.
+With `checkpoint_every`, training state is saved periodically and a restarted job resumes
+from it.
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import re
 import time
 from pathlib import Path
 from typing import Any, Literal
@@ -62,8 +66,13 @@ class AugConfig(BaseModel):
 
     decoy: float = 0.0  # add a copy of the gold option under a variant or unrelated name
     negation: float = 0.0  # two options; "which does NOT ..." -> the distractor
-    empty: float = 0.0  # uninformative state -> uniform target
+    empty: float = 0.0  # uninformative state -> a "none" option if listed, else uniform
     paraphrase: float = 0.0  # reword the question
+    # R9b: teach a "none / not applicable" option instead of only uniform answers
+    mismatch: float = 0.0  # state taken from another task + a "none" option -> "none"
+    none_option: float = 0.0  # a "none" option added as a distractor -> gold unchanged
+    empty_none: float = 0.0  # chance an empty example gets a "none" option added
+    none_aware: bool = False  # empty examples target an existing "none" option
 
 
 class TrainConfig(BaseModel):
@@ -84,6 +93,7 @@ class TrainConfig(BaseModel):
     max_rows: int | None = None  # cap on training rows (smoke tests)
     readout: dict[str, Any] = Field(default_factory=dict)  # overrides the model's readout
     kl_weight: float = 0.0
+    kl_kinds: list[str] = Field(default_factory=lambda: ["plain", "paraphrase"])
     aug: AugConfig = AugConfig()
     checkpoint_every: int = 0  # optimizer steps between checkpoints (0: none)
     # Names used by scripts/train_decider.py (default: r3_<arm> / r3-<arm>).
@@ -120,17 +130,59 @@ DECOY_SUFFIXES = ["-2", " (copy)", "_v2", " (duplicate)", " old"]
 UNRELATED_NAMES = ["zebra_crossing", "violin", "harbour", "quantum_leap", "teapot", "glacier"]
 PARAPHRASES = ["{q}", "Question: {q}", "{q} Choose the best option.", "Decide: {q}",
                "Based on the text: {q}", "{q} Pick exactly one."]
+NONE_NAMES = ["None of the above", "Not applicable", "N/A", "no_relevant_option",
+              "Not enough information", "none"]
+NONE_DESCRIPTIONS = ["The text gives no information that answers the question.",
+                     "None of the other options applies to this text."]
+NONE_PATTERN = re.compile(r"^(none( of the above)?|n/?a|not[ _-]?applicable|out[ _-]of[ _-]scope|"
+                          r"no[ _-]relevant[ _-]option|not enough information)$", re.I)
+
+
+def none_index(options: list[Option]) -> int | None:
+    return next((i for i, o in enumerate(options) if NONE_PATTERN.match(o.value.strip())), None)
+
+
+def with_none(options: list[Option], rng: random.Random) -> tuple[list[Option], int]:
+    """Options with a "none" option (an existing one, or a new one at a random position)."""
+    i = none_index(options)
+    if i is not None:
+        return options, i
+    taken = {o.value for o in options}
+    name = rng.choice([n for n in NONE_NAMES if n not in taken] or ["none_of_these"])
+    desc = rng.choice(NONE_DESCRIPTIONS) if rng.random() < 0.5 else None
+    i = rng.randint(0, len(options))
+    return options[:i] + [Option(name, desc)] + options[i:], i
 
 
 def augment(row: dict[str, Any], options: list[Option], gold: int, aug: AugConfig,
-            rng: random.Random) -> tuple[str, str, list[Option], list[float], str]:
+            rng: random.Random, pool: list[dict[str, Any]] | None = None
+            ) -> tuple[str, str, list[Option], list[float], str]:
     """(state, instructions, options, target distribution, kind) for one training example."""
     state, q, k = row["state"], row["instructions"], len(options)
     onehot = [1.0 if i == gold else 0.0 for i in range(k)]
     u = rng.random()
     if u < aug.empty:
-        return rng.choice(EMPTY_STATES), q, options, [1.0 / k] * k, "empty"
+        empty_state = rng.choice(EMPTY_STATES)
+        if aug.empty_none and rng.random() < aug.empty_none:
+            options, _ = with_none(options, rng)
+        i = none_index(options) if aug.none_aware else None
+        n = len(options)
+        target = [1.0 / n] * n if i is None else [float(j == i) for j in range(n)]
+        return empty_state, q, options, target, "empty"
     u -= aug.empty
+    if u < aug.mismatch and pool:
+        other = rng.choice(pool)
+        if other.get("source") != row.get("source"):
+            opts, i = with_none(options, rng)
+            return other["state"], q, opts, [float(j == i) for j in range(len(opts))], \
+                "mismatch"
+        return state, q, options, onehot, "plain"
+    u -= aug.mismatch
+    if u < aug.none_option and none_index(options) is None:
+        opts, i = with_none(options, rng)
+        g = gold + (i <= gold)
+        return state, q, opts, [float(j == g) for j in range(len(opts))], "none_option"
+    u -= aug.none_option
     if u < aug.negation and k >= 2:
         d = rng.choice([i for i in range(k) if i != gold])
         pair = [options[gold], options[d]]
@@ -310,7 +362,7 @@ def train(cfg: TrainConfig, lm: LoadedModel | None = None, out: Path | None = No
             row = next(data)
             consumed += 1
             options, gold = arrange(row, cfg.shuffle, rng)
-            state, q, options, target, kind = augment(row, options, gold, cfg.aug, rng)
+            state, q, options, target, kind = augment(row, options, gold, cfg.aug, rng, rows)
             ids = readout.prompt_ids(state, q, options)
             if len(ids) > cfg.max_tokens:
                 dropped += 1
@@ -319,7 +371,7 @@ def train(cfg: TrainConfig, lm: LoadedModel | None = None, out: Path | None = No
                 continue
             logp = label_logp(readout, lm.model, ids, len(options))
             loss = loss_fn(logp, target, cfg.loss)
-            if cfg.kl_weight and kind in ("plain", "paraphrase"):
+            if cfg.kl_weight and kind in cfg.kl_kinds:
                 with torch.no_grad(), adapters_disabled(lm.model):
                     base = label_logp(readout, lm.model, ids, len(options))
                 kl = (base.exp() * (base - logp)).sum()

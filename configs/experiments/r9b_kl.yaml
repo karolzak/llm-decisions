@@ -1,0 +1,16 @@
+id: r9b_kl
+description: "R9b: Qwen3.5-9B + LoRA decision training with a 'none' option (empty/mismatched states), KL 1.0 to the frozen base. ACE/BANKING77 not in training."
+leaderboards: [replication]
+supervision: zero_shot   # trained on other tasks only (configs/training/corpus-r9.yaml)
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_chat_readout
+  model: qwen3.5-9b
+  params:
+    adapter: training/r9b_kl   # under ARTIFACTS_DIR, written by scripts/train_decider.py
+    readout: {labels: codes}
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

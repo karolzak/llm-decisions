@@ -225,7 +225,7 @@ the Decision-1 API (≈ 9 requests/min, a few cents) and can run in parallel wit
 | **R7** (done) | Name-preference dissection: original renamed `…-2` and copy given the original name; both renamed to neutral ids; copy suffixed `-copy` / `(duplicate)` / an unrelated name | Is F4 a "suffix = duplicate" heuristic, name–description consistency, or first-seen preference? | Result: Decision-1's mass follows the name that fits the description, not the slot; the frozen 9B follows the slot on ACE (F4) | API ≈ 200 requests + ≈ 0.5 GPU-h |
 | **R8** (done) | Long options: descriptions of 50–2,000 tokens, with the deciding fact at the start vs. the end of the description; very long option names | Are options truncated or held in fixed per-option slots (F5, F6)? | Result: billed in full, late facts used, no slots; the frozen 9B behaves the same (F11) | API ≈ 100 requests + ≈ 0.5 GPU-h |
 | **R9** (done) | Decision-trained **9B**: LoRA on Qwen3.5-9B with the best recipe (shuffled options, Brier loss, one-pass code labels, broader routing data, KL to the base, interface augmentations), evaluated zero-shot and probed | Open question 2: does plain training of the same base reproduce Decision-1 (BANKING77 gain, T ≈ 1, 0% order flips, position blindness, F4)? | Result: interface yes, accuracy and position blindness no (F14) | 78 min training + eval |
-| **R9b** | R9 corrected: empty-state target = the "none / not applicable" option when one exists (uniform otherwise); KL on every row; a second arm without KL | Was R9's ACE loss the empty-state target? Does the KL anchor keep position awareness? | ACE back to the frozen base → the target was the cause; the no-KL arm blind to position → KL preserves it | ≈ 3 GPU-h (2 arms) |
+| **R9b** (running) | R9 corrected ([arms-r9b.yaml](../configs/training/arms-r9b.yaml)): a "none" option is taught. Empty states target it when listed (added to 60% of them), else uniform; states from another task plus a "none" option target "none" (6%); a "none" distractor on ordinary rows keeps the gold target (10%). Two arms: KL 1.0 (also on the distractor rows) vs. no KL | Was R9's ACE loss the empty-state target? Does the KL anchor keep position awareness? | ACE back to the frozen base → the target was the cause; the no-KL arm blind to position → KL preserves it | ≈ 3 GPU-h (2 arms) |
 | **R10** | Option-token arm (2B): 255 new label tokens `<opt_k>` added to the vocabulary and trained, vs. the `codes` arm | Open question 4: do dedicated label tokens help one-pass scoring of many options and order invariance? | Better order invariance or BANKING77 → dedicated tokens matter | ≈ 2 GPU-h |
 | **R11** | Strict fixed-order control (2B): each source always lists its labels in one fixed order, so the gold class sits at a fixed position | `ce_fixed` kept varied positions, so it could not show order bias. Does position bias appear when position predicts the label? | Bias appears → shuffling matters only when positions are informative | ≈ 1.5 GPU-h |
 | **R12** | Seeds: `ce_shuffle`, `ce_fixed`, `brier_shuffle` with two more seeds | Are F9's differences between arms (≈ 1–5 points, probe shares) larger than seed noise? | Keep only differences that hold across seeds | ≈ 9 GPU-h |
@@ -328,8 +328,8 @@ items per dataset):
   R9b tests this.
 
 **Next:**
-- **ACE:** R9b (empty-state target = the "none / not applicable" option when present; KL on
-  every row).
+- **ACE:** R9b (empty and mismatched states target a "none / not applicable" option when one
+  is listed; a stronger KL anchor in one arm).
 - **Position awareness:** R9b's arm without KL. The 2B arms, trained without KL, became
   position-blind; R9 did not.
 - **BANKING77 accuracy:** broader routing data did not transfer. More intent datasets

@@ -279,6 +279,41 @@ def test_augmentations_build_the_right_targets():
     assert len(seen) == 5
 
 
+def test_none_option_augmentations():
+    import random
+
+    from edb.training.train import AugConfig, augment, none_index
+
+    row = {"state": "s", "instructions": "Which?", "source": "a"}
+    pool = [{"state": "other task text", "source": "b"}]
+    opts = [Option("a"), Option("b"), Option("c")]
+    na = [Option("a"), Option("Not applicable"), Option("c")]
+    for seed in range(30):
+        rng = random.Random(seed)
+        # empty + an existing "none" option -> target it; without one -> uniform
+        _, _, o, t, kind = augment(row, na, 0, AugConfig(empty=1, none_aware=True), rng)
+        assert kind == "empty" and t == [0.0, 1.0, 0.0]
+        _, _, o, t, _ = augment(row, opts, 0, AugConfig(empty=1, none_aware=True), rng)
+        assert t == [pytest.approx(1 / 3)] * 3
+        # empty_none adds a "none" option and targets it
+        _, _, o, t, _ = augment(row, opts, 0, AugConfig(empty=1, none_aware=True,
+                                                        empty_none=1), rng)
+        assert len(o) == 4 and t.index(1.0) == none_index(o)
+        # mismatch: another task's state, "none" wins
+        s, _, o, t, kind = augment(row, opts, 1, AugConfig(mismatch=1), rng, pool)
+        assert kind == "mismatch" and s == "other task text"
+        assert len(o) == 4 and t.index(1.0) == none_index(o)
+        # none_option: a "none" distractor, the gold option keeps the target
+        _, _, o, t, kind = augment(row, opts, 1, AugConfig(none_option=1), rng)
+        assert kind == "none_option" and len(o) == 4 and o[t.index(1.0)].value == "b"
+        assert none_index(o) is not None
+    # R9 behaviour is unchanged by default: empty targets stay uniform even with "none"
+    _, _, o, t, _ = augment(row, na, 0, AugConfig(empty=1), random.Random(0))
+    assert t == [pytest.approx(1 / 3)] * 3
+    assert none_index([Option("out_of_scope")]) == 0
+    assert none_index([Option("Not-Applicable")]) == 0 and none_index([Option("nonce")]) is None
+
+
 def test_soft_target_losses():
     from edb.training.train import loss_fn
 
@@ -349,6 +384,9 @@ def test_load_arm_merges_defaults():
     assert r9.base_model == "qwen3.5-9b" and r9.readout == {"labels": "codes"}
     assert r9.experiment == "r9_qwen9b" and r9.probe_target == "r9-qwen9b"
     assert r9.kl_weight > 0 and r9.aug.decoy > 0 and r9.checkpoint_every
+    kl, nokl = load_arm("r9b_kl", "arms-r9b"), load_arm("r9b_nokl", "arms-r9b")
+    assert kl.kl_weight == 1.0 and "none_option" in kl.kl_kinds and nokl.kl_weight == 0
+    assert kl.aug == nokl.aug and kl.aug.none_aware and kl.aug.mismatch > 0
 
 
 def _wide_corpus(root, n=8, k=30):
@@ -360,7 +398,7 @@ def _wide_corpus(root, n=8, k=30):
         "name: wide-mix\nsources: []\n", encoding="utf-8")
     out = corpus_dir() / "wide-mix"
     out.mkdir(parents=True, exist_ok=True)
-    rows = [{"source": "s", "state": f"text {i}", "instructions": "Pick.",
+    rows = [{"source": f"s{i % 2}", "state": f"text {i}", "instructions": "Pick.",
              "options": [{"value": f"v{j}", "description": None} for j in range(k)],
              "gold": f"v{i % k}"} for i in range(n)]
     for split in ("train", "holdout"):
@@ -375,7 +413,10 @@ def _r9_like(**kw):
                 batch_size=2, lr=1e-2, warmup_steps=1, eval_every=3, eval_rows=2,
                 max_tokens=4096, lora=LoraConfig(r=4, alpha=8, dropout=0.0),
                 readout={"labels": "codes"}, kl_weight=0.5,
-                aug=AugConfig(decoy=0.2, negation=0.2, empty=0.2, paraphrase=0.2))
+                kl_kinds=["plain", "paraphrase", "none_option"],
+                aug=AugConfig(decoy=0.15, negation=0.1, empty=0.15, paraphrase=0.15,
+                              mismatch=0.15, none_option=0.15, empty_none=0.5,
+                              none_aware=True))
     return TrainConfig(**{**base, **kw})
 
 
