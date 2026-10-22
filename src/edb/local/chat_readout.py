@@ -446,10 +446,11 @@ class ChatLetterReadout:
         return self._answer_from(q, [o.value for o in options], probs), diag
 
     @torch.inference_mode()
-    def answer_shared(self, state: Any, questions: list[Question]
+    def answer_shared(self, state: Any, questions: list[Question], batch: int = 32
                       ) -> tuple[dict[str, Answer], dict[str, dict[str, Any]], int]:
         """Answer several questions about one state, encoding their common prompt prefix once
-        (R16). Questions that need several passes are answered separately. Returns answers,
+        and reading up to `batch` questions per forward pass from the cached prefix (R16).
+        Questions that need several passes are answered separately. Returns answers,
         diagnostics and the number of prompt tokens processed."""
         plans = {q.name: self.plan(state, q) for q in questions}
         single = [q for q in questions if plans[q.name] is not None]
@@ -464,27 +465,77 @@ class ChatLetterReadout:
         n = min(len(s) for s in seqs) - 1  # every question keeps at least one own token
         for s in seqs[1:]:
             n = next((i for i in range(n) if s[i] != seqs[0][i]), n)
-        device = self.lm.model.device
+        model, device = self.lm.model, self.lm.model.device
         cache = None
         if n > 0:
-            _, cache = _forward(self.lm.model, torch.tensor([seqs[0][:n]], device=device),
+            _, cache = _forward(model, torch.tensor([seqs[0][:n]], device=device),
                                 torch.tensor([n - 1], device=device), use_cache=True)
         tokens += n
-        for q, ids in zip(single, seqs, strict=True):
-            past = copy.deepcopy(cache) if cache is not None else None
-            suffix = ids[n:]
-            logits, _ = _forward(self.lm.model, torch.tensor([suffix], device=device),
-                                 torch.tensor([len(suffix) - 1], device=device),
-                                 past_key_values=past, use_cache=past is not None)
-            _, variants, values = plans[q.name]
-            lp, diag = self._label_lp(logits[0, -1], variants)
-            diag.update(passes=1, input_tokens=len(suffix), shared_prefix_tokens=n)
-            answers[q.name], diags[q.name] = self._answer_from(q, values, self._temper(lp)), diag
-            tokens += len(suffix)
+        pad = self.lm.tokenizer.pad_token_id
+        pad = pad if pad is not None else self.lm.tokenizer.eos_token_id or 0
+        for start in range(0, len(single), batch):
+            chunk = single[start:start + batch]
+            suffixes = [plans[q.name][0][n:] for q in chunk]
+            logits = self._batched_last_logits(cache, n, suffixes, pad)
+            for row, (q, suffix) in enumerate(zip(chunk, suffixes, strict=True)):
+                _, variants, values = plans[q.name]
+                lp, diag = self._label_lp(logits[row], variants)
+                diag.update(passes=1, input_tokens=len(suffix), shared_prefix_tokens=n)
+                answers[q.name], diags[q.name] = (self._answer_from(q, values, self._temper(lp)),
+                                                  diag)
+                tokens += len(suffix)
         return answers, diags, tokens
+
+    def _batched_last_logits(self, cache, n: int, suffixes: list[list[int]],
+                             pad: int) -> torch.Tensor:
+        """fp32 logits at the last token of each suffix, all suffixes continuing one cached
+        prefix of `n` tokens in a single right-padded forward pass."""
+        from edb.local.scoring import _fp32_head
+
+        model, device = self.lm.model, self.lm.model.device
+        b, width = len(suffixes), max(len(s) for s in suffixes)
+        ids = torch.full((b, width), pad, dtype=torch.long, device=device)
+        mask = torch.zeros((b, n + width), dtype=torch.long, device=device)
+        mask[:, :n] = 1
+        for i, s in enumerate(suffixes):
+            ids[i, :len(s)] = torch.tensor(s, device=device)
+            mask[i, n:n + len(s)] = 1
+        kwargs: dict[str, Any] = {"attention_mask": mask}
+        if cache is not None:
+            past = copy.deepcopy(cache)
+            repeat_cache_batch(past, b)
+            kwargs.update(past_key_values=past, use_cache=True)
+        body = model.model if hasattr(model, "model") else model
+        hidden = body(input_ids=ids, **kwargs).last_hidden_state
+        last = torch.tensor([len(s) - 1 for s in suffixes], device=device)
+        h = hidden[torch.arange(b, device=device), last]
+        w32 = _fp32_head(model)
+        return h.float() @ w32.T if w32 is not None else model.lm_head(h).float()
 
 
 # ---------------------------------------------------------------------- model loading
+def repeat_cache_batch(cache: Any, b: int) -> None:
+    """Expand a batch-1 cache to batch `b` in place. Covers every layer type, including
+    linear-attention layers (conv / recurrent states, kept in lists) that lack
+    `batch_repeat_interleave`."""
+
+    def rep(value: Any) -> Any:
+        if isinstance(value, torch.Tensor):
+            return value.repeat_interleave(b, dim=0) if value.dim() > 0 and \
+                value.shape[0] == 1 else value
+        if isinstance(value, list):
+            return [rep(v) for v in value]
+        if isinstance(value, tuple):
+            return tuple(rep(v) for v in value)
+        if isinstance(value, dict):
+            return {k: rep(v) for k, v in value.items()}
+        return value
+
+    for layer in getattr(cache, "layers", []):
+        for name, value in list(vars(layer).items()):
+            setattr(layer, name, rep(value))
+
+
 def resolve_adapter(adapter: str | None) -> str | None:
     if not adapter:
         return None
