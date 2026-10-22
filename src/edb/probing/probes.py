@@ -860,7 +860,83 @@ class TokensProbe(Probe):
         return out
 
 
+class ParaphraseProbe(Probe):
+    """R6: reword the question, keep everything else. Microsoft reports 1.3% decision flips
+    under rewording; the frozen base moves 15-35% of its ACE decisions with prompt layout
+    alone (F7). If robustness to wording is what post-training adds, Decision-1 flips far less
+    than its frozen base under the same paraphrases.
+
+    Three meaning-preserving paraphrases per dataset, plus a minimal instruction ("Choose the
+    best option.") that removes the task description. BANKING77 uses a fixed 10-option
+    subset per item (same options and order in every variant)."""
+
+    name = "paraphrase"
+    summary = "Does rewording the question change the decision?"
+    k_banking = 10
+    PARAPHRASES: ClassVar[dict[str, list[str]]] = {
+        "ace": [
+            "Do the scenario's events comply with the contract clauses, violate them, or fall "
+            "outside what the clauses govern?",
+            "Assess the scenario against the contract clauses: is it compliant, non-compliant, "
+            "or not covered by them?",
+            "Considering only the clauses given, classify the scenario as complying with them, "
+            "breaching them, or not governed by them.",
+        ],
+        "banking77": [
+            "What is the customer asking for? Pick the matching support intent.",
+            "Route this customer message to the correct banking support intent.",
+            "Classify the customer's message into one of the banking intents below.",
+        ],
+    }
+    MINIMAL = "Choose the best option."
+
+    def cases(self, items):
+        out = []
+        for source, its in items.items():
+            if source not in self.PARAPHRASES:
+                continue
+            for item in its:
+                base = subset(item, self.k_banking, self.seed) if source == "banking77" \
+                    else item
+                variants = {"original": base.instructions, "minimal": self.MINIMAL,
+                            **{f"para{i + 1}": p
+                               for i, p in enumerate(self.PARAPHRASES[source])}}
+                for name, text in variants.items():
+                    out.append(self.case(item.id, name, choice_request(base, instructions=text),
+                                         gold=item.gold))
+        return out
+
+    def analyze(self, records):
+        out = {}
+        for source, recs in by_source(records).items():
+            items: dict[str, dict[str, dict[str, float]]] = defaultdict(dict)
+            for r in recs:
+                p = probs_of(r)
+                if p:
+                    items[r["item_id"]][r["variant"]] = p
+            gold = {r["item_id"]: r["meta"]["gold"] for r in recs}
+            variants = sorted({v for vs in items.values() for v in vs} - {"original"})
+            res: dict[str, Any] = {"items": len(items), "per_variant": {}}
+            for v in ["original", *variants]:
+                ps = [(i, vs[v]) for i, vs in items.items() if v in vs]
+                row = {"accuracy": mean([top(p) == gold[i] for i, p in ps])}
+                if v != "original":
+                    pairs = [(vs["original"], vs[v]) for vs in items.values()
+                             if v in vs and "original" in vs]
+                    row["flip_rate"] = mean([top(a) != top(b) for a, b in pairs])
+                    row["mean_tv"] = mean([tv(a, b) for a, b in pairs])
+                res["per_variant"][v] = row
+            paras = [v for v in variants if v.startswith("para")]
+            res["paraphrase_flip_rate"] = mean([res["per_variant"][v]["flip_rate"]
+                                                for v in paras])
+            res["items_consistent_paraphrases"] = mean(
+                [len({top(vs[v]) for v in ["original", *paras] if v in vs}) == 1
+                 for vs in items.values()])
+            out[source] = res
+        return out
+
+
 PROBES: dict[str, type[Probe]] = {p.name: p for p in (
     OrderProbe, LetterNamesProbe, DuplicateProbe, CardinalityProbe, QuestionProbe,
     EmptyStateProbe, MultiQuestionProbe, DeterminismProbe, TokensProbe, DuplicateNamesProbe,
-    LongOptionsProbe)}
+    LongOptionsProbe, ParaphraseProbe)}

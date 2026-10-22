@@ -105,12 +105,23 @@ def summarize_training() -> dict:
     return out
 
 
+def summarize_reports() -> dict:
+    """Metrics written by experiment scripts (e.g. R14: reports/r14/summary-<label>.json)."""
+    out: dict[str, Any] = {}
+    root = get_settings().artifacts_dir / "reports"
+    for path in sorted(root.glob("*/summary-*.json")) if root.exists() else []:
+        out.setdefault(path.parent.name, {})[path.stem.removeprefix("summary-")] = \
+            json.loads(path.read_text(encoding="utf-8"))
+    return out
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Summarise job artifacts")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     summary: dict[str, Any] = {}
-    for name, fn in (("probes", summarize_probes), ("training", summarize_training)):
+    for name, fn in (("probes", summarize_probes), ("training", summarize_training),
+                     ("reports", summarize_reports)):
         try:
             summary[name] = fn()
         except Exception as exc:  # noqa: BLE001 - a partial summary beats none

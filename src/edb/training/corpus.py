@@ -17,7 +17,7 @@ import json
 import random
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from pydantic import BaseModel, Field
@@ -44,6 +44,19 @@ class SourceSpec(BaseModel):
     exclude_labels: list[str] = Field(default_factory=list)
     rows: int | None = None  # overrides CorpusSpec.rows_per_source
     note: str | None = None
+    # Question type of the rows (R15). choice: the labels are the options.
+    # score: the labels, lowest first, are levels; `levels` gives alternative wordings (one
+    #   set is drawn per row); `round_label` rounds a numeric label to a level index.
+    # noul: yes/no. The gold is true when the label is in `true_labels`; or, with `about`,
+    #   the question asks whether the row's label is one drawn label ({label} in the
+    #   instructions), the true one half of the time. `criteria` (true/false templates)
+    #   are shown on half of the rows.
+    type: Literal["choice", "score", "noul"] = "choice"
+    levels: list[list[str]] = Field(default_factory=list)
+    round_label: bool = False
+    true_labels: list[str] = Field(default_factory=list)
+    about: bool = False
+    criteria: dict[str, str] = Field(default_factory=dict)
 
 
 class CorpusSpec(BaseModel):
@@ -137,6 +150,8 @@ def label_names(src: SourceSpec, features: dict[str, Any], rows: list[dict]) -> 
 
 def to_decisions(src: SourceSpec, spec: CorpusSpec, rows: list[dict],
                  features: dict[str, Any]) -> list[dict[str, Any]]:
+    if src.type != "choice":
+        return to_typed(src, spec, rows, features)
     names = label_names(src, features, rows)
     values = [src.rename.get(n, n) for n in names]
     allowed = [i for i, n in enumerate(names) if n not in src.exclude_labels]
@@ -167,6 +182,51 @@ def to_decisions(src: SourceSpec, spec: CorpusSpec, rows: list[dict],
                         for i in chosen],
             "gold": values[idx],
         })
+    return out
+
+
+def to_typed(src: SourceSpec, spec: CorpusSpec, rows: list[dict],
+             features: dict[str, Any]) -> list[dict[str, Any]]:
+    """Score and noul rows: `options` are the levels (score, lowest first) or the optional
+    true/false criteria (noul); `gold` is a level or "true"/"false"."""
+    rng = random.Random(f"{spec.seed}:{src.name}:rows")
+    class_label = features.get(src.label, {}).get("_type") == "ClassLabel"
+    names = [] if src.round_label else label_names(src, features, rows)
+    out = []
+    for row in rows:
+        raw = row[src.label]
+        if raw is None or (class_label and raw < 0):
+            continue
+        name = names[raw] if class_label else label_key(raw)
+        if name in src.exclude_labels:
+            continue
+        state = src.state.format(**row)[: spec.max_state_chars]
+        if src.type == "score":
+            level_sets = src.levels or [[src.rename.get(n, n) for n in names]]
+            levels = rng.choice(level_sets)
+            idx = int(round(float(raw))) if src.round_label else (
+                raw if class_label else names.index(name))
+            if not 0 <= idx < len(levels):
+                continue
+            options = [{"value": t, "description": t} for t in levels]
+            gold = levels[idx]
+            instructions = rng.choice(src.instructions).format(**row)
+        else:
+            fields = dict(row)
+            if src.about:
+                others = [n for n in names if n != name and n not in src.exclude_labels]
+                asked = name if rng.random() < 0.5 else rng.choice(others)
+                fields["label"] = src.rename.get(asked, asked).replace("_", " ")
+                gold = "true" if asked == name else "false"
+            else:
+                gold = "true" if name in src.true_labels else "false"
+            instructions = rng.choice(src.instructions).format(**fields)
+            options = []
+            if src.criteria and rng.random() < 0.5:
+                options = [{"value": v, "description": src.criteria[v].format(**fields)}
+                           for v in ("true", "false")]
+        out.append({"source": src.name, "type": src.type, "state": state,
+                    "instructions": instructions, "options": options, "gold": gold})
     return out
 
 

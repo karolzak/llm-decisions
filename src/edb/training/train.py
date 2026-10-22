@@ -38,7 +38,7 @@ from pydantic import BaseModel, Field
 from edb.config import _load_yaml, _resolve, load_model_config
 from edb.local.chat_readout import ChatLetterReadout, ReadoutConfig
 from edb.local.model import LoadedModel, load
-from edb.probing.api import Option
+from edb.probing.api import Option, Question
 from edb.settings import get_settings
 from edb.training.corpus import build_corpus, read_jsonl
 from edb.training.lora import (
@@ -94,6 +94,7 @@ class TrainConfig(BaseModel):
     readout: dict[str, Any] = Field(default_factory=dict)  # overrides the model's readout
     kl_weight: float = 0.0
     kl_kinds: list[str] = Field(default_factory=lambda: ["plain", "paraphrase"])
+    rps_weight: float = 0.0  # ranked probability score on score rows (R15)
     aug: AugConfig = AugConfig()
     checkpoint_every: int = 0  # optimizer steps between checkpoints (0: none)
     # Names used by scripts/train_decider.py (default: r3_<arm> / r3-<arm>).
@@ -220,10 +221,39 @@ def label_logp(readout: ChatLetterReadout, model, ids: list[int], k: int) -> tor
     """log P(option label) renormalised over the K labels (differentiable)."""
     if readout.cfg.labels == "numbers":
         raise ValueError("training supports single-token labels (letters, codes)")
-    variants = readout.label_variant_ids(readout.label_strings(k))
+    return variant_logp(model, ids, readout.label_variant_ids(readout.label_strings(k)))
+
+
+def variant_logp(model, ids: list[int], variants: list[list[int]]) -> torch.Tensor:
+    """log P(label) renormalised over the labels, each label summed over its token variants."""
     lp_all = torch.log_softmax(last_logits(model, ids).float(), dim=-1)
     lp = torch.stack([torch.logsumexp(lp_all[v], dim=-1) for v in variants])
     return lp - torch.logsumexp(lp, dim=-1)
+
+
+def typed_question(row: dict[str, Any]) -> Question:
+    """The score / noul question of a typed corpus row (R15)."""
+    return Question("q", row["instructions"], row["type"],
+                    [Option(o["value"], o.get("description")) for o in row["options"]])
+
+
+def typed_example(readout: ChatLetterReadout, row: dict[str, Any]
+                  ) -> tuple[list[int], list[list[int]], list[float]]:
+    """(prompt ids, label variants, one-hot target) of a score / noul row, read with the
+    readout's question-type templates."""
+    plan = readout.plan(row["state"], typed_question(row))
+    if plan is None:
+        raise ValueError(f"cannot read a {row['type']} question in one pass")
+    ids, variants, values = plan
+    return ids, variants, [float(v == row["gold"]) for v in values]
+
+
+def rps(logp: torch.Tensor, target: list[float] | torch.Tensor) -> torch.Tensor:
+    """Ranked probability score over ordered levels (a proper scoring rule for ordinal
+    answers: it charges probability placed far from the true level more)."""
+    t = torch.as_tensor(target, dtype=logp.dtype, device=logp.device)
+    diff = torch.cumsum(logp.exp(), 0)[:-1] - torch.cumsum(t, 0)[:-1]
+    return (diff ** 2).sum() / max(1, len(t) - 1)
 
 
 def letter_logp(readout: ChatLetterReadout, model, ids: list[int], k: int) -> torch.Tensor:
@@ -263,7 +293,21 @@ def evaluate(readout: ChatLetterReadout, rows: list[dict[str, Any]],
     model.eval()
     rng = random.Random(EVAL_SEED)
     conf, correct, nll, first_pred, first_gold = [], [], [], [], []
+    by_type: dict[str, list[float]] = {}
     for row in rows:
+        kind = row.get("type", "choice")
+        if kind != "choice":
+            ids, variants, target = typed_example(readout, row)
+            if len(ids) > max_tokens:
+                continue
+            p = variant_logp(model, ids, variants).exp().float().cpu().numpy()
+            gold = target.index(1.0)
+            pred = int(p.argmax())
+            conf.append(p.max())
+            correct.append(pred == gold)
+            nll.append(-math.log(max(float(p[gold]), 1e-12)))
+            by_type.setdefault(kind, []).append(float(pred == gold))
+            continue
         options, gold = arrange(row, True, rng)
         ids = readout.prompt_ids(row["state"], row["instructions"], options)
         if len(ids) > max_tokens:
@@ -275,15 +319,19 @@ def evaluate(readout: ChatLetterReadout, rows: list[dict[str, Any]],
         nll.append(-math.log(max(float(p[gold]), 1e-12)))
         first_pred.append(pred == 0)
         first_gold.append(gold == 0)
+        by_type.setdefault("choice", []).append(float(pred == gold))
     if was_training:
         model.train()
     c, ok = np.array(conf), np.array(correct, dtype=float)
-    return {"n": len(ok), "accuracy": round(float(ok.mean()), 4) if len(ok) else None,
-            "nll": round(float(np.mean(nll)), 4) if nll else None,
-            "ece": round(ece(c, ok), 4) if len(ok) else None,
-            "mean_confidence": round(float(c.mean()), 4) if len(c) else None,
-            "pred_first_share": round(float(np.mean(first_pred)), 4) if first_pred else None,
-            "gold_first_share": round(float(np.mean(first_gold)), 4) if first_gold else None}
+    out = {"n": len(ok), "accuracy": round(float(ok.mean()), 4) if len(ok) else None,
+           "nll": round(float(np.mean(nll)), 4) if nll else None,
+           "ece": round(ece(c, ok), 4) if len(ok) else None,
+           "mean_confidence": round(float(c.mean()), 4) if len(c) else None,
+           "pred_first_share": round(float(np.mean(first_pred)), 4) if first_pred else None,
+           "gold_first_share": round(float(np.mean(first_gold)), 4) if first_gold else None}
+    if set(by_type) - {"choice"}:
+        out["accuracy_by_type"] = {k: round(float(np.mean(v)), 4) for k, v in by_type.items()}
+    return out
 
 
 # ------------------------------------------------------------------ training
@@ -361,19 +409,26 @@ def train(cfg: TrainConfig, lm: LoadedModel | None = None, out: Path | None = No
         while n < cfg.batch_size:
             row = next(data)
             consumed += 1
-            options, gold = arrange(row, cfg.shuffle, rng)
-            state, q, options, target, kind = augment(row, options, gold, cfg.aug, rng, rows)
-            ids = readout.prompt_ids(state, q, options)
+            if row.get("type", "choice") != "choice":
+                ids, variants, target = typed_example(readout, row)
+                kind = row["type"]
+            else:
+                options, gold = arrange(row, cfg.shuffle, rng)
+                state, q, options, target, kind = augment(row, options, gold, cfg.aug, rng, rows)
+                ids = readout.prompt_ids(state, q, options)
+                variants = readout.label_variant_ids(readout.label_strings(len(options)))
             if len(ids) > cfg.max_tokens:
                 dropped += 1
                 if dropped > 10 * len(rows):
                     raise RuntimeError(f"almost every row exceeds max_tokens={cfg.max_tokens}")
                 continue
-            logp = label_logp(readout, lm.model, ids, len(options))
+            logp = variant_logp(lm.model, ids, variants)
             loss = loss_fn(logp, target, cfg.loss)
+            if cfg.rps_weight and kind == "score":
+                loss = loss + cfg.rps_weight * rps(logp, target)
             if cfg.kl_weight and kind in cfg.kl_kinds:
                 with torch.no_grad(), adapters_disabled(lm.model):
-                    base = label_logp(readout, lm.model, ids, len(options))
+                    base = variant_logp(lm.model, ids, variants)
                 kl = (base.exp() * (base - logp)).sum()
                 loss = loss + cfg.kl_weight * kl
                 window["kl"].append(float(kl.detach()))
@@ -411,7 +466,7 @@ def train(cfg: TrainConfig, lm: LoadedModel | None = None, out: Path | None = No
                                  "hf_model_id": model_cfg.hf_model_id, "loss": cfg.loss,
                                  "shuffle": cfg.shuffle, "steps": cfg.max_steps,
                                  "readout": cfg.readout, "kl_weight": cfg.kl_weight,
-                                 "aug": cfg.aug.model_dump()})
+                                 "rps_weight": cfg.rps_weight, "aug": cfg.aug.model_dump()})
     ckpt_path.unlink(missing_ok=True)
     summary = {"config": cfg.model_dump(), "lora_modules": len(modules),
                "trainable_params": sum(p.numel() for p in params), "examples_seen": seen,

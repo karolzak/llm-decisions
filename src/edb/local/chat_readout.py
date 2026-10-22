@@ -21,6 +21,7 @@ The recipe of the open "System One" replicas that read a frozen or LoRA-tuned in
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import math
 import string
@@ -88,6 +89,27 @@ OPTION_LINES = {"default": "{letter}. {text}", "markdown": "({letter}) {text}"}
 #            P(d1) * P(d2 | d1) * ... * P(next token is not a digit | label)
 LABEL_SCHEMES = ("letters", "codes", "numbers")
 
+# Per-question-type templates (R14). Decision-1 answers `noul` and `score` questions from
+# their own templates (probe finding 10): score levels are keyed by digit index, noul returns
+# P(true). `letters` keeps the choice template for every type. The typed templates share the
+# choice template's text up to the question, so questions about one state share a prefix (R16).
+NOUL_STYLES = ("letters", "truefalse", "yesno")
+SCORE_STYLES = ("letters", "digits", "scale")
+TYPED_PROMPT = """Read the state and answer the question by choosing exactly one option.
+
+<state>
+{state}
+</state>
+
+<question>
+{instructions}
+</question>
+
+{block}
+
+{closing}"""
+NOUL_WORDS = {"truefalse": ("true", "false"), "yesno": ("yes", "no")}
+
 
 @dataclass
 class ReadoutConfig:
@@ -100,6 +122,11 @@ class ReadoutConfig:
     noul_order: tuple[str, str] = ("false", "true")  # as shown to the model (Cygnet: false first)
     template: str = "default"  # default | markdown | json (see PROMPTS)
     labels: str = "letters"  # letters | codes | numbers (see LABEL_SCHEMES)
+    noul_style: str = "letters"  # letters | truefalse | yesno (see NOUL_STYLES)
+    score_style: str = "letters"  # letters | digits | scale (see SCORE_STYLES)
+    # Questions about one state share their common prompt prefix: it is encoded once and
+    # cached (R16). Only the probe client (several questions per request) uses it.
+    share_state: bool = False
 
     @classmethod
     def from_params(cls, *params: dict[str, Any] | None) -> ReadoutConfig:
@@ -112,6 +139,11 @@ class ReadoutConfig:
             raise ValueError(f"unknown template {merged['template']!r}; known: {list(PROMPTS)}")
         if merged.get("labels", "letters") not in LABEL_SCHEMES:
             raise ValueError(f"unknown labels {merged['labels']!r}; known: {LABEL_SCHEMES}")
+        if merged.get("noul_style", "letters") not in NOUL_STYLES:
+            raise ValueError(f"unknown noul_style {merged['noul_style']!r}; known: {NOUL_STYLES}")
+        if merged.get("score_style", "letters") not in SCORE_STYLES:
+            raise ValueError(f"unknown score_style {merged['score_style']!r}; "
+                             f"known: {SCORE_STYLES}")
         return cls(**merged)
 
 
@@ -197,11 +229,30 @@ class ChatLetterReadout:
     def prompt_text(self, state: Any, instructions: str, options: list[Option]) -> str:
         body = render_body(self.cfg.template, state, instructions, options,
                            self.label_strings(len(options)), self.label_word(len(options)))
+        return self.wrap(body)
+
+    def wrap(self, body: str) -> str:
+        """Chat-template a user message (plus the system prompt and answer prefix)."""
         msgs = ([{"role": "system", "content": self.cfg.system_prompt}]
                 if self.cfg.system_prompt else []) + [{"role": "user", "content": body}]
         rendered = self.lm.tokenizer.apply_chat_template(
             msgs, tokenize=False, add_generation_prompt=True, **self.cfg.chat_template_kwargs)
         return rendered + self.cfg.answer_prefix
+
+    def word_variant_ids(self, words: list[str]) -> list[list[int]]:
+        """Per word: the single tokens spelling it bare, capitalised or with a leading space."""
+        out = []
+        for w in words:
+            ids = set()
+            for form in {w, w.capitalize(), w.upper()}:
+                for s in (form, " " + form):
+                    enc = self.lm.encode(s)
+                    if len(enc) == 1:
+                        ids.add(enc[0])
+            if not ids:
+                raise ValueError(f"tokenizer has no single token for {w!r}")
+            out.append(sorted(ids))
+        return out
 
     def prompt_ids(self, state: Any, instructions: str, options: list[Option]) -> list[int]:
         return self.lm.encode(self.prompt_text(state, instructions, options))
@@ -233,11 +284,21 @@ class ChatLetterReadout:
         if self.cfg.labels == "numbers":
             return self._pass_numbers(state, instructions, options)
         ids = self.prompt_ids(state, instructions, options)
+        variants = self.label_variant_ids(self.label_strings(len(options)))
+        lp, diag = self._read(ids, variants)
+        return lp, diag, len(ids)
+
+    @torch.inference_mode()
+    def _read(self, ids: list[int], variants: list[list[int]]
+              ) -> tuple[list[float], dict[str, Any]]:
         device = self.lm.model.device
         logits, _ = _forward(self.lm.model, torch.tensor([ids], device=device),
                              torch.tensor([len(ids) - 1], device=device))
-        logits = logits[0, -1]
-        variants = self.label_variant_ids(self.label_strings(len(options)))
+        return self._label_lp(logits[0, -1], variants)
+
+    def _label_lp(self, logits: torch.Tensor, variants: list[list[int]]
+                  ) -> tuple[list[float], dict[str, Any]]:
+        """Renormalised log P(label) at one position, plus diagnostics."""
         lp_all = torch.log_softmax(logits.float(), dim=-1)
         label_lp = torch.stack([torch.logsumexp(lp_all[v], dim=-1) for v in variants])
         on_format = float(label_lp.exp().sum())
@@ -246,7 +307,7 @@ class ChatLetterReadout:
         diag = {"on_format_mass": round(on_format, 6),
                 "top_letter_logit": round(float(logits[variants[best]].max()), 3),
                 "top_vocab_token": self.lm.tokenizer.decode([int(torch.argmax(logits))])}
-        return lp, diag, len(ids)
+        return lp, diag
 
     def _pass_numbers(self, state: Any, instructions: str,
                       options: list[Option]) -> tuple[list[float], dict[str, Any], int]:
@@ -305,30 +366,122 @@ class ChatLetterReadout:
             diag = {"on_format_mass": min(x["on_format_mass"] for x in [*diags, d]),
                     "top_letter_logit": d["top_letter_logit"], "top_vocab_token":
                     d["top_vocab_token"], "passes": len(groups) + 1, "input_tokens": n}
+        return self._temper(lp), diag
+
+    def _temper(self, lp: list[float]) -> list[float]:
         t = self.cfg.temperature
         z = [x / t for x in lp]
         m = max(z)
         e = [math.exp(x - m) for x in z]
         s = sum(e)
-        return [x / s for x in e], diag
+        return [x / s for x in e]
+
+    # ------------------------------------------------------------------ question types
+    def plan(self, state: Any, q: Question) -> tuple[list[int], list[list[int]], list[str]] | None:
+        """(prompt ids, label token variants, question values in label order) for a question
+        answered in one pass; None when it needs grouped or digit-by-digit passes."""
+        if q.type == "noul" and self.cfg.noul_style != "letters":
+            words = NOUL_WORDS[self.cfg.noul_style]
+            crit = {o.value: o.description for o in q.options if o.description}
+            lines = [f"{w}: {crit[v]}" if crit.get(v) else w
+                     for w, v in zip(words, ("true", "false"), strict=True)]
+            body = TYPED_PROMPT.format(
+                state=render_state(state), instructions=q.instructions,
+                block="<options>\n" + "\n".join(lines) + "\n</options>",
+                closing=f"Answer with {words[0]} or {words[1]} only.")
+            return (self.lm.encode(self.wrap(body)), self.word_variant_ids(list(words)),
+                    ["true", "false"])
+        if q.type == "score" and self.cfg.score_style != "letters" and len(q.options) <= 10:
+            texts = [o.description or o.value for o in q.options]
+            digits = [str(i) for i in range(len(texts))]
+            if self.cfg.score_style == "digits":
+                block = "<options>\n" + "\n".join(f"{d}. {t}" for d, t in
+                                                  zip(digits, texts, strict=True)) + "\n</options>"
+                closing = "Answer with the number of the correct option only."
+            else:
+                block = "<scale>\n" + "\n".join(f"{d} = {t}" for d, t in
+                                                zip(digits, texts, strict=True)) + "\n</scale>"
+                closing = f"Answer with a single digit from 0 to {len(texts) - 1}."
+            body = TYPED_PROMPT.format(state=render_state(state), instructions=q.instructions,
+                                       block=block, closing=closing)
+            return self.lm.encode(self.wrap(body)), self.label_variant_ids(digits), q.values
+        if q.type == "noul":
+            crit = {o.value: o.description for o in q.options}
+            options = [Option(v, crit.get(v)) for v in self.cfg.noul_order]
+        else:
+            options = list(q.options)
+        if self.cfg.labels == "numbers" or len(options) > (
+                min(self.cfg.group_size, self.capacity()) if self.cfg.labels == "letters"
+                else self.capacity()):
+            return None
+        return (self.prompt_ids(state, q.instructions, options),
+                self.label_variant_ids(self.label_strings(len(options))),
+                [o.value for o in options])
+
+    def _answer_from(self, q: Question, values: list[str], probs: list[float]) -> Answer:
+        by_value = dict(zip(values, probs, strict=True))
+        if q.type == "noul":
+            p = by_value["true"]
+            return Answer(q.name, "noul", {"true": p, "false": 1 - p},
+                          choice="true" if p >= 0.5 else "false")
+        ordered = {v: by_value[v] for v in q.values}
+        choice = max(ordered, key=ordered.get)
+        score = sum(i * p for i, p in enumerate(ordered.values())) if q.type == "score" else None
+        return Answer(q.name, q.type, ordered, choice=choice,
+                      confidence=jev_confidence(list(ordered.values())), score=score)
 
     def answer(self, state: Any, q: Question) -> tuple[Answer, dict[str, Any]]:
+        plan = self.plan(state, q)
+        if plan is not None:
+            ids, variants, values = plan
+            lp, diag = self._read(ids, variants)
+            diag.update(passes=1, input_tokens=len(ids))
+            return self._answer_from(q, values, self._temper(lp)), diag
         if q.type == "noul":
             crit = {o.value: o.description for o in q.options}
             options = [Option(v, crit.get(v)) for v in self.cfg.noul_order]
         else:
             options = list(q.options)
         probs, diag = self.score_options(state, q.instructions, options)
-        by_value = dict(zip([o.value for o in options], probs, strict=True))
-        if q.type == "noul":
-            p = by_value["true"]
-            return Answer(q.name, "noul", {"true": p, "false": 1 - p},
-                          choice="true" if p >= 0.5 else "false"), diag
-        ordered = {v: by_value[v] for v in q.values}
-        choice = max(ordered, key=ordered.get)
-        score = sum(i * p for i, p in enumerate(ordered.values())) if q.type == "score" else None
-        return Answer(q.name, q.type, ordered, choice=choice,
-                      confidence=jev_confidence(list(ordered.values())), score=score), diag
+        return self._answer_from(q, [o.value for o in options], probs), diag
+
+    @torch.inference_mode()
+    def answer_shared(self, state: Any, questions: list[Question]
+                      ) -> tuple[dict[str, Answer], dict[str, dict[str, Any]], int]:
+        """Answer several questions about one state, encoding their common prompt prefix once
+        (R16). Questions that need several passes are answered separately. Returns answers,
+        diagnostics and the number of prompt tokens processed."""
+        plans = {q.name: self.plan(state, q) for q in questions}
+        single = [q for q in questions if plans[q.name] is not None]
+        answers, diags, tokens = {}, {}, 0
+        for q in questions:
+            if plans[q.name] is None:
+                answers[q.name], diags[q.name] = self.answer(state, q)
+                tokens += diags[q.name]["input_tokens"]
+        if not single:
+            return answers, diags, tokens
+        seqs = [plans[q.name][0] for q in single]
+        n = min(len(s) for s in seqs) - 1  # every question keeps at least one own token
+        for s in seqs[1:]:
+            n = next((i for i in range(n) if s[i] != seqs[0][i]), n)
+        device = self.lm.model.device
+        cache = None
+        if n > 0:
+            _, cache = _forward(self.lm.model, torch.tensor([seqs[0][:n]], device=device),
+                                torch.tensor([n - 1], device=device), use_cache=True)
+        tokens += n
+        for q, ids in zip(single, seqs, strict=True):
+            past = copy.deepcopy(cache) if cache is not None else None
+            suffix = ids[n:]
+            logits, _ = _forward(self.lm.model, torch.tensor([suffix], device=device),
+                                 torch.tensor([len(suffix) - 1], device=device),
+                                 past_key_values=past, use_cache=past is not None)
+            _, variants, values = plans[q.name]
+            lp, diag = self._label_lp(logits[0, -1], variants)
+            diag.update(passes=1, input_tokens=len(suffix), shared_prefix_tokens=n)
+            answers[q.name], diags[q.name] = self._answer_from(q, values, self._temper(lp)), diag
+            tokens += len(suffix)
+        return answers, diags, tokens
 
 
 # ---------------------------------------------------------------------- model loading
@@ -351,7 +504,8 @@ def load_readout(model_name: str, adapter: str | None = None,
 
 class LocalReadoutClient(DecisionClient):
     """Probe target backed by a local model (`kind: local_readout`). Usage reports the
-    prompt tokens of every pass (no state sharing across questions); output tokens are 0."""
+    prompt tokens processed (with `share_state`, a shared prefix counts once); output tokens
+    are 0."""
 
     def __init__(self, target):
         self.name = target.name
@@ -368,10 +522,13 @@ class LocalReadoutClient(DecisionClient):
     def _decide(self, request: DecisionRequest) -> DecisionResponse:
         readout = self.readout()
         t0 = time.perf_counter()
-        answers, diags, tokens = {}, {}, 0
-        for q in request.questions:
-            answers[q.name], diags[q.name] = readout.answer(request.state, q)
-            tokens += diags[q.name]["input_tokens"]
+        if readout.cfg.share_state and len(request.questions) > 1:
+            answers, diags, tokens = readout.answer_shared(request.state, request.questions)
+        else:
+            answers, diags, tokens = {}, {}, 0
+            for q in request.questions:
+                answers[q.name], diags[q.name] = readout.answer(request.state, q)
+                tokens += diags[q.name]["input_tokens"]
         if readout.lm.device.type == "cuda":
             torch.cuda.synchronize(readout.lm.device)
         return DecisionResponse(answers=answers, latency_ms=(time.perf_counter() - t0) * 1000,

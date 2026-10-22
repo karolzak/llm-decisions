@@ -145,6 +145,71 @@ def test_number_labels_are_scored_exactly(lm):
 def test_unknown_label_scheme_rejected():
     with pytest.raises(ValueError, match="unknown labels"):
         ReadoutConfig.from_params({"labels": "emoji"})
+    with pytest.raises(ValueError, match="noul_style"):
+        ReadoutConfig.from_params({"noul_style": "maybe"})
+    with pytest.raises(ValueError, match="score_style"):
+        ReadoutConfig.from_params({"score_style": "stars"})
+
+
+LEVELS = [Option(t, t) for t in ("bad", "okay", "good")]
+TYPED_QS = [Question("c", "Which?", "choice", OPTS),
+            Question("s", "How good?", "score", LEVELS),
+            Question("n", "Is it good?", "noul"),
+            Question("nc", "Is it good?", "noul",
+                     [Option("true", "It is good."), Option("false", "It is not good.")])]
+
+
+@pytest.mark.parametrize("noul_style,score_style", [("letters", "letters"),
+                                                    ("truefalse", "digits"),
+                                                    ("yesno", "scale")])
+def test_typed_templates_answer_every_type(lm, noul_style, score_style):
+    r = readout(lm, noul_style=noul_style, score_style=score_style)
+    for q in TYPED_QS:
+        a, diag = r.answer("The food was fine.", q)
+        assert sum(a.probabilities.values()) == pytest.approx(1.0)
+        assert diag["passes"] == 1
+        if q.type == "score":
+            assert a.score == pytest.approx(sum(i * a.probabilities[o.value]
+                                                for i, o in enumerate(LEVELS)))
+    ids, _, values = r.plan("x", TYPED_QS[1])
+    text = lm.tokenizer.decode(ids)
+    if score_style == "digits":
+        assert "0. bad" in text and "2. good" in text and values == ["bad", "okay", "good"]
+    elif score_style == "scale":
+        assert "0 = bad" in text and "from 0 to 2" in text
+    else:
+        assert "A. bad: bad" in text
+    noul_text = lm.tokenizer.decode(r.plan("x", TYPED_QS[3])[0])
+    if noul_style == "truefalse":
+        assert "true: It is good." in noul_text and "true or false" in noul_text
+    elif noul_style == "yesno":
+        assert "yes: It is good." in noul_text and "yes or no" in noul_text
+
+
+def test_letters_style_matches_previous_noul_readout(lm):
+    """`plan` reproduces the old choice-based path for noul questions exactly."""
+    r = readout(lm)
+    q = TYPED_QS[3]
+    a, _ = r.answer("The food was fine.", q)
+    options = [Option(v, {o.value: o.description for o in q.options}[v]) for v in
+               r.cfg.noul_order]
+    probs, _ = r.score_options("The food was fine.", q.instructions, options)
+    assert a.probabilities["true"] == pytest.approx(probs[1], abs=1e-6)
+
+
+def test_shared_state_prefix_matches_separate_answers(lm):
+    r = readout(lm, noul_style="truefalse", score_style="digits")
+    state = "A long state. " * 20
+    many = Question("m", "Which of many?", "choice", [Option(f"o{i}") for i in range(30)])
+    qs = [*TYPED_QS, many]  # `many` needs grouped passes and is answered separately
+    shared, diags, tokens = r.answer_shared(state, qs)
+    separate = {q.name: r.answer(state, q) for q in qs}
+    for q in qs:
+        for v, p in separate[q.name][0].probabilities.items():
+            assert shared[q.name].probabilities[v] == pytest.approx(p, abs=1e-5)
+    assert diags["c"]["shared_prefix_tokens"] > 50
+    assert "shared_prefix_tokens" not in diags["m"]
+    assert tokens < sum(d["input_tokens"] for _, d in separate.values())
 
 
 def test_single_pass_and_grouped_scores_are_distributions(lm):
@@ -314,6 +379,53 @@ def test_none_option_augmentations():
     assert none_index([Option("Not-Applicable")]) == 0 and none_index([Option("nonce")]) is None
 
 
+def test_typed_corpus_rows():
+    from edb.training.corpus import CorpusSpec, SourceSpec, to_decisions
+
+    spec = CorpusSpec(name="t", sources=[])
+    cl = {"label": {"_type": "ClassLabel", "names": ["one", "two", "three"]}}
+    rows = [{"text": f"t{i}", "label": i % 3} for i in range(30)]
+    score = SourceSpec(name="s", dataset="d", state="{text}", label="label", type="score",
+                       instructions=["Rate it."], levels=[["low", "mid", "high"],
+                                                          ["1", "2", "3"]])
+    out = to_decisions(score, spec, rows, cl)
+    assert len(out) == 30 and {r["type"] for r in out} == {"score"}
+    for r, row in zip(out, rows, strict=True):
+        values = [o["value"] for o in r["options"]]
+        assert values in (["low", "mid", "high"], ["1", "2", "3"])
+        assert values.index(r["gold"]) == row["label"]
+    rounded = SourceSpec(name="r", dataset="d", state="{text}", label="label", type="score",
+                         instructions=["Rate."], round_label=True, levels=[["0", "1", "2"]])
+    out = to_decisions(rounded, spec, [{"text": "a", "label": 1.6}, {"text": "b",
+                                                                      "label": 0.2}], {})
+    assert [r["gold"] for r in out] == ["2", "0"]
+    about = SourceSpec(name="a", dataset="d", state="{text}", label="label", type="noul",
+                       about=True, instructions=["Is it about {label}?"],
+                       criteria={"true": "It is {label}.", "false": "Something else."})
+    out = to_decisions(about, spec, rows, cl)
+    assert {r["gold"] for r in out} == {"true", "false"}
+    for r, row in zip(out, rows, strict=True):
+        asked = r["instructions"][len("Is it about "):-1]
+        assert (asked == ["one", "two", "three"][row["label"]]) == (r["gold"] == "true")
+        assert r["options"] == [] or r["options"][0]["description"] == f"It is {asked}."
+    boolean = SourceSpec(name="b", dataset="d", state="{text}", label="answer", type="noul",
+                         true_labels=["true"], instructions=["Is it?"])
+    out = to_decisions(boolean, spec, [{"text": "x", "answer": True},
+                                       {"text": "y", "answer": False}], {})
+    assert [r["gold"] for r in out] == ["true", "false"]
+
+
+def test_rps_prefers_near_misses():
+    from edb.training.train import rps
+
+    target = [0.0, 0.0, 1.0, 0.0, 0.0]
+    near = torch.log(torch.tensor([0.01, 0.01, 0.48, 0.49, 0.01]))
+    far = torch.log(torch.tensor([0.49, 0.01, 0.48, 0.01, 0.01]))
+    exact = torch.log(torch.tensor([1e-6, 1e-6, 1 - 4e-6, 1e-6, 1e-6]))
+    assert float(rps(near, target)) < float(rps(far, target))
+    assert float(rps(exact, target)) == pytest.approx(0.0, abs=1e-6)
+
+
 def test_soft_target_losses():
     from edb.training.train import loss_fn
 
@@ -428,6 +540,41 @@ def test_train_with_codes_kl_and_augmentations(tiny_cfg, lm):
     assert summary["examples_seen"] == 6 and sum(summary["examples_by_kind"].values()) == 6
     assert summary["final"]["holdout"]["n"] == 2
     assert not (arm_dir("w") / "checkpoint.pt").exists()
+
+
+def test_train_on_all_question_types(tiny_cfg, lm):
+    """R15: score and noul rows are read with the typed templates and trained."""
+    from edb.training.corpus import corpus_dir
+    from edb.training.train import train
+
+    (tiny_cfg / "configs" / "training").mkdir(parents=True, exist_ok=True)
+    (tiny_cfg / "configs" / "training" / "typed.yaml").write_text(
+        "name: typed-mix\nsources: []\n", encoding="utf-8")
+    out = corpus_dir() / "typed-mix"
+    out.mkdir(parents=True, exist_ok=True)
+    levels = [{"value": t, "description": t} for t in ("low", "mid", "high")]
+    rows = []
+    for i in range(6):
+        rows += [{"source": "c", "state": f"c{i}", "instructions": "Pick.",
+                  "options": [{"value": v, "description": None} for v in "xyz"],
+                  "gold": "xyz"[i % 3]},
+                 {"source": "s", "type": "score", "state": f"s{i}", "instructions": "Rate.",
+                  "options": levels, "gold": ["low", "mid", "high"][i % 3]},
+                 {"source": "n", "type": "noul", "state": f"n{i}", "instructions": "Is it?",
+                  "options": [], "gold": ["true", "false"][i % 2]}]
+    for split in ("train", "holdout"):
+        (out / f"{split}.jsonl").write_text("\n".join(json.dumps(r) for r in rows),
+                                            encoding="utf-8")
+    cfg = _r9_like(arm="typed", corpus="typed", max_steps=3, batch_size=4, eval_rows=18,
+                   eval_every=3, rps_weight=1.0,
+                   kl_kinds=["plain", "paraphrase", "score", "noul"],
+                   readout={"labels": "codes", "noul_style": "truefalse",
+                            "score_style": "digits"})
+    summary = train(cfg, lm=lm, log=lambda *_: None)
+    kinds = summary["examples_by_kind"]
+    assert kinds.get("score", 0) > 0 and kinds.get("noul", 0) > 0
+    by_type = summary["final"]["holdout"]["accuracy_by_type"]
+    assert set(by_type) == {"choice", "score", "noul"}
 
 
 def test_training_resumes_from_checkpoint(tiny_cfg, tiny_model, tokenizer, monkeypatch):

@@ -251,6 +251,9 @@ def test_biased_readout_is_detected(sandbox):
     assert dn["plain_name_share_swap_after"] < 0.5 < dn["plain_name_share_swap_before"]
     lo = p["long_options"]["result"]
     assert lo["tokens_per_filler_repeat"] is not None and "start_150" in lo["per_variant"]
+    pp = p["paraphrase"]["result"]["banking77"]
+    assert set(pp["per_variant"]) == {"original", "minimal", "para1", "para2", "para3"}
+    assert 0 <= pp["paraphrase_flip_rate"] <= 1 and pp["items"] > 0
     # one record per case, resumable: a second run sends nothing new
     n = len(read_records(records_path("biased", "order")))
     target = ProbeTarget(name="biased", kind="systemone", url="http://x")
