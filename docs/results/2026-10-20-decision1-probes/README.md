@@ -2,7 +2,8 @@
 
 Part 1 of the [replication study](../../replication.md): 854 perturbed requests to
 Microsoft-Decision-1 (852 answered; the other 2 are the deliberate 256-option test), plus 272
-follow-up requests for findings 8 and 9 (R7, R8) and 12 for finding 10 (question types). Most
+follow-up requests for findings 8 and 9 (R7, R8), 12 for finding 10 (question types) and 96
+for finding 11 (R18, option order). Most
 probes use 16 `dev` items each from ACE and BANKING77; the repeat test uses 6, the empty-state
 test 1 item per dataset, and the token test synthetic inputs. Full tables:
 [probe-report.md](probe-report.md); raw summary: [summary-decision-1.json](summary-decision-1.json).
@@ -97,9 +98,12 @@ below includes about 400 ms of network and service overhead.
      The added-option rows also change the order (each option-subset size is shuffled
      separately), but reordering alone stays at the noise level.
    - Asked "Ignore the message. Which option is listed first?" (or last) about two options,
-     it picked the same option in both orders in all 32 cases. It does not read positions.
-     Which option it picks is unrelated to the correct intent (correct-intent option in
-     50%), so it is not simply answering the original question either.
+     it picked the same option in both orders in all 32 cases. It does not read the order
+     we send. **R18 (finding 11) shows why:** the option it picks is the first (or last)
+     in byte-wise sorted order, 32 of 32 here and 48 of 48 in R18. Decision-1 sorts the
+     options before the model sees them, so every reordering produces the same prompt.
+     That explains the 0 flips above. The slightly larger ACE movement (0.014 vs. 0.005)
+     is not explained by sorting; it may be serving noise that depends on the batch.
    - On ACE this question was asked in one fixed order only. It answered `Compliant` (listed
      first) 16/16 and `Not-Applicable` (listed last) 12/16, which cannot separate position
      from content.
@@ -162,13 +166,19 @@ below includes about 400 ms of network and service overhead.
    | Original kept, copy named `zebra_crossing` (unrelated) | original 0.78 / 0.99 |
    | Both renamed to opaque ids (`opt_3f2a`) | first-listed 0.45 / 0.42 |
 
-   - The probability follows the **plain name**, wherever it sits and whichever copy it is on.
-     Names that look like variants (`-2`, `(copy)`) or don't match the description lose
-     mass. Position plays no role.
+   - The probability follows the **plain name**, wherever it sits in the request and
+     whichever copy it is on. Names that look like variants (`-2`, `(copy)`) or don't
+     match the description lose mass.
+   - **Caveat from R18 (finding 11):** in every variant above, the plain name also sorts
+     *first* byte-wise (`X` < `X-2` < `X (copy)`, and `zebra_crossing` sorts late), and
+     Decision-1 shows options in sorted order. When the copy is named to sort first, an
+     unrelated name still loses (original 0.98), but near-identical names split about
+     evenly (`0_<name>`: original 0.61; `A <name>`: 0.49). So the effect is name fit
+     *plus* a preference for the first option in sorted order.
    - With no name information, the split is near even, with a slight lean to the
      *later* copy.
-   - So finding 4's "original name" preference is really a preference for the name that
-     best fits the description, which also explains it without any architectural trick.
+   - So finding 4's "original name" preference is partly a preference for the name that
+     best fits the description, and partly sorted position.
    - **The untrained Qwen3.5-9B does not do this** (same probe, our letter readout): it gives
      0.92 / 0.39 of the pair to the first of two opaque copies, and swapping the copies moves
      the plain name's share from 0.97 to 0.41 on ACE (0.88 → 0.70 on BANKING77). So the
@@ -220,6 +230,28 @@ below includes about 400 ms of network and service overhead.
       numbers above are the complete result.
     - Follow-ups on 200 items (R14: templates; R16: many questions per state; R6:
       paraphrases): [2026-10-22-question-types](../2026-10-22-question-types/README.md).
+11. **Choice options are sorted byte-wise before the model sees them (R18, 96 requests).**
+    - **Position questions follow sorted order.** Five options with mixed-case names
+      (`apple`, `Banana`, `cherry`, …), sent in random orders. "Which option is listed
+      first / second / last?" picked the option at that place in **byte-wise sorted order
+      in 48 of 48** requests. Case-insensitive order fits 25% (first, second), and the order
+      we sent 6–31%. Byte order puts uppercase before lowercase (`Banana` < `apple`).
+    - **This explains** the 0 decision flips under reordering (finding 3), the model's
+      inability to say which option we listed first (it sees a different order), and the
+      "position blindness" in the probes. Order invariance is a property of the serving
+      code, not necessarily of the model.
+    - **The model still has a mild first-position preference in sorted order.** Two
+      identical options, with the copy named to sort first:
+
+      | Copy's name | Original's share of the pair (BANKING77, 16 items) |
+      |---|---|
+      | `aardvark` (unrelated) | 0.98 |
+      | `0_<name>` | 0.61 |
+      | `A <name>` | 0.49 |
+      | for comparison, R7: `<name> (copy)` or `<name>-2` (sorts after) | 0.85–0.91 |
+
+    - Script and raw responses: [r18_option_order.py](../../../scripts/r18_option_order.py),
+      [r18-decision1.jsonl](../2026-10-22-question-types/r18-decision1.jsonl).
 
 ## What this says about the architecture
 
@@ -245,13 +277,14 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
   A bf16 classifier head of similar scale cannot be excluded.
 - **Option tokens (speculation).** Qwen splits numbers into single digits and there are only
   26 letters, so 255 single-token option labels would need a dedicated set of option tokens.
-- **Options are encoded together and ordering hardly reaches them (strong).**
+- **Options are encoded together, in sorted order (strong).**
   - Each option's score depends on the other options present, so options are not scored in
     isolation (finding 3).
-  - Reordering moves scores no more than resending the request does (on ACE slightly more),
-    and the model cannot say which option is listed first.
-  - Order robustness is in the model itself, not obtained by averaging over orders at
-    answer time, which would break the grid.
+  - The serving code sorts choice options byte-wise by name before building the prompt
+    (finding 11). So reordering produces the same prompt, and the model cannot say which
+    option was listed first in the request.
+  - Order robustness therefore needs no averaging over orders (which would break the grid)
+    and no special architecture.
 - **Questions (likely).** Each question is evaluated as its own branch from the shared state:
   - Duplicated questions are bit-identical, which rules out one sequence where the second
     copy would see the first.
@@ -265,15 +298,17 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
     correctly (1.00).
   - Decision-1 and every Qwen3.5-2B arm we trained on 8 other tasks answer at chance
     (0.47–0.53), with or without option shuffling.
+  - **Revised by R18:** Decision-1's chance level is measured against the order we send.
+    Against byte-sorted order it answers correctly (finding 11). So its "blindness" comes
+    from sorting, while the 2B arms' blindness was learned. Our 9B arms (R9, R9b) stayed
+    position-aware.
 - **Order invariance:** our trained arms still flip 6–11% of ACE decisions under
-  reordering, against Decision-1's 0%.
+  reordering, against Decision-1's 0% (which sorting explains).
 - **Names over positions:** every local model, trained or not, gives the earlier of two
   identical options the larger share. Decision-1 gives it to the copy whose name best fits
-  the description, wherever it sits (finding 8).
-- **What would explain these:** a model that ignores option positions and reads names
-  semantically, which strong decision training could produce. An architectural design where
-  options cannot see each other's positions (e.g. shared position indices) would also be
-  order-invariant. Neither is confirmed.
+  the description (finding 8), partly because that copy also sorts first (finding 11).
+- **What explains these (strong, R18):** sorting the options. No special architecture is
+  needed for order invariance.
 
 **Not settled by black-box probing:**
 - what the option tokens or head are;
@@ -300,9 +335,10 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
     scoring and calibration on familiar tasks.
 - **Many-way classification in the training data (likely).** It gains 12 points over its base
   on BANKING77 (next section).
-- **The name preference (likely).** It favours option names that fit their description and
-  penalises variant-looking names (`-2`, `(copy)`), wherever they sit (finding 8). Training
-  data with near-duplicate or decoy options would teach exactly that.
+- **The name preference (likely, partly).** It favours option names that fit their
+  description and penalises unrelated names even when they sort first (finding 11).
+  Variant-looking names (`-2`, `(copy)`) lose mostly because they also sort after the
+  plain name. Training data with decoy options would teach the first part.
 
 ## Is Decision-1 just Qwen3.5-9B with recalibrated probabilities?
 
@@ -358,24 +394,26 @@ which option wins. Yet:
 
 1. **BANKING77 accuracy is 12 points higher:** 0.870 vs. 0.750 (default prompt).
    - Decision-1 alone is right on 13.6% of examples, the base alone on 1.6%.
-   - Caveat: our readout scores 77 options in groups of 26, and other prompts were not
-     tested on BANKING77, so part of this gap may be readout and prompt.
+   - Caveat: our readout scores 77 options in groups of 26. R4 and R5 later showed that
+     no other label scheme or prompt layout lifts the frozen base above 0.750, so the gap
+     is not our readout or prompt.
 2. **BANKING77 calibration improved:** raw ECE 0.097 → 0.015, temperature 1.41 → 1.02.
 3. **Behaviour changed in ways no recalibration can produce:**
 
    | Probe | Decision-1 | Qwen3.5-9B frozen |
    |---|---|---|
-   | "Which option is listed last?" (BANKING77) | 0.50 | 1.00 |
-   | ACE decisions flipped by reordering | 0% | 7.5% |
+   | "Which option is listed last?" (BANKING77) | 0.50 (1.00 against sorted order, finding 11) | 1.00 |
+   | ACE decisions flipped by reordering | 0% (sorted options) | 7.5% |
    | Copy placed before the original: original name's share (ACE) | 0.84 | 0.41 |
    | Empty state, normalised entropy (ACE / BANKING77) | 0.86 / 0.95 | 0.21 / 0.75 |
 
-   It also works from a ≈ 21-token hidden template and scores up to 255 options in one
-   softmax.
+   The first two rows come from the serving code sorting the options (finding 11), not
+   from training. It also works from a ≈ 21-token hidden template and scores up to 255
+   options in one softmax.
 
 In short: Decision-1 = Qwen3.5-9B's judgement, unchanged on compliance reasoning, + a
-trained decision interface (compact format, joint option scoring that ignores order,
-calibration on routing-style tasks) + better many-way routing.
+trained decision interface (compact format, joint option scoring, calibration on
+routing-style tasks) + options sorted before scoring + better many-way routing.
 
 ## Where the 255 limit comes from
 
