@@ -67,6 +67,11 @@ Score:
 - **The frozen base already answers yes/no and score questions like Decision-1:** same
   accuracy within one or two items, high correlation. This extends F7 (the judgement is the
   base model's) from choice to all three types.
+- **After training on all three types (R15, `truefalse` + `digits`):**
+  - **Score:** moves slightly towards Decision-1 (5 levels: same answer 0.725 → 0.825).
+  - **Yes/no:** log-odds become more extreme than Decision-1's (mean abs. difference on
+    BANKING77 1.23–1.29 → 1.89–2.30).
+  - See [replication.md](../../replication.md) (F22).
 
 ## R16: many questions from one state
 

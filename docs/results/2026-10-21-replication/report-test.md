@@ -1,6 +1,6 @@
 # Replication study report (`test`)
 
-Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag `replication`). Design: [docs/replication.md](../../docs/replication.md).
+Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag `replication`). Design: [docs/replication.md](../../replication.md).
 
 ## Jobs
 
@@ -11,6 +11,12 @@ Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag 
 | banking77__r2_qwen35_9b_letter__short | Completed | 0 |
 | replication__probes-qwen3.5-9b-r7r8 | Completed | 0 |
 | replication__probes-qwen3.5-9b | Completed | 0 |
+| replication__probes-qwen9b-sorted | Completed | 0 |
+| replication__r14-qwen9b | Completed | 0 |
+| replication__r15-typed | Completed | 0 |
+| replication__r16-qwen9b | Completed | 0 |
+| replication__r16b-qwen9b | Completed | 0 |
+| replication__r17-routing | Completed | 0 |
 | replication__r2-labels-ace-numbers | Completed | 0 |
 | replication__r2-labels-banking-codes | Completed | 0 |
 | replication__r2-labels-banking-numbers | Completed | 0 |
@@ -20,7 +26,10 @@ Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag 
 | replication__r3-ce_shuffle | Completed | 0 |
 | replication__r3-frozen | Completed | 0 |
 | replication__r5-banking-prompts | Completed | 0 |
+| replication__r6-paraphrase-qwen9b | Completed | 0 |
 | replication__r9-qwen9b | Completed | 0 |
+| replication__r9b-kl | Completed | 0 |
+| replication__r9b-nokl | Completed | 0 |
 
 ## Accuracy
 
@@ -37,6 +46,10 @@ Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag 
 | 2B + LoRA, CE, fixed option order | 0.5291 | 0.4909 | 0.6412 |
 | 2B + LoRA, Brier, shuffled options | 0.5482 | 0.5109 | 0.6503 |
 | R9: 9B + LoRA decision training | 0.5727 | 0.6064 | 0.7487 |
+| R9b: R9 + none option, KL 1.0 | 0.7 | 0.75 | 0.7331 |
+| R9b: R9 + none option, no KL | 0.7382 | 0.7673 | 0.7416 |
+| R15: R9b + score/noul training | 0.6518 | 0.7127 | 0.7497 |
+| R17: R9b-kl + Bitext banking/support routing | 0.7009 | 0.78 | 0.7526 |
 | gpt-oss-20b letter readout (C6, context) | 0.4709 | 0.5891 | 0.7906 |
 
 ## ACE short: accuracy, calibration, cost
@@ -55,6 +68,10 @@ Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag 
 | 2B + LoRA, CE, fixed option order | 0.5291 | 0.418 | 1.111 | 0.1929 | 2.204 | 0.9729 | 0.0555 | 0.5682 | 87.46 | 845.1 |
 | 2B + LoRA, Brier, shuffled options | 0.5482 | 0.4318 | 1.004 | 0.1416 | 1.576 | 0.9564 | 0.0564 | 0.5864 | 86.54 | 845.1 |
 | R9: 9B + LoRA decision training | 0.5727 | 0.4636 | 1.023 | 0.2142 | 1.881 | 0.8839 | 0.0982 | 0.6318 | 155.5 | 845.1 |
+| R9b: R9 + none option, KL 1.0 | 0.7 | 0.6898 | 0.6965 | 0.0969 | 1.113 | 0.6847 | 0.0709 | 0.7568 | 156.6 | 845.1 |
+| R9b: R9 + none option, no KL | 0.7382 | 0.7324 | 0.6195 | 0.0706 | 1.067 | 0.615 | 0.0613 | 0.8023 | 158.8 | 845.1 |
+| R15: R9b + score/noul training | 0.6518 | 0.6254 | 0.7874 | 0.1293 | 1.268 | 0.7565 | 0.0964 | 0.6966 | 155.8 | 845.1 |
+| R17: R9b-kl + Bitext banking/support routing | 0.7009 | 0.6692 | 0.695 | 0.0648 | 1.12 | 0.6878 | 0.0483 | 0.7648 | 158 | 845.1 |
 | gpt-oss-20b letter readout (C6, context) | 0.4709 | 0.373 | 2.505 | 0.4523 | 6.51 | 0.9636 | 0.1399 | 0.5 | 106.3 | 870.4 |
 
 ## ACE verbose: accuracy, calibration, cost
@@ -73,6 +90,10 @@ Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag 
 | 2B + LoRA, CE, fixed option order | 0.4909 | 0.4054 | 1.074 | 0.2602 | 1.866 | 0.952 | 0.1212 | 0.5125 | 90.02 | 910.1 |
 | 2B + LoRA, Brier, shuffled options | 0.5109 | 0.4252 | 0.9857 | 0.1829 | 1.445 | 0.9447 | 0.112 | 0.5523 | 89.17 | 910.1 |
 | R9: 9B + LoRA decision training | 0.6064 | 0.5579 | 0.8704 | 0.1812 | 1.472 | 0.8019 | 0.1024 | 0.6591 | 164 | 910.1 |
+| R9b: R9 + none option, KL 1.0 | 0.75 | 0.7504 | 0.591 | 0.071 | 0.9859 | 0.5922 | 0.0749 | 0.8102 | 166.2 | 910.1 |
+| R9b: R9 + none option, no KL | 0.7673 | 0.769 | 0.5514 | 0.0625 | 1.024 | 0.5497 | 0.0576 | 0.8284 | 167.1 | 910.1 |
+| R15: R9b + score/noul training | 0.7127 | 0.7096 | 0.6712 | 0.0981 | 1.058 | 0.6651 | 0.0878 | 0.7489 | 165.1 | 910.1 |
+| R17: R9b-kl + Bitext banking/support routing | 0.78 | 0.7797 | 0.5412 | 0.0243 | 0.8643 | 0.5438 | 0.042 | 0.8352 | 166.8 | 910.1 |
 | gpt-oss-20b letter readout (C6, context) | 0.5891 | 0.5304 | 1.875 | 0.3114 | 4.278 | 0.8875 | 0.0732 | 0.6375 | 114.5 | 933.4 |
 
 ## BANKING77: accuracy, calibration, cost
@@ -92,6 +113,10 @@ Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag 
 | 2B + LoRA, CE, fixed option order | 0.6412 | 0.6272 | 1.675 | 0.1395 | 1.462 | 1.492 | 0.021 | 0.7163 | 283.7 | 906.2 |
 | 2B + LoRA, Brier, shuffled options | 0.6503 | 0.6413 | 1.436 | 0.0624 | 1.173 | 1.41 | 0.0227 | 0.7297 | 297.2 | 906.3 |
 | R9: 9B + LoRA decision training | 0.7487 | 0.7421 | 1.121 | 0.0836 | 1.269 | 1.061 | 0.017 | 0.8328 | 153.1 | 618.6 |
+| R9b: R9 + none option, KL 1.0 | 0.7331 | 0.7255 | 1.147 | 0.069 | 1.256 | 1.094 | 0.0225 | 0.8198 | 155.1 | 618.6 |
+| R9b: R9 + none option, no KL | 0.7416 | 0.7346 | 1.302 | 0.1264 | 1.496 | 1.125 | 0.0222 | 0.8182 | 156 | 618.6 |
+| R15: R9b + score/noul training | 0.7497 | 0.7405 | 1.118 | 0.0679 | 1.297 | 1.054 | 0.0183 | 0.8393 | 154.2 | 618.6 |
+| R17: R9b-kl + Bitext banking/support routing | 0.7526 | 0.7469 | 1.125 | 0.0733 | 1.325 | 1.05 | 0.0218 | 0.8304 | 153.6 | 618.6 |
 | gpt-oss-20b letter readout (C6, context) | 0.7906 | 0.7843 | 1.556 | 0.1576 | 1.931 | 0.99 | 0.0376 | 0.8754 | 115.8 | 749.5 |
 
 ## ACE short: agreement with Decision-1, example by example
@@ -109,6 +134,10 @@ Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag 
 | 2B + LoRA, CE, fixed option order | 0.5291 | 0.7891 | 0.5615 | 0.519 | 0.3409 | 0.88 | 0.6664 | 0.8353 | 0.8558 | 0.0573 | {'Compliant': 0.239, 'Non-Compliant': 0.755, 'Not-Applicable': 0.006} |
 | 2B + LoRA, Brier, shuffled options | 0.5482 | 0.8064 | 0.5535 | 0.5664 | 0.3409 | 0.8747 | 0.6985 | 0.8407 | 0.8634 | 0.0666 | {'Compliant': 0.269, 'Non-Compliant': 0.726, 'Not-Applicable': 0.005} |
 | R9: 9B + LoRA decision training | 0.5727 | 0.8518 | 0.5427 | 0.676 | 0.3455 | 0.9105 | 0.7606 | 0.9099 | 0.9288 | 0.029 | {'Compliant': 0.29, 'Non-Compliant': 0.698, 'Not-Applicable': 0.012} |
+| R9b: R9 + none option, KL 1.0 | 0.7 | 0.7791 | 0.4769 | 0.5777 | 0.2382 | 0.9313 | 0.5568 | 0.7108 | 0.7494 | 0.0628 | {'Compliant': 0.236, 'Non-Compliant': 0.617, 'Not-Applicable': 0.146} |
+| R9b: R9 + none option, no KL | 0.7382 | 0.7709 | 0.455 | 0.5796 | 0.2118 | 0.9528 | 0.525 | 0.6774 | 0.7295 | 0.0684 | {'Compliant': 0.27, 'Non-Compliant': 0.565, 'Not-Applicable': 0.165} |
+| R15: R9b + score/noul training | 0.6518 | 0.8109 | 0.503 | 0.6196 | 0.2809 | 0.9223 | 0.641 | 0.8113 | 0.8569 | 0.0452 | {'Compliant': 0.233, 'Non-Compliant': 0.662, 'Not-Applicable': 0.105} |
+| R17: R9b-kl + Bitext banking/support routing | 0.7009 | 0.8182 | 0.4742 | 0.6542 | 0.2564 | 0.9433 | 0.6406 | 0.8021 | 0.8269 | 0.0493 | {'Compliant': 0.335, 'Non-Compliant': 0.564, 'Not-Applicable': 0.102} |
 | gpt-oss-20b letter readout (C6, context) | 0.4709 | 0.7327 | 0.5878 | 0.3517 | 0.3482 | 0.846 | 0.605 | 0.7577 | 0.8209 | 0.1003 | {'Compliant': 0.098, 'Non-Compliant': 0.868, 'Not-Applicable': 0.034} |
 
 ## ACE verbose: agreement with Decision-1, example by example
@@ -126,6 +155,10 @@ Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag 
 | 2B + LoRA, CE, fixed option order | 0.4909 | 0.6727 | 0.5111 | 0.3306 | 0.2355 | 0.8726 | 0.4728 | 0.7046 | 0.788 | 0.0829 | {'Compliant': 0.119, 'Non-Compliant': 0.845, 'Not-Applicable': 0.036} |
 | 2B + LoRA, Brier, shuffled options | 0.5109 | 0.6945 | 0.5014 | 0.3874 | 0.2355 | 0.8803 | 0.4965 | 0.7133 | 0.7891 | 0.0861 | {'Compliant': 0.163, 'Non-Compliant': 0.806, 'Not-Applicable': 0.031} |
 | R9: 9B + LoRA decision training | 0.6064 | 0.7845 | 0.466 | 0.5966 | 0.2273 | 0.924 | 0.5853 | 0.7974 | 0.8682 | 0.0443 | {'Compliant': 0.236, 'Non-Compliant': 0.695, 'Not-Applicable': 0.069} |
+| R9b: R9 + none option, KL 1.0 | 0.75 | 0.8 | 0.4162 | 0.6574 | 0.1573 | 0.9653 | 0.4876 | 0.6648 | 0.6848 | 0.0561 | {'Compliant': 0.219, 'Non-Compliant': 0.576, 'Not-Applicable': 0.205} |
+| R9b: R9 + none option, no KL | 0.7673 | 0.8036 | 0.4092 | 0.6676 | 0.1518 | 0.9461 | 0.4943 | 0.6779 | 0.7103 | 0.0532 | {'Compliant': 0.235, 'Non-Compliant': 0.554, 'Not-Applicable': 0.211} |
+| R15: R9b + score/noul training | 0.7127 | 0.8009 | 0.4306 | 0.6503 | 0.18 | 0.9293 | 0.5325 | 0.739 | 0.7974 | 0.046 | {'Compliant': 0.189, 'Non-Compliant': 0.622, 'Not-Applicable': 0.189} |
+| R17: R9b-kl + Bitext banking/support routing | 0.78 | 0.8164 | 0.4069 | 0.6904 | 0.1527 | 0.9345 | 0.5274 | 0.6942 | 0.7118 | 0.052 | {'Compliant': 0.265, 'Non-Compliant': 0.538, 'Not-Applicable': 0.196} |
 | gpt-oss-20b letter readout (C6, context) | 0.5891 | 0.6764 | 0.4459 | 0.4159 | 0.1791 | 0.934 | 0.3369 | 0.5198 | 0.6877 | 0.1277 | {'Compliant': 0.045, 'Non-Compliant': 0.706, 'Not-Applicable': 0.249} |
 
 ## BANKING77: agreement with Decision-1, example by example
@@ -144,6 +177,10 @@ Generated from local runs (Decision-1, gpt-oss) and Azure ML job summaries (tag 
 | 2B + LoRA, CE, fixed option order | 0.6412 | 0.7003 | 0.0136 | 0.6962 | 0.1169 | 0.6194 | 0.4348 | 0.6151 | 0.676 | – | – |
 | 2B + LoRA, Brier, shuffled options | 0.6503 | 0.7185 | 0.0136 | 0.7146 | 0.1198 | 0.6558 | 0.4629 | 0.631 | 0.695 | – | – |
 | R9: 9B + LoRA decision training | 0.7487 | 0.8253 | 0.0136 | 0.8229 | 0.1169 | 0.7694 | 0.5766 | 0.7735 | 0.7956 | – | – |
+| R9b: R9 + none option, KL 1.0 | 0.7331 | 0.8094 | 0.0136 | 0.8068 | 0.1182 | 0.7473 | 0.5605 | 0.7604 | 0.788 | – | – |
+| R9b: R9 + none option, no KL | 0.7416 | 0.8101 | 0.0135 | 0.8075 | 0.114 | 0.7436 | 0.5452 | 0.7284 | 0.7439 | – | – |
+| R15: R9b + score/noul training | 0.7497 | 0.8247 | 0.0136 | 0.8223 | 0.1149 | 0.7853 | 0.5649 | 0.7654 | 0.8076 | – | – |
+| R17: R9b-kl + Bitext banking/support routing | 0.7526 | 0.8273 | 0.0136 | 0.8249 | 0.1182 | 0.7335 | 0.5921 | 0.7806 | 0.8195 | – | – |
 | gpt-oss-20b letter readout (C6, context) | 0.7906 | 0.8494 | 0.0134 | 0.8473 | 0.1097 | 0.7219 | 0.6023 | 0.7276 | 0.7528 | 0.0871 | – |
 
 ## Same model, different runs (e.g. prompt templates)
@@ -173,14 +210,22 @@ Runs of one job compared example by example: how much the decisions move when on
 | brier_shuffle | brier | True | 1500 | 5507 | 0.885 | 0.2969 | 0.0356 | 0.9165 | 0.3075 | 0.3025 |
 | ce_fixed | ce | False | 1500 | 5492 | 0.88 | 0.2958 | 0.0494 | 0.9248 | 0.3125 | 0.3025 |
 | ce_shuffle | ce | True | 1500 | 5466 | 0.89 | 0.2861 | 0.0405 | 0.9263 | 0.3175 | 0.3025 |
+| r15_typed | ce_brier | True | 600 | 4435 | 0.9 | 0.3132 | 0.0402 | 0.8625 | 0.2524 | 0.267 |
+| r17_routing | ce_brier | True | 600 | 4508 | 0.9033 | 0.2922 | 0.0222 | 0.9178 | 0.2133 | 0.2167 |
 | r9_qwen9b | ce_brier | True | 600 | 4699 | 0.9067 | 0.28 | 0.0324 | 0.9151 | 0.2233 | 0.23 |
+| r9b_kl | ce_brier | True | 600 | 4438 | 0.8767 | 0.3178 | 0.0418 | 0.9109 | 0.2133 | 0.23 |
+| r9b_nokl | ce_brier | True | 600 | 3639 | 0.9067 | 0.2588 | 0.0403 | 0.9315 | 0.22 | 0.23 |
 
 `brier_shuffle` held-out accuracy by step: 250: 0.8675, 500: 0.885, 750: 0.885, 1000: 0.885, 1250: 0.88, 1500: 0.885
 `ce_fixed` held-out accuracy by step: 250: 0.86, 500: 0.89, 750: 0.89, 1000: 0.8825, 1250: 0.8825, 1500: 0.88
 `ce_shuffle` held-out accuracy by step: 250: 0.855, 500: 0.9075, 750: 0.8925, 1000: 0.8875, 1250: 0.8875, 1500: 0.89
+`r15_typed` held-out accuracy by step: 100: 0.88, 200: 0.8667, 300: 0.8933, 400: 0.9033, 500: 0.9033, 600: 0.9
+`r17_routing` held-out accuracy by step: 100: 0.8967, 200: 0.9133, 300: 0.91, 400: 0.9067, 500: 0.9, 600: 0.9033
 `r9_qwen9b` held-out accuracy by step: 100: 0.8733, 200: 0.8767, 300: 0.8867, 400: 0.8833, 500: 0.9067, 600: 0.9067
+`r9b_kl` held-out accuracy by step: 100: 0.88, 200: 0.8867, 300: 0.87, 400: 0.8733, 500: 0.8767, 600: 0.8767
+`r9b_nokl` held-out accuracy by step: 100: 0.8833, 200: 0.8967, 300: 0.88, 400: 0.8933, 500: 0.9033, 600: 0.9067
 
 ## Probes
 
-Side by side for decision-1, qwen3.5-9b, r9-qwen9b, qwen3.5-2b, r3-ce-shuffle, r3-ce-fixed, r3-brier-shuffle: [probe-report.md](probe-report.md).
+Side by side for decision-1, qwen3.5-9b, qwen3.5-9b-sorted, r9-qwen9b, r9b-kl, r9b-nokl, r15-typed, r17-routing, qwen3.5-2b, r3-ce-shuffle, r3-ce-fixed, r3-brier-shuffle: [probe-report.md](probe-report.md).
 
