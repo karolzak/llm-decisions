@@ -39,7 +39,7 @@ from edb.training.lora import CONFIG
 from edb.training.train import arm_dir, load_arm, train
 
 DEFAULT_PROBES = ["order", "letter_names", "duplicate", "question", "empty_state",
-                  "cardinality", "duplicate_names", "long_options"]
+                  "cardinality", "duplicate_names", "long_options", "paraphrase"]
 
 
 def names_for(arm: str, arms_file: str = "arms") -> tuple[str, str]:
