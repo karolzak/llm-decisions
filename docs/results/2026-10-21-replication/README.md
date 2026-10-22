@@ -38,14 +38,16 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
 3. **Decision training on *other* tasks transfers.** Qwen3.5-2B, trained only on 8 public
    classification tasks, goes from 0.38 to 0.49–0.55 on ACE and from 0.51 to 0.64–0.65 on
    BANKING77, and its probabilities become usable (ACE temperature 7.7 → 1.4–1.8).
-4. **Decision training, with or without option shuffling, reproduces Decision-1's position
-   blindness.** Asked "which option is listed last?" on BANKING77, both frozen models answer
-   correctly (1.00), while Decision-1 is at chance (0.50), and so is every trained arm,
-   including the fixed-order control (0.53 / 0.50 / 0.47). Training on many tasks where only
-   the content of an option decides the answer is enough; option shuffling is not what
-   causes it. Every arm also flips less when options are reordered (ACE 31% → 6–11%;
-   Decision-1 0%) and is closer to uniform on an empty state. What shuffling *does* add,
-   against the fixed-order control: better answers to "which option does NOT…" (0.63 → 0.78;
+4. **Decision training, with or without option shuffling, makes a 2B model position-blind.**
+   Asked "which option is listed last?" on BANKING77, both frozen models answer correctly
+   (1.00), while Decision-1 is at chance (0.50), and so is every trained 2B arm, including
+   the fixed-order control (0.53 / 0.50 / 0.47). **But this is not how Decision-1 gets
+   there:** it sorts the options before the model sees them (R18,
+   [probe finding 11](../2026-10-20-decision1-probes/README.md)), and against sorted order
+   it answers correctly. Our trained 9Bs stayed position-aware (R9, R9b). Every 2B arm also
+   flips less when options are reordered (ACE 31% → 6–11%; Decision-1 0% from sorting) and
+   is closer to uniform on an empty state. What shuffling *does* add, against the
+   fixed-order control: better answers to "which option does NOT…" (0.63 → 0.78;
    Decision-1 1.00), less need for temperature correction on ACE (T 2.20 → 1.80 short,
    1.87 → 1.41 verbose) and +5 points on ACE verbose.
 5. **A proper scoring rule calibrates in the weights.** The Brier arm matches cross-entropy's
@@ -55,8 +57,9 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
    RLCD-style objective.
 6. **What we did not reproduce here:** Decision-1 prefers the *original* option name over an
    exact copy named `…-2`, wherever the copy sits (0.84–0.85 of the pair's mass). Every model
-   in this round, trained or not, prefers the *earlier* copy instead. R9's decoy training
-   later reproduced it on the 9B ([follow-up](#follow-up-2026-10-22-r4-r5-r9)). Decision-1
+   in this round, trained or not, prefers the *earlier* copy instead. R18 later explained
+   it: Decision-1 sorts options, the plain name sorts first, and the frozen 9B with sorted
+   options shows the same preference (0.97 / 0.88). Decision-1
    also bills the state once across questions and serves bf16 logits; our readout does
    neither by construction.
 
@@ -84,9 +87,9 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
 
 | Probe | Decision-1 | Qwen3.5-9B frozen | Reading |
 |---|---|---|---|
-| ACE decision flips across option orders | 0% | 7.5% | order sensitivity trained away |
-| "Which option is listed last?" (BANKING77) | 0.50 | 1.00 | Decision-1 cannot see positions |
-| Duplicate gold option placed *before* the original: share of the original name (ACE) | 0.84 | 0.41 | Decision-1 reads names, the base reads positions |
+| ACE decision flips across option orders | 0% | 7.5% | Decision-1 sorts the options (R18), so reordering is a no-op |
+| "Which option is listed last?" (BANKING77) | 0.50 | 1.00 | sorted order differs from the order sent; against sorted order Decision-1 answers 1.00 |
+| Duplicate gold option placed *before* the original: share of the original name (ACE) | 0.84 | 0.41 | the plain name sorts first; the frozen base with sorted options gives 0.97 |
 | Empty state, normalised entropy (BANKING77) | 0.95 | 0.75 | Decision-1 is closer to "I don't know" |
 | "Which option does NOT…" (BANKING77) | 1.00 | 0.97 | both follow the question |
 | Names that look like answer letters | no effect | no effect | – |
@@ -162,20 +165,20 @@ about 500 steps in every arm, so 1,500 steps is enough at this size.
 - **The base model supplies the judgement.** On a reasoning-heavy task (ACE), a 9B decision
   model is exactly as good as its frozen base read in one pass; a 2B decision model trained
   on generic decisions stays far behind. Decision training does not add reasoning.
-- **Decision training supplies the interface.** It makes the model blind to option positions,
-  reduces order sensitivity, improves answers to negated questions, flattens the prior on
-  empty input and calibrates the probabilities. Each of these traits moves towards
-  Decision-1 in our small arms with the generic recipe the open replicas publish (a
-  probability readout over listed options, multi-task decision data). Option shuffling and a
-  proper scoring rule refine it (negation, calibration) but are not needed for position
-  blindness.
+- **Decision training supplies part of the interface.** In our 2B arms it makes the model
+  blind to option positions, reduces order sensitivity, improves answers to negated
+  questions, flattens the prior on empty input and calibrates the probabilities. Decision-1,
+  however, gets its order invariance and listing-order blindness from sorting the options
+  (R18), not from training; the frozen 9B with sorted options already matches it there.
+  Option shuffling and a proper scoring rule refine the trained arms (negation,
+  calibration).
 - **Gains concentrate on tasks that look like the training data.** Many-way routing over
   named options (BANKING77: +12 points over the base for Decision-1, +14 for our 2B arms) is
   where training helps most.
 - **Still unexplained (as of this round):** Decision-1's preference for the original option
   name over a renamed duplicate, and how Decision-1 handles 77 options without the grouping
-  our readout needs. Both were addressed by the follow-up below: decoy training reproduces
-  the name preference, and code labels read 77+ options in one pass.
+  our readout needs. Both were addressed later: the name preference comes from sorting the
+  options (R18), and code labels read 77+ options in one pass (R9).
 
 ## Follow-up (2026-10-22): R4, R5, R9
 
@@ -220,8 +223,9 @@ targets, paraphrases). 78 min on one A100. Full design:
 - **Interface reproduced:** no order flips, the fitting name wins between duplicates, no
   grouping, better calibration than the base.
 - **Accuracy not reproduced:** no BANKING77 gain, and ACE falls below the frozen base.
-- **Position awareness kept:** R9 still knows which option is listed last. The 2B arms,
-  trained without the KL term, lost it.
+- **Position awareness kept:** R9 still knows which option is listed last. The 2B arms lost
+  it. R9b showed the KL term is not the cause, and R18 that Decision-1's blindness comes
+  from sorting the options, so a replica sorts them instead.
 - **Likely cause of the ACE drop:** R9 learned to answer uninformative states uniformly,
   where Decision-1 picks Not-Applicable. On real ACE items R9 predicts Not-Applicable less
   often than Decision-1 (6.9% vs. 15.6% verbose) and Non-Compliant more often (69.5% vs.
