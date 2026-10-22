@@ -1,0 +1,9 @@
+name: r17-routing
+kind: local_readout
+description: "R17: R9b-kl recipe + Bitext banking/support routing data."
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-9b
+  adapter: training/r17_routing
+  readout: {labels: codes}
