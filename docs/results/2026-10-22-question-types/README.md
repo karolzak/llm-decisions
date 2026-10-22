@@ -65,7 +65,7 @@ Score:
   same answer 90% vs. 78%. They are equal on 5 levels. This is consistent with Decision-1
   keying levels by digit (finding 10).
 - **The frozen base already answers yes/no and score questions like Decision-1:** same
-  accuracy within one or two items, high correlation. This extends F7 (the judgement is the
+  accuracy within one to three items, high correlation. This extends F7 (the judgement is the
   base model's) from choice to all three types.
 - **After training on all three types (R15, `truefalse` + `digits`):**
   - **Score:** moves slightly towards Decision-1 (5 levels: same answer 0.725 → 0.825).
@@ -165,12 +165,13 @@ lowercase).
 | `(copy)`: original's share (ACE / BANKING77) | 0.85 / 0.91 | – | 0.96 / 0.84 |
 | Unrelated copy: original's share (ACE / BANKING77) | 0.78 / 0.99 | – | 0.98 / 0.99 |
 | Two opaque copies: first's share (ACE / BANKING77) | 0.45 / 0.42 | 0.92 / 0.39 | 0.35 / 0.49 |
-| Empty ACE state | Not-Applicable, p ≈ 0.99 | Not-Applicable | Not-Applicable, p 0.95–0.99 |
-| Empty BANKING77 state, normalised entropy | 0.95 | 0.75 | 0.73–0.90 |
+| Empty ACE state | Not-Applicable, p 0.60 (empty string) to 0.99–1.00 | Not-Applicable, p 0.95–0.98 | Not-Applicable, p 0.95–0.98 |
+| Empty BANKING77 state, normalised entropy (4 variants, 1 item) | 0.90–0.95 | 0.74–0.78 | 0.73–0.90 |
 | Paraphrase flips, ACE / BANKING77 | 6.7% / 0.7% (50 items) | 2.7% / 1.3% (50 items) | 6.3% / 0% (16 items) |
 
 - **Sorting alone reproduces Decision-1's order and name behaviour** with an untrained base.
-  The remaining probe difference is the flatter empty-state answer on BANKING77.
+  The remaining probe difference is a flatter empty-state answer on BANKING77, resting on
+  one item per dataset.
 - So order invariance is a property of Decision-1's serving code, and the name preference is
   the base model's first-position preference applied to sorted names. Neither needs training.
 

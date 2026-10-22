@@ -37,7 +37,7 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
    [follow-up](#follow-up-2026-10-22-r4-r5-r9)).
 3. **Decision training on *other* tasks transfers.** Qwen3.5-2B, trained only on 8 public
    classification tasks, goes from 0.38 to 0.49–0.55 on ACE and from 0.51 to 0.64–0.65 on
-   BANKING77, and its probabilities become usable (ACE temperature 7.7 → 1.4–1.8).
+   BANKING77, and its probabilities become usable (ACE temperature 7.7 → 1.4–2.2).
 4. **Decision training, with or without option shuffling, makes a 2B model position-blind.**
    Asked "which option is listed last?" on BANKING77, both frozen models answer correctly
    (1.00), while Decision-1 is at chance (0.50), and so is every trained 2B arm, including
@@ -56,12 +56,13 @@ on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priorit
    ACE the difference is small and mixed. This is consistent with, not proof of, an
    RLCD-style objective.
 6. **What we did not reproduce here:** Decision-1 prefers the *original* option name over an
-   exact copy named `…-2`, wherever the copy sits (0.84–0.85 of the pair's mass). Every model
-   in this round, trained or not, prefers the *earlier* copy instead. R18 later explained
+   exact copy named `…-2`, wherever the copy sits (0.83–0.85 of the pair's mass). On ACE, every model
+   in this round, trained or not, prefers the *earlier* copy instead (on BANKING77 the
+   pattern is mixed). R18 later explained
    it: Decision-1 sorts options, the plain name sorts first, and the frozen 9B with sorted
    options shows the same preference (0.97 / 0.88). Decision-1
-   also bills the state once across questions and serves bf16 logits; our readout does
-   neither by construction.
+   also bills the state once across questions and serves bf16 logits. Our readout did
+   neither here; R16 later added encoding the state once for many questions.
 
 ## Part 2: Decision-1 vs. its frozen base
 
@@ -123,8 +124,9 @@ layouts. Options, option order and the letter readout stay the same:
   0.64 (underconfident) to 2.51 (overconfident) without any training.
 - **Decision-1 agrees most with the state-first prompts**, consistent with a hidden template
   that puts the state first (required to share it across questions).
-- The default prompt rerun reproduced the earlier run exactly. BANKING77 was not re-run
-  with other prompts, so its 12-point gap could also be partly prompt.
+- The default prompt rerun reproduced the earlier run exactly. R5 later re-ran BANKING77
+  with the other layouts: the default is best (0.750; JSON 0.744, markdown 0.697), so the
+  12-point gap is not the prompt.
 
 ## Part 3: what decision training changes
 
@@ -220,7 +222,7 @@ targets, paraphrases). 78 min on one A100. Full design:
 | Duplicates: fitting name's share, copy before / after (ACE) | 0.84 / 0.84 | 0.97 / 0.41 | 0.97 / 0.98 |
 | Two opaque copies: first copy's share (ACE) | 0.45 | 0.92 | 0.42 |
 | Empty state, normalised entropy (BANKING77) | 0.95 | 0.75 | 0.99 |
-| Empty ACE state: top answer | Not-Applicable (p ≈ 0.99) | Not-Applicable | near-uniform (p ≈ 0.35) |
+| Empty ACE state: top answer | Not-Applicable (p 0.60 for an empty string, 0.99–1.00 otherwise) | Not-Applicable | near-uniform (p ≈ 0.35) |
 
 - **Interface reproduced:** no order flips, the fitting name wins between duplicates, no
   grouping, better calibration than the base.
@@ -233,7 +235,7 @@ targets, paraphrases). 78 min on one A100. Full design:
 - **Likely cause of the ACE drop:** R9 learned to answer uninformative states uniformly,
   where Decision-1 picks Not-Applicable. On real ACE items R9 predicts Not-Applicable less
   often than Decision-1 (6.9% vs. 15.6% verbose) and Non-Compliant more often (69.5% vs.
-  55.8%); a third of ACE's gold labels are Not-Applicable. R9b tests this.
+  55.8%); 29% of ACE's test gold labels are Not-Applicable. R9b tests this.
 - **Leakage check:** the R9 corpus shares no text with ACE, and 3 generic utterances with
   BANKING77 (from CLINC150, under a different label) out of ≈ 13,000.
 

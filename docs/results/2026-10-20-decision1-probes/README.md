@@ -3,7 +3,8 @@
 Part 1 of the [replication study](../../replication.md): 854 perturbed requests to
 Microsoft-Decision-1 (852 answered; the other 2 are the deliberate 256-option test), plus 272
 follow-up requests for findings 8 and 9 (R7, R8), 12 for finding 10 (question types) and 96
-for finding 11 (R18, option order). Most
+for finding 11 (R18, option order). R6 (500 paraphrase requests) and R14 (200 question-type
+requests) are reported in [2026-10-22-question-types](../2026-10-22-question-types/README.md). Most
 probes use 16 `dev` items each from ACE and BANKING77; the repeat test uses 6, the empty-state
 test 1 item per dataset, and the token test synthetic inputs. Full tables:
 [probe-report.md](probe-report.md); raw summary: [summary-decision-1.json](summary-decision-1.json).
@@ -29,14 +30,14 @@ below includes about 400 ms of network and service overhead.
      once.
    - 64 yes/no questions in one request were answered in 986 ms and billed 64 output tokens.
      A request may carry at most 255 questions (finding 5).
-   - Latency is flat from 2 to 77 options (median 454–481 ms, 65 → 815 input tokens). This
+   - Latency is flat from 2 to 77 options (median 452–481 ms, 65 → 817 input tokens). This
      only rules out mechanisms that would add tens of milliseconds, such as generating option
      names token by token. A single forward pass is the simplest explanation, but the timing
      cannot confirm it.
 2. **Probabilities are a softmax over bf16 logits, with no arbitrary temperature applied
    afterwards.**
    - In 99.8% of answers, every log-probability gap is an exact multiple of a power-of-two
-     step (1,124 answers of the original probe set; 99.9% of 1,624 after adding R6–R8).
+     step (852 answers of the original probe set; 99.9% of 1,624 after adding R6–R8).
      For random values this happens in about 4% of 2-option answers, and far less
      with more options. For comparison, 97% of our own Qwen3.5-9B answers (fp32 output head)
      sit on no grid.
@@ -230,8 +231,9 @@ below includes about 400 ms of network and service overhead.
       to within 0.5 and do not depend on order. Adding true/false criteria to a `noul`
       moves the log-odds by up to 1.0. Negating the question mirrors the answer (log-odds
       −4.5 ↔ +5.1, +7.25 ↔ −6.9, −6.5 ↔ +6.6).
-    - Script and raw responses: session scratch (`score_noul_probe.py`), not in the repo; the
-      numbers above are the complete result.
+    - Script and raw responses: [probe_question_types.py](../../../scripts/probe_question_types.py),
+      [finding10-decision1-raw.json](../2026-10-22-question-types/finding10-decision1-raw.json),
+      [finding10-decision1-tokens.json](../2026-10-22-question-types/finding10-decision1-tokens.json).
     - Follow-ups on 200 items (R14: templates; R16: many questions per state; R6:
       paraphrases): [2026-10-22-question-types](../2026-10-22-question-types/README.md).
 11. **Choice options are sorted byte-wise before the model sees them (R18, 96 requests).**
@@ -316,8 +318,9 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
     position-aware.
 - **Order invariance:** our trained arms still flip 6–11% of ACE decisions under
   reordering, against Decision-1's 0% (which sorting explains).
-- **Names over positions:** every local model, trained or not, gives the earlier of two
-  identical options the larger share. Decision-1 gives it to the copy whose name best fits
+- **Names over positions:** on ACE, the frozen base and the 2B arms give the earlier of two
+  identical options the larger share (on BANKING77 the pattern is mixed, and our later
+  trained 9B arms favour the plain name). Decision-1 gives it to the copy whose name best fits
   the description (finding 8), partly because that copy also sorts first (finding 11).
 - **What explains these (strong, R18):** sorting the options. No special architecture is
   needed for order invariance.
@@ -395,7 +398,8 @@ prompt layout changes:
   template putting the state first. Sharing one state across several questions (finding 1)
   requires that anyway.
 - The default prompt, rerun in this job, reproduced the earlier run exactly (0.6473 /
-  0.7409), so the readout is deterministic. BANKING77 was not re-run with other prompts.
+  0.7409), so the readout is deterministic. BANKING77 was re-run with the other layouts
+  later (R5): the default is best (0.750; JSON 0.744, markdown 0.697).
 
 For comparison, gpt-oss-20b read the same way agrees with Decision-1 at kappa 0.35–0.42,
 against 0.66–0.68 for the default-prompt frozen 9B.
@@ -418,11 +422,12 @@ which option wins. Yet:
    | "Which option is listed last?" (BANKING77) | 0.50 (1.00 against sorted order, finding 11) | 1.00 | 0.50 |
    | ACE decisions flipped by reordering | 0% (sorted options) | 7.5% | 0% |
    | Copy placed before the original: original name's share (ACE) | 0.84 | 0.41 | 0.97 |
-   | Empty state, normalised entropy (ACE / BANKING77) | 0.86 / 0.95 | 0.21 / 0.75 | 0.08–0.19 / 0.73–0.90 |
+   | Empty state, normalised entropy, 4 empty variants (ACE / BANKING77) | 0.02–0.86 / 0.90–0.95 | 0.08–0.21 / 0.74–0.78 | 0.08–0.19 / 0.73–0.90 |
 
    The first three rows come from the serving code sorting the options (finding 11), not
-   from training: the frozen base with sorted options reproduces them. Only the
-   flatter empty-state answer on BANKING77 remains a behavioural change. It also works from
+   from training: the frozen base with sorted options reproduces them. The
+   flatter empty-state answer on BANKING77 may remain a behavioural change, but it rests
+   on one item per dataset. It also works from
    a ≈ 21-token hidden template and scores up to 255 options in one softmax.
 
 In short: Decision-1 = Qwen3.5-9B's judgement, unchanged on compliance reasoning, + a
