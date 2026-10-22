@@ -149,7 +149,7 @@ lowercase).
 | Probe | Decision-1 | Frozen 9B, request order | Frozen 9B, sorted |
 |---|---|---|---|
 | Order flips, ACE / BANKING77 | 0 / 0 | 7.5% / 3.1% | 0 / 0 |
-| "Listed first / last" vs. request order (BANKING77) | 0.50 / 0.50 | ≈ 1.0 | 0.50 / 0.50 |
+| "Listed first / last" vs. request order (BANKING77) | 0.50 / 0.50 | 0.88 / 1.00 | 0.50 / 0.50 |
 | Fitting name's share, copy before / after (ACE) | 0.84 / 0.84 | 0.97 / 0.41 | 0.97 / 0.97 |
 | Fitting name's share, copy before / after (BANKING77) | 0.86 / 0.85 | 0.88 / 0.70 | 0.88 / 0.88 |
 | `(copy)`: original's share (ACE / BANKING77) | 0.85 / 0.91 | – | 0.96 / 0.84 |
