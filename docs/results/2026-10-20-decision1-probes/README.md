@@ -244,6 +244,14 @@ below includes about 400 ms of network and service overhead.
       inability to say which option we listed first (it sees a different order), and the
       "position blindness" in the probes. Order invariance is a property of the serving
       code, not necessarily of the model.
+    - **Likely mechanism:**
+      - The System One request sends choice options as a JSON *object* keyed by option
+        name. JSON objects have no defined order, and a server that parses them into a
+        sorted map gives exactly byte-wise order.
+      - Score levels are sent as a JSON *list*. That keeps their order, which fits finding
+        10: reversing the levels reverses the returned `score`.
+      - So the sorting may be a side effect of the request format rather than a deliberate
+        design.
     - **The model still has a mild first-position preference in sorted order.** Two
       identical options, with the copy named to sort first:
 

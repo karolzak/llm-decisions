@@ -198,7 +198,9 @@ on the calibration split):
   not chosen on test data.
 - Decision-1 scores lower on the calibration split (taken from BANKING77's official train set)
   than on test (0.847 vs. 0.870), like the frozen base (0.723 vs. 0.750): no sign that it
-  memorised BANKING77's train set.
+  memorised BANKING77's train set. This does not show that the train set was absent from its
+  training: one pass over it need not make training examples easier than test examples.
+  Microsoft has not published which 36 benchmarks it withheld from training.
 
 **R9: Qwen3.5-9B with decision training.** LoRA r = 16, 600 × 16 examples from 11 public
 tasks (the 8 above plus MASSIVE, DBpedia level-3, 20 Newsgroups; 2–100 options per row; no

@@ -87,9 +87,10 @@ linear-attention conv and recurrent states.
 | Max. probability difference vs. one at a time | – | 0.011–0.044 | 0.008–0.048 |
 | Same answer as one at a time | – | 98–100% | 98–100% |
 
-- **Decision-1's speed is reproduced:** 64 questions in under 0.9 s, against Decision-1's 0.99 s
-  for 64 yes/no questions. This is on reference (non-fused) kernels for the linear-attention
-  layers, so a tuned server would be faster.
+- **Decision-1's speed is matched in order of magnitude:** 64 questions in under 0.9 s of GPU
+  time, against Decision-1's 0.99 s for 64 yes/no questions measured from our client (which
+  includes the network round trip). This is on reference (non-fused) kernels for the
+  linear-attention layers, so a tuned server would be faster.
 - **Caching alone does not explain the speed.** It halves the tokens but not the time; batching
   the questions does.
 - **The bf16 differences match Decision-1's noise.** In fp32 on CPU, shared and separate answers
@@ -119,7 +120,11 @@ Decision-1 run: 500 requests, 0 errors. Frozen 9B: job `silly_head_4hdt71ddk0`, 
 - Part of Decision-1's ACE flips may be serving noise: separate identical requests already
   differ by up to 0.04 (probe finding 7), enough to flip borderline ACE items. The frozen 9B
   runs deterministically.
-- Microsoft's reported 1.3% flips under rewording matches BANKING77 here (0.7%), not ACE.
+- Microsoft's published 1.3% is a different measure: the average decision-flip rate over eight
+  request perturbations (reordered options, paraphrased option descriptions, changed keys,
+  formatting noise), with zero flips for reordering and description paraphrases. It does not
+  report rewording of the question itself, so it cannot be compared directly with these rates.
+  Its zero reorder flips are what sorting produces (R18).
 - 50 items per dataset: one flip is 2 points.
 
 ## R18: Decision-1 sorts the options
