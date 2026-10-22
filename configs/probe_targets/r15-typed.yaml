@@ -1,0 +1,9 @@
+name: r15-typed
+kind: local_readout
+description: "R15: Qwen3.5-9B decision-trained on all three question types."
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-9b
+  adapter: training/r15_typed
+  readout: {labels: codes, noul_style: truefalse, score_style: digits}

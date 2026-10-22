@@ -22,7 +22,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import subprocess
+import sys
 from datetime import UTC, datetime
+from pathlib import Path
 
 from edb.config import load_experiment_config
 from edb.probing.clients import load_probe_target, make_client
@@ -75,6 +78,8 @@ def main() -> int:
     parser.add_argument("--retrain", action="store_true", help="train even if an adapter exists")
     parser.add_argument("--max-steps", type=int)
     parser.add_argument("--max-rows", type=int)
+    parser.add_argument("--r14", action="store_true",
+                        help="also run scripts/r14_question_types.py local with the adapter")
     args = parser.parse_args()
 
     experiment, target = names_for(args.arm, args.arms_file)
@@ -107,6 +112,16 @@ def main() -> int:
             stale.rename(stale.with_name(f"{target}.archived-{datetime.now(UTC):%Y%m%dT%H%M%S}"))
         report["probes"] = asyncio.run(probe(target, args.probe, args.items))
         analyze_target(target)
+    if args.r14 and args.arm != "frozen":
+        # Question-type comparison with Decision-1 (R14 items), read through the new adapter.
+        cfg = load_arm(args.arm, args.arms_file)
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()  # the child process loads its own copy of the model
+        subprocess.run([sys.executable, str(Path(__file__).with_name("r14_question_types.py")),
+                        "local", "--model", cfg.base_model, "--adapter",
+                        f"training/{args.arm}", "--label", args.arm], check=True)
     print(json.dumps(report, indent=2, default=str))
     return 0
 
