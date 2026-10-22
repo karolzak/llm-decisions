@@ -12,6 +12,10 @@ subsample: true      # vary the option-set size for every source
 max_state_chars: 3000
 holdout_fraction: 0.05
 seed: 0
+# Added after R15 ran: boolq/boolq_noul and emotion/emotion_noul share dataset rows, and the
+# old random split put 34% of the boolq_noul holdout into training as boolq rows. Rebuilds use
+# a split by state text (R15's own holdout numbers came from the old split).
+split_by_state: true
 sources:
   - name: ag_news
     dataset: fancyzhx/ag_news

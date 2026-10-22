@@ -425,7 +425,12 @@ estimate it.
   - **Yes/no:** log-odds correlate as before (0.96–0.98), but the absolute difference grows
     (1.23–1.29 → 1.89–2.30 on BANKING77). Training made yes/no answers more confident than
     Decision-1's.
-  - **Holdout accuracy:** choice 0.90, yes/no 0.95, score 0.79.
+  - **Holdout accuracy:** choice 0.90, yes/no 0.95, score 0.79. The yes/no figure is inflated:
+    corpus-r15 builds choice and yes/no rows from the same BoolQ and emotion rows, and the
+    random split put 7.7% of holdout texts (34% of BoolQ yes/no holdout items) into training
+    too. Rebuilds now split by text (`split_by_state`). The R14 comparisons above use separate
+    items and are unaffected; R9's and R17's holdouts overlap 1.2–1.3% (BoolQ passages that
+    recur with different questions).
 - **R17:** the Bitext retail-banking intents (BANKING77's domain) add 2 points over R9b-kl
   (0.753 vs. 0.733), within what one run can resolve; the gap to Decision-1 stays.
 

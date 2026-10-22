@@ -13,6 +13,7 @@ sets that differ from row to row, as a decision API does.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 import time
@@ -71,6 +72,9 @@ class CorpusSpec(BaseModel):
     max_state_chars: int = 3000
     holdout_fraction: float = 0.05
     seed: int = 0
+    # Assign train / holdout by a hash of the state text, so rows that share a text (e.g. a
+    # choice and a noul row built from the same dataset row) never straddle the split.
+    split_by_state: bool = False
     sources: list[SourceSpec]
 
 
@@ -230,6 +234,21 @@ def to_typed(src: SourceSpec, spec: CorpusSpec, rows: list[dict],
     return out
 
 
+def split_rows(rows: list[dict[str, Any]], spec: CorpusSpec
+               ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """(holdout, train) from already shuffled rows."""
+    if not spec.split_by_state:
+        n_hold = int(len(rows) * spec.holdout_fraction)
+        return rows[:n_hold], rows[n_hold:]
+
+    def bucket(r: dict[str, Any]) -> float:
+        h = hashlib.sha256(f"{spec.seed}:{r['state']}".encode()).digest()
+        return int.from_bytes(h[:8], "big") / 2 ** 64
+
+    return ([r for r in rows if bucket(r) < spec.holdout_fraction],
+            [r for r in rows if bucket(r) >= spec.holdout_fraction])
+
+
 def build_corpus(name: str = "corpus", force: bool = False) -> dict[str, Path]:
     """Build (or reuse) train/holdout JSONL files; returns their paths."""
     spec = load_corpus_spec(name)
@@ -247,15 +266,15 @@ def build_corpus(name: str = "corpus", force: bool = False) -> dict[str, Path]:
         print(f"[corpus] {src.name}: {len(decisions)} decisions", flush=True)
     rng = random.Random(spec.seed)
     rng.shuffle(rows)
-    n_hold = int(len(rows) * spec.holdout_fraction)
+    hold, train = split_rows(rows, spec)
     out.mkdir(parents=True, exist_ok=True)
-    for split, part in (("holdout", rows[:n_hold]), ("train", rows[n_hold:])):
+    for split, part in (("holdout", hold), ("train", train)):
         with paths[split].open("w", encoding="utf-8") as f:
             for r in part:
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
     (out / "stats.json").write_text(json.dumps({"spec": spec.model_dump(), "rows": stats,
-                                                "train": len(rows) - n_hold,
-                                                "holdout": n_hold}, indent=1), encoding="utf-8")
+                                                "train": len(train),
+                                                "holdout": len(hold)}, indent=1), encoding="utf-8")
     return paths
 
 

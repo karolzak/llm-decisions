@@ -440,6 +440,19 @@ def test_typed_corpus_rows():
     assert [r["gold"] for r in out] == ["true", "false"]
 
 
+def test_split_by_state_keeps_shared_texts_together():
+    from edb.training.corpus import CorpusSpec, split_rows
+
+    rows = [{"state": f"text {i % 40}", "source": s} for i in range(200) for s in ("a", "b")]
+    old_hold, old_train = split_rows(rows, CorpusSpec(name="t", sources=[],
+                                                      holdout_fraction=0.2))
+    assert len(old_hold) == 80  # the default split is positional
+    hold, train = split_rows(rows, CorpusSpec(name="t", sources=[], holdout_fraction=0.2,
+                                              split_by_state=True))
+    assert hold and train and len(hold) + len(train) == len(rows)
+    assert not {r["state"] for r in hold} & {r["state"] for r in train}
+
+
 def test_rps_prefers_near_misses():
     from edb.training.train import rps
 
