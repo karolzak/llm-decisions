@@ -1,6 +1,6 @@
 # Decision-model probes
 
-Generated 2026-10-21T11:56:41+00:00. What each probe tests and what each readout design predicts: [docs/replication.md](../../replication.md).
+Generated 2026-10-22T10:16:20+00:00. What each probe tests and what each readout design predicts: [docs/replication.md](../../replication.md).
 
 | target | description |
 |---|---|
@@ -10,23 +10,23 @@ Generated 2026-10-21T11:56:41+00:00. What each probe tests and what each readout
 
 | metric | decision-1 |
 |---|---|
-| answers | 1124 |
-| logit_grid_share / 0.125 | 0.742 |
-| logit_grid_share / 0.25 | 0.1406 |
-| logit_grid_share / 0.0625 | 0.0445 |
-| logit_grid_share / 0.5 | 0.04 |
-| logit_grid_share / 1 | 0.0311 |
-| logit_grid_share / none | 0.0018 |
+| answers | 1624 |
+| logit_grid_share / 0.125 | 0.7746 |
+| logit_grid_share / 0.25 | 0.1367 |
+| logit_grid_share / 0.5 | 0.0326 |
+| logit_grid_share / 0.0625 | 0.0308 |
+| logit_grid_share / 1 | 0.024 |
+| logit_grid_share / none | 0.0012 |
 | logit_grid_main_step | 0.125 |
 | bf16_logit_magnitude_if_main_step | [16, 32) |
 | confidence_is_jev_formula | 1 |
 | confidence_is_max_prob | 0 |
-| max_abs_sum_error | 1.11e-16 |
-| choice_is_argmax | 0.9973 |
-| output_tokens / 1 | 1092 |
+| max_abs_sum_error | 2.22e-16 |
+| choice_is_argmax | 0.9982 |
+| output_tokens / 1 | 1592 |
 | output_tokens / 2 | 32 |
-| latency_p50_ms | 488.6 |
-| latency_p95_ms | 1049 |
+| latency_p50_ms | 485 |
+| latency_p95_ms | 886.3 |
 
 ## order
 
@@ -295,6 +295,11 @@ _Which tokenizer is billed, and how large is the hidden prompt?_ (decision-1: 18
 | billed_input_tokens / emoji | 46 |
 | billed_input_tokens / apple_x08 | 47 |
 | tokens_per_apple | 1 |
+| tokenizer_fits / Qwen/Qwen3.5-9B / hidden_prompt_tokens | 39 |
+| tokenizer_fits / Qwen/Qwen3.5-9B / exact_fit_fraction | 0.667 |
+| tokenizer_fits / openai/gpt-oss-20b / hidden_prompt_tokens | 38 |
+| tokenizer_fits / openai/gpt-oss-20b / exact_fit_fraction | 0.333 |
+| best_tokenizer | Qwen/Qwen3.5-9B |
 
 ## duplicate_names
 
@@ -360,3 +365,42 @@ _Are long option descriptions truncated?_ (decision-1: 112 requests, 0 errors)
 | per_variant / start_150 / mean_p_gold | 0.9226 |
 | per_variant / start_150 / input_tokens | 6697 |
 | tokens_per_filler_repeat | 44 |
+
+## paraphrase
+
+_Does rewording the question change the decision?_ (decision-1: 500 requests, 0 errors)
+
+| metric | decision-1 |
+|---|---|
+| ace / items | 50 |
+| ace / per_variant / original / accuracy | 0.84 |
+| ace / per_variant / minimal / accuracy | 0.82 |
+| ace / per_variant / minimal / flip_rate | 0.08 |
+| ace / per_variant / minimal / mean_tv | 0.0357 |
+| ace / per_variant / para1 / accuracy | 0.82 |
+| ace / per_variant / para1 / flip_rate | 0.06 |
+| ace / per_variant / para1 / mean_tv | 0.0329 |
+| ace / per_variant / para2 / accuracy | 0.84 |
+| ace / per_variant / para2 / flip_rate | 0.06 |
+| ace / per_variant / para2 / mean_tv | 0.0344 |
+| ace / per_variant / para3 / accuracy | 0.9 |
+| ace / per_variant / para3 / flip_rate | 0.08 |
+| ace / per_variant / para3 / mean_tv | 0.0843 |
+| ace / paraphrase_flip_rate | 0.0667 |
+| ace / items_consistent_paraphrases | 0.88 |
+| banking77 / items | 50 |
+| banking77 / per_variant / original / accuracy | 0.96 |
+| banking77 / per_variant / minimal / accuracy | 0.96 |
+| banking77 / per_variant / minimal / flip_rate | 0 |
+| banking77 / per_variant / minimal / mean_tv | 0.0222 |
+| banking77 / per_variant / para1 / accuracy | 0.96 |
+| banking77 / per_variant / para1 / flip_rate | 0 |
+| banking77 / per_variant / para1 / mean_tv | 0.0113 |
+| banking77 / per_variant / para2 / accuracy | 0.96 |
+| banking77 / per_variant / para2 / flip_rate | 0 |
+| banking77 / per_variant / para2 / mean_tv | 0.0066 |
+| banking77 / per_variant / para3 / accuracy | 0.94 |
+| banking77 / per_variant / para3 / flip_rate | 0.02 |
+| banking77 / per_variant / para3 / mean_tv | 0.0088 |
+| banking77 / paraphrase_flip_rate | 0.0067 |
+| banking77 / items_consistent_paraphrases | 0.98 |

@@ -319,7 +319,18 @@
      "emoji": 46,
      "apple_x08": 47
     },
-    "tokens_per_apple": 1.0
+    "tokens_per_apple": 1.0,
+    "tokenizer_fits": {
+     "Qwen/Qwen3.5-9B": {
+      "hidden_prompt_tokens": 39,
+      "exact_fit_fraction": 0.667
+     },
+     "openai/gpt-oss-20b": {
+      "hidden_prompt_tokens": 38,
+      "exact_fit_fraction": 0.333
+     }
+    },
+    "best_tokenizer": "Qwen/Qwen3.5-9B"
    }
   },
   "duplicate_names": {
@@ -405,29 +416,95 @@
     "tokens_per_filler_repeat": 44.0,
     "errors": {}
    }
+  },
+  "paraphrase": {
+   "records": 500,
+   "errors": 0,
+   "result": {
+    "ace": {
+     "items": 50,
+     "per_variant": {
+      "original": {
+       "accuracy": 0.84
+      },
+      "minimal": {
+       "accuracy": 0.82,
+       "flip_rate": 0.08,
+       "mean_tv": 0.0357
+      },
+      "para1": {
+       "accuracy": 0.82,
+       "flip_rate": 0.06,
+       "mean_tv": 0.0329
+      },
+      "para2": {
+       "accuracy": 0.84,
+       "flip_rate": 0.06,
+       "mean_tv": 0.0344
+      },
+      "para3": {
+       "accuracy": 0.9,
+       "flip_rate": 0.08,
+       "mean_tv": 0.0843
+      }
+     },
+     "paraphrase_flip_rate": 0.0667,
+     "items_consistent_paraphrases": 0.88
+    },
+    "banking77": {
+     "items": 50,
+     "per_variant": {
+      "original": {
+       "accuracy": 0.96
+      },
+      "minimal": {
+       "accuracy": 0.96,
+       "flip_rate": 0.0,
+       "mean_tv": 0.0222
+      },
+      "para1": {
+       "accuracy": 0.96,
+       "flip_rate": 0.0,
+       "mean_tv": 0.0113
+      },
+      "para2": {
+       "accuracy": 0.96,
+       "flip_rate": 0.0,
+       "mean_tv": 0.0066
+      },
+      "para3": {
+       "accuracy": 0.94,
+       "flip_rate": 0.02,
+       "mean_tv": 0.0088
+      }
+     },
+     "paraphrase_flip_rate": 0.0067,
+     "items_consistent_paraphrases": 0.98
+    }
+   }
   }
  },
  "forensics": {
-  "answers": 1124,
+  "answers": 1624,
   "logit_grid_share": {
-   "0.125": 0.742,
-   "0.25": 0.1406,
-   "0.0625": 0.0445,
-   "0.5": 0.04,
-   "1": 0.0311,
-   "none": 0.0018
+   "0.125": 0.7746,
+   "0.25": 0.1367,
+   "0.5": 0.0326,
+   "0.0625": 0.0308,
+   "1": 0.024,
+   "none": 0.0012
   },
   "logit_grid_main_step": "0.125",
   "bf16_logit_magnitude_if_main_step": "[16, 32)",
   "confidence_is_jev_formula": 1.0,
   "confidence_is_max_prob": 0.0,
-  "max_abs_sum_error": 1.1102230246251565e-16,
-  "choice_is_argmax": 0.9973,
+  "max_abs_sum_error": 2.220446049250313e-16,
+  "choice_is_argmax": 0.9982,
   "output_tokens": {
-   "1": 1092,
+   "1": 1592,
    "2": 32
   },
-  "latency_p50_ms": 488.6,
-  "latency_p95_ms": 1048.7
+  "latency_p50_ms": 485.0,
+  "latency_p95_ms": 886.3
  }
 }

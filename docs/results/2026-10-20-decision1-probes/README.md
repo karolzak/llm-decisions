@@ -35,10 +35,12 @@ below includes about 400 ms of network and service overhead.
 2. **Probabilities are a softmax over bf16 logits, with no arbitrary temperature applied
    afterwards.**
    - In 99.8% of answers, every log-probability gap is an exact multiple of a power-of-two
-     step. For random values this happens in about 4% of 2-option answers, and far less
+     step (1,124 answers of the original probe set; 99.9% of 1,624 after adding R6–R8).
+     For random values this happens in about 4% of 2-option answers, and far less
      with more options. For comparison, 97% of our own Qwen3.5-9B answers (fp32 output head)
      sit on no grid.
-   - 94% sit on the 0.125 grid (or a coarser one), the spacing of bf16 numbers between 16
+   - 94% sit on the 0.125 grid (or a coarser one; 97% of the 1,624), the spacing of bf16
+     numbers between 16
      and 32. 6% sit only on the 0.0625 grid (some logit between 8 and 16). Language-model
      answer logits fall in this range: a frozen Qwen3.5-0.8B letter readout, checked on CPU,
      puts its top letter logit at about 27.
@@ -216,6 +218,8 @@ below includes about 400 ms of network and service overhead.
       −4.5 ↔ +5.1, +7.25 ↔ −6.9, −6.5 ↔ +6.6).
     - Script and raw responses: session scratch (`score_noul_probe.py`), not in the repo; the
       numbers above are the complete result.
+    - Follow-ups on 200 items (R14: templates; R16: many questions per state; R6:
+      paraphrases): [2026-10-22-question-types](../2026-10-22-question-types/README.md).
 
 ## What this says about the architecture
 
