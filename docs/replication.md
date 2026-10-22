@@ -194,7 +194,7 @@ Strength: **strong** = follows directly from the data, **likely** = best explana
 | F11 | Long option descriptions are billed in full and read to the end (up to ≈ 1,650 tokens per option tested): no fixed per-option slots. The frozen 9B does the same (0.94 accuracy with the fact at the end of 6.7k-token prompts), so this is no evidence of special training | strong (R8) |
 | F12 | For the frozen 9B, both one-pass schemes are *worse* than grouped letters on BANKING77: codes 0.706, numbers 0.681, letters 0.750 (numbers also take ≈ 25× longer). Number labels change only 7% of ACE decisions (0.646 vs. 0.647 names only). Grouping is not what holds the frozen base back | strong (R4) |
 | F13 | Prompt layout has no single best: on BANKING77 the default layout is best (0.750) and markdown worst (0.697), the reverse of ACE (F7). The ranking is the same on the calibration and test splits | strong (R5) |
-| F14 | Decision training of the 9B (R9) reproduces most of the *interface*: 0 order flips (16 items per dataset), the fitting name wins between duplicates, a flat answer on empty BANKING77 states, one pass over > 26 options, better calibration (T 1.27). It does **not** reproduce the accuracy: BANKING77 0.749 (no gain), ACE 0.573 / 0.606 (below the frozen base). It still knows which option is listed last (1.00) | strong (one run) |
+| F14 | Decision training of the 9B (R9) reproduces most of the *interface*: 0 order flips (16 items per dataset), the fitting name wins between duplicates, a flat answer on empty BANKING77 states, one pass over > 26 options, better calibration (T 1.27). It does **not** reproduce the accuracy: BANKING77 0.749 (+4 points over the frozen base read the same way, but no better than its grouped-letter score; F24), ACE 0.573 / 0.606 (below the frozen base). It still knows which option is listed last (1.00) | strong (one run) |
 | F15 | The three question types share the one-token, bf16-softmax readout but have their own templates. `score` is a softmax over levels keyed by digit index (`"0"`…`"9"`, ≈ 1 billed token per level), post-processed into `score` = expected index; it differs from a `choice` over the same texts on ambiguous items (TV 0.40). `noul` returns only P(true), a two-way softmax that is close to, but not the same as, a 2-option choice (log-odds 0.5–1.4 apart) | strong (mechanism) / likely (digit labels); exploratory, 3 states |
 | F16 | The frozen 9B answers `noul` and `score` questions like Decision-1 under any reasonable template: log-odds r = 0.95–0.99, the same yes/no answer on 95–100% of items, the same accuracy within 1–2 items. No template is clearly Decision-1's; digit-labelled score levels fit better than letters on 3 levels (same answer 90% vs. 78%) | strong (R14, 200 items) |
 | F17 | Decision-1's multi-question speed is reproduced by encoding the state once and batching the questions over the cached prefix: 64 questions in 0.83–0.89 s of GPU time on one A100 (Decision-1: 0.99 s measured from our client, including the network round trip), 4.5× faster than one at a time. Batched bf16 answers differ from one-at-a-time answers by up to 0.05, the size of Decision-1's request-to-request variation | strong (R16) |
@@ -202,8 +202,9 @@ Strength: **strong** = follows directly from the data, **likely** = best explana
 | F19 | Teaching a "none / not applicable" option (empty and mismatched states pick it when listed) instead of uniform answers fixes R9's ACE loss: R9b-kl scores 0.700 / 0.750 on ACE (Decision-1 0.619 / 0.741) and answers empty ACE states with Not-Applicable like Decision-1. BANKING77 stays at the frozen base's level (0.733) | strong (R9b, one run) |
 | F20 | Decision-1 sorts choice options byte-wise by name (uppercase before lowercase) before the model sees them: "which option is listed first / second / last?" matches sorted order in 48 of 48 requests (request order 6–31%). This alone explains 0% reorder flips and the chance-level answers about listing order. In sorted order the model keeps a mild first-position preference: a copy named to sort first takes about half of the pair (`0_<name>` 0.39, `A <name>` 0.51) unless its name is unrelated (`aardvark` 0.02) | strong (R18, 96 requests) |
 | F21 | The **untrained** 9B with options sorted the same way reproduces Decision-1's whole order and name profile: 0 order flips (TV 0), "listed first / last" 0.50 against request order, the fitting name wins between duplicates in both orders (0.97 / 0.88; Decision-1 0.84 / 0.85), unrelated copies lose (0.98 / 0.99), empty ACE states get Not-Applicable (p 0.95–0.99). None of this needs training. What training must still add: BANKING77 accuracy (+12 points), calibration on routing (T 1.02), a flatter empty-state answer on BANKING77 (entropy 0.95 vs. 0.73–0.90) | strong (job `sleepy_pin_6xyq9h01mj`, 16 items per dataset) |
-| F22 | Training all three question types (R15) moves score answers slightly towards Decision-1 (5 levels: same answer 0.825 vs. 0.725, expected-score r 0.976 vs. 0.958), but makes yes/no log-odds more extreme than Decision-1's (mean abs. difference 1.1–2.3 vs. 0.7–1.3 for the frozen base) and costs 4–5 ACE points against R9b-kl (0.652 / 0.713). BANKING77 unchanged (0.750) | strong (one run) |
-| F23 | Routing data from BANKING77's own domain (Bitext retail banking, R17) does not close the BANKING77 gap: 0.753 (R9b-kl 0.733, frozen 0.750, Decision-1 0.870). It gives the best ACE verbose result so far (0.780). Neither readout (R4), prompt (R5), routing data volume (R9) nor domain (R17) explains Decision-1's +12 points | strong (one run) |
+| F22 | Training all three question types (R15) moves score answers slightly towards Decision-1 (5 levels: same answer 0.825 vs. 0.725, expected-score r 0.976 vs. 0.958), but makes yes/no log-odds more extreme than Decision-1's (mean abs. difference 1.1–2.3 vs. 0.7–1.3 for the frozen base) and costs 4–5 ACE points against R9b-kl (0.652 / 0.713). BANKING77 0.750, like the other arms (F24) | strong (one run) |
+| F23 | Routing data from BANKING77's own domain (Bitext retail banking, R17) does not close the BANKING77 gap: 0.753 (R9b-kl 0.733, frozen 0.750 with grouped letters, Decision-1 0.870). It gives the best ACE verbose result so far (0.780). Neither readout (R4), prompt (R5), routing data volume (R9) nor domain (R17) explains Decision-1's +12 points | strong (one run) |
+| F24 | Read the same way (code labels, all 77 options in one pass), training does lift BANKING77: frozen base 0.706 (T 1.66) → trained 9B arms 0.733–0.753 (T 1.26–1.32 with KL, 1.50 without), +3 to +5 points. That only reaches the frozen base's grouped-letter score (0.750); Decision-1 is 12 points above both. So "no BANKING77 gain" in earlier wording means no gain beyond the best untrained readout | strong (R4, R9–R17; one run each) |
 
 **Working model:** Decision-1 = Qwen3.5-9B's judgement + light post-training (compact
 per-type templates, calibration on routing-style tasks, better many-way routing). The serving
@@ -268,7 +269,7 @@ training setup.
 ## Can we replicate Decision-1 on Qwen3.5-9B?
 
 **Status (2026-10-22):**
-- **The target is specified:** F1–F23 define the interface and behaviour to match.
+- **The target is specified:** F1–F24 define the interface and behaviour to match.
 - **Most of Decision-1's interface needs no training.** The untrained 9B with sorted options
   reproduces the order, position and name behaviour (F21), and already answers like
   Decision-1 on ACE, yes/no and score questions (F7, F16).
@@ -382,7 +383,8 @@ items per dataset):
   and calibrated (fitted T 1.11 / 0.99). Empty ACE states now get Not-Applicable (p 0.98–0.99),
   as from Decision-1. So R9's ACE loss came from the uniform empty-state target. Not-Applicable
   is now predicted more often than by Decision-1 (14.6% vs. 2.8% short, 20.5% vs. 15.6% verbose).
-- **BANKING77 unchanged:** 0.733 (R9 0.749, frozen 0.750), T 1.26.
+- **BANKING77:** 0.733 (R9 0.749; frozen 0.706 with the same code readout, 0.750 with grouped
+  letters), T 1.26.
 - **Interface:** the fitting name wins between duplicates (0.97–0.99); two opaque copies split
   evenly (0.43 / 0.44, Decision-1 0.45 / 0.42). ACE order flips are back at 7.5% (R9: 0%),
   likely the strong KL pull to the base; BANKING77 0%. It still knows which option is listed
@@ -420,7 +422,8 @@ estimate it.
     (1.23–1.29 → 1.89–2.30 on BANKING77). Training made yes/no answers more confident than
     Decision-1's.
   - **Holdout accuracy:** choice 0.90, yes/no 0.95, score 0.79.
-- **R17:** the Bitext retail-banking intents (BANKING77's domain) leave BANKING77 where it was.
+- **R17:** the Bitext retail-banking intents (BANKING77's domain) add 2 points over R9b-kl
+  (0.753 vs. 0.733), within what one run can resolve; the gap to Decision-1 stays.
 
 **Next:**
 - **Order and position:** sort choice options byte-wise in the readout (`option_order: sorted`,

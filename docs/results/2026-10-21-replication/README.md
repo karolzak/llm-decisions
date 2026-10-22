@@ -224,7 +224,9 @@ targets, paraphrases). 78 min on one A100. Full design:
 
 - **Interface reproduced:** no order flips, the fitting name wins between duplicates, no
   grouping, better calibration than the base.
-- **Accuracy not reproduced:** no BANKING77 gain, and ACE falls below the frozen base.
+- **Accuracy not reproduced:** BANKING77 0.749 is 4 points above the frozen base read the same
+  way (code labels, one pass: 0.706), but no better than its grouped-letter score (0.750) and
+  12 below Decision-1. ACE falls below the frozen base.
 - **Position awareness kept:** R9 still knows which option is listed last. The 2B arms lost
   it. R9b showed the KL term is not the cause, and R18 that Decision-1's blindness comes
   from sorting the options, so a replica sorts them instead.
