@@ -179,10 +179,14 @@ below includes about 400 ms of network and service overhead.
      *later* copy.
    - So finding 4's "original name" preference is partly a preference for the name that
      best fits the description, and partly sorted position.
-   - **The untrained Qwen3.5-9B does not do this** (same probe, our letter readout): it gives
-     0.92 / 0.39 of the pair to the first of two opaque copies, and swapping the copies moves
-     the plain name's share from 0.97 to 0.41 on ACE (0.88 → 0.70 on BANKING77). So the
-     order-free name preference is added by post-training.
+   - **The untrained Qwen3.5-9B with options in request order does not do this** (same
+     probe, our letter readout): it gives 0.92 / 0.39 of the pair to the first of two opaque
+     copies, and swapping the copies moves the plain name's share from 0.97 to 0.41 on ACE
+     (0.88 → 0.70 on BANKING77).
+   - **With options sorted like Decision-1's (finding 11), it does:** the plain name gets
+     0.97 / 0.88 in both orders, `(copy)` loses (original 0.96 / 0.84), and an unrelated
+     copy loses (0.98 / 0.99). So the order-free name preference comes from sorting plus the
+     base model's own preference for the first option, not from post-training.
 9. **Long option descriptions are read in full, with no per-option limit (R8).** BANKING77
    items with 4 options named by opaque ids; each description holds the real intent, plus
    neutral filler of 0–150 sentences (up to ≈ 1,650 tokens per option, 6,700 per request),
@@ -331,21 +335,22 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
   - On ACE its accuracy and decisions are within what changing the prompt of its untrained
     base produces, and a better prompt makes the untrained base more accurate than
     Decision-1 (next section).
-  - The changes are concentrated in the interface: format, order robustness, option-set
-    scoring and calibration on familiar tasks.
+  - The changes are concentrated in the interface: format, option-set scoring and
+    calibration on familiar tasks. Order robustness comes from sorting the options
+    (finding 11).
 - **Many-way classification in the training data (likely).** It gains 12 points over its base
   on BANKING77 (next section).
-- **The name preference (likely, partly).** It favours option names that fit their
-  description and penalises unrelated names even when they sort first (finding 11).
-  Variant-looking names (`-2`, `(copy)`) lose mostly because they also sort after the
-  plain name. Training data with decoy options would teach the first part.
+- **The name preference (strong: not learned).** The frozen base with sorted options shows
+  it too (finding 8): unrelated names lose on content, and variant names (`-2`, `(copy)`)
+  lose because they sort after the plain name and the base prefers the first option.
 
 ## Is Decision-1 just Qwen3.5-9B with recalibrated probabilities?
 
-**On ACE, nothing measurable separates it from its base model. On BANKING77 and in the
-probes, post-training clearly changed more than calibration.** The comparison model is
-`Qwen/Qwen3.5-9B` as released (the chat model, read in one pass with thinking off) through
-our own letter readout, not Decision-1's hidden prompt.
+**On ACE, nothing measurable separates it from its base model. On BANKING77, post-training
+clearly changed more than calibration (+12 points). Most probe differences turned out to
+come from the serving code sorting the options (finding 11), not from training.** The
+comparison model is `Qwen/Qwen3.5-9B` as released (the chat model, read in one pass with
+thinking off) through our own letter readout, not Decision-1's hidden prompt.
 
 ### ACE: the differences are within what a prompt change alone produces
 
@@ -400,16 +405,17 @@ which option wins. Yet:
 2. **BANKING77 calibration improved:** raw ECE 0.097 → 0.015, temperature 1.41 → 1.02.
 3. **Behaviour changed in ways no recalibration can produce:**
 
-   | Probe | Decision-1 | Qwen3.5-9B frozen |
-   |---|---|---|
-   | "Which option is listed last?" (BANKING77) | 0.50 (1.00 against sorted order, finding 11) | 1.00 |
-   | ACE decisions flipped by reordering | 0% (sorted options) | 7.5% |
-   | Copy placed before the original: original name's share (ACE) | 0.84 | 0.41 |
-   | Empty state, normalised entropy (ACE / BANKING77) | 0.86 / 0.95 | 0.21 / 0.75 |
+   | Probe | Decision-1 | Qwen3.5-9B frozen | Frozen, options sorted like Decision-1 |
+   |---|---|---|---|
+   | "Which option is listed last?" (BANKING77) | 0.50 (1.00 against sorted order, finding 11) | 1.00 | 0.50 |
+   | ACE decisions flipped by reordering | 0% (sorted options) | 7.5% | 0% |
+   | Copy placed before the original: original name's share (ACE) | 0.84 | 0.41 | 0.97 |
+   | Empty state, normalised entropy (ACE / BANKING77) | 0.86 / 0.95 | 0.21 / 0.75 | 0.08–0.19 / 0.73–0.90 |
 
-   The first two rows come from the serving code sorting the options (finding 11), not
-   from training. It also works from a ≈ 21-token hidden template and scores up to 255
-   options in one softmax.
+   The first three rows come from the serving code sorting the options (finding 11), not
+   from training: the frozen base with sorted options reproduces them. Only the
+   flatter empty-state answer on BANKING77 remains a behavioural change. It also works from
+   a ≈ 21-token hidden template and scores up to 255 options in one softmax.
 
 In short: Decision-1 = Qwen3.5-9B's judgement, unchanged on compliance reasoning, + a
 trained decision interface (compact format, joint option scoring, calibration on

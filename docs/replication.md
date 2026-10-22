@@ -184,7 +184,7 @@ Strength: **strong** = follows directly from the data, **likely** = best explana
 | F1 | The answer is read at one position per question; the state is billed once per request; the questions of a request are evaluated together | strong |
 | F2 | Probabilities are a plain softmax over one bf16 score per option, with no post-hoc temperature, token summing, order averaging or grouping, up to 255 options | strong |
 | F3 | Options are scored jointly (the score gap between two options changes when others are added), but their order does not reach the model: the serving code sorts them byte-wise by name first (F20), so the model cannot say which option is listed where in the request | strong |
-| F4 | Between two identical options, the one whose name best fits the description wins (`…-2`, `(copy)` or unrelated names lose 78–99% of the pair), wherever it sits. With opaque names the split is near even (first copy 0.45 / 0.42). The frozen 9B instead follows position on ACE: it gives 0.92 to the first of two opaque copies, and swapping the two copies moves the plain name's share from 0.97 to 0.41 (Decision-1: 0.84 both ways). On BANKING77 it is partly name-driven (0.88 → 0.70). The 2B arms also favour the earlier copy. So the order-free name preference comes from post-training | strong (R7); partly sorting (F20): the fitting name also sorts first in every R7 variant |
+| F4 | Between two identical options, the one whose name best fits the description wins (`…-2`, `(copy)` or unrelated names lose 78–99% of the pair), wherever it sits in the request. With opaque names the split is near even (first copy 0.45 / 0.42). **Revised by F21:** this is not learned. The frozen 9B with options sorted like Decision-1 shows the same pattern (fitting name 0.97 / 0.88 in both orders), because in every R7 variant the plain name also sorts first, and the base prefers the first option. In request order it follows position instead (0.97 → 0.41 when the copies are swapped on ACE) | strong (R7, R18, sorted-9B probes) |
 | F5 | Limits are TypeSafe's System One limits (2–255 options, 2–10 score levels, ≤ 255 questions). 255 also caps questions, so it is most likely a request-format constant, not a label vocabulary | strong / likely |
 | F6 | Qwen3.5 tokenizer; ≈ 21 tokens of hidden template; ≈ 2 billed tokens per option beyond its name and description (a one-token label plus a separator) | strong |
 | F7 | On ACE, Decision-1 is indistinguishable from its frozen base: same accuracy, 81–83% agreement, while prompt layout alone moves the frozen base's decisions by 15–35%. A question-first prompt makes the frozen base *beat* Decision-1 (0.775 vs. 0.619 names only) | strong |
@@ -201,13 +201,15 @@ Strength: **strong** = follows directly from the data, **likely** = best explana
 | F18 | Decision-1 is not more robust to rewording the question than its frozen base: decision flips under paraphrase 6.7% vs. 2.7% (ACE), 0.7% vs. 1.3% (BANKING77). Rewording moves both little; prompt layout (F7) is what moves the frozen base | strong (R6, 50 items per dataset) |
 | F19 | Teaching a "none / not applicable" option (empty and mismatched states pick it when listed) instead of uniform answers fixes R9's ACE loss: R9b-kl scores 0.700 / 0.750 on ACE (Decision-1 0.619 / 0.741) and answers empty ACE states with Not-Applicable like Decision-1. BANKING77 stays at the frozen base's level (0.733) | strong (R9b, one run) |
 | F20 | Decision-1 sorts choice options byte-wise by name (uppercase before lowercase) before the model sees them: "which option is listed first / second / last?" matches sorted order in 48 of 48 requests (request order 6–31%). This alone explains 0% reorder flips and the chance-level answers about listing order. In sorted order the model keeps a mild first-position preference: a copy named to sort first takes about half of the pair (`0_<name>` 0.39, `A <name>` 0.51) unless its name is unrelated (`aardvark` 0.02) | strong (R18, 96 requests) |
+| F21 | The **untrained** 9B with options sorted the same way reproduces Decision-1's whole order and name profile: 0 order flips (TV 0), "listed first / last" 0.50 against request order, the fitting name wins between duplicates in both orders (0.97 / 0.88; Decision-1 0.84 / 0.85), unrelated copies lose (0.98 / 0.99), empty ACE states get Not-Applicable (p 0.95–0.99). None of this needs training. What training must still add: BANKING77 accuracy (+12 points), calibration on routing (T 1.02), a flatter empty-state answer on BANKING77 (entropy 0.95 vs. 0.73–0.90) | strong (job `sleepy_pin_6xyq9h01mj`, 16 items per dataset) |
 
-**Working model:** Decision-1 = Qwen3.5-9B's judgement + a trained decision interface
-(compact per-type templates, one score per option or level read jointly, calibration on
-routing-style tasks) + better many-way routing. The serving code sorts choice options
-byte-wise before the model sees them (F20) and answers all questions about one state by
-encoding the state once and batching the questions in bf16 (F17). The base already supplies
-the judgement for all three question types (F7, F16) and robustness to rewording (F18).
+**Working model:** Decision-1 = Qwen3.5-9B's judgement + light post-training (compact
+per-type templates, calibration on routing-style tasks, better many-way routing). The serving
+code sorts choice options byte-wise before the model sees them (F20), which together with the
+base model's own behaviour produces the order, position and name effects (F21). It answers
+all questions about one state by encoding the state once and batching the questions in bf16
+(F17). The base already supplies the judgement for all three question types (F7, F16) and
+robustness to rewording (F18).
 
 **Open questions:**
 1. ~~How much of the BANKING77 gain is post-training, and how much our readout and prompt
@@ -264,7 +266,10 @@ training setup.
 ## Can we replicate Decision-1 on Qwen3.5-9B?
 
 **Status (2026-10-22):**
-- **The target is specified:** F1–F20 define the interface and behaviour to match.
+- **The target is specified:** F1–F21 define the interface and behaviour to match.
+- **Most of Decision-1's interface needs no training.** The untrained 9B with sorted options
+  reproduces the order, position and name behaviour (F21), and already answers like
+  Decision-1 on ACE, yes/no and score questions (F7, F16).
 - **R9b reproduces Decision-1 except on BANKING77.**
   - **ACE:** above Decision-1 (no-KL arm 0.738 / 0.767), calibrated.
   - **Interface:** the empty-state behaviour, duplicate handling and one-pass reading of
@@ -290,6 +295,14 @@ R18, the order rows are reproduced by sorting the options (F20), as Decision-1 d
 | Empty ACE state: top answer | Not-Applicable, p ≈ 0.99 | Not-Applicable | – | near-uniform | Not-Applicable, p 0.98–0.99 | Not-Applicable, p 0.98–0.995 |
 | Empty state, normalised entropy (BANKING77) | 0.95 | 0.75 | 0.82–0.88 | 0.99 | 0.98 | 0.98 |
 | Up to 255 options in one pass | yes | no (groups of 26) | no | yes (codes, trained to 100) | yes | yes |
+
+The frozen 9B with sorted options (F21) matches the order and name rows without training:
+- 0% order flips;
+- "listed last" 0.50 against request order;
+- the fitting name wins in both orders (0.97 / 0.88);
+- opaque copies split 0.35 / 0.49;
+- empty ACE states get Not-Applicable (p 0.95–0.99);
+- empty BANKING77 entropy 0.73–0.90.
 
 **R9 design, updated with the findings:**
 - **Base and adapter:** Qwen3.5-9B, light LoRA, plus a KL term to the frozen base so its
@@ -381,8 +394,8 @@ items per dataset):
 
 **Next:**
 - **Order and position:** sort choice options byte-wise in the readout (`option_order: sorted`,
-  F20). This makes order flips 0 and listing-order questions follow sorted order, as for
-  Decision-1. Checked on the frozen 9B (job `sleepy_pin_6xyq9h01mj`).
+  F20). On the frozen 9B (job `sleepy_pin_6xyq9h01mj`) this gives 0 order flips, chance-level
+  listing-order answers against request order and Decision-1's duplicate-name pattern (F21).
 - **ACE:** solved by the "none" target (F19); without KL, ACE is above Decision-1.
 - **BANKING77 accuracy:** broader routing data did not transfer. More intent datasets
   (keeping BANKING77 out entirely) are the remaining lever; if none helps, Decision-1's
