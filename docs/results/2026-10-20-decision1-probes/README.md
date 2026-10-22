@@ -2,7 +2,7 @@
 
 Part 1 of the [replication study](../../replication.md): 854 perturbed requests to
 Microsoft-Decision-1 (852 answered; the other 2 are the deliberate 256-option test), plus 272
-follow-up requests for findings 8 and 9 (R7, R8). Most
+follow-up requests for findings 8 and 9 (R7, R8) and 12 for finding 10 (question types). Most
 probes use 16 `dev` items each from ACE and BANKING77; the repeat test uses 6, the empty-state
 test 1 item per dataset, and the token test synthetic inputs. Full tables:
 [probe-report.md](probe-report.md); raw summary: [summary-decision-1.json](summary-decision-1.json).
@@ -189,6 +189,33 @@ below includes about 400 ms of network and service overhead.
    - So there are no fixed per-option slots that truncate long options.
    - The untrained Qwen3.5-9B behaves the same (0.94–1.00 accuracy at every length, intent
      at the start or end), so this capability comes from the base model.
+10. **The three question types share one readout but not one template (exploratory: 3
+    states, 14 question variants each, plus 9 single-question requests; 2026-10-22).** The
+    request schema offers `choice` (named options with criteria), `score` (an ordered list
+    of level texts) and `noul` (a yes/no question, criteria optional):
+
+    | | `choice` | `score` | `noul` |
+    |---|---|---|---|
+    | Answer fields | probabilities by option name, choice, confidence | probabilities by level **index** `"0"`…`"K-1"` + a `legend` to the texts, `score`, confidence | `noul` = P(true) only, no confidence |
+    | Output tokens | 1 | 1 | 1 |
+    | Billed per option / level beyond its text | ≈ 2 | ≈ 1 (fits 2, 3 and 5 levels exactly) | – |
+    | Log-scores on the bf16 0.125 grid | yes (all 15 answers) | yes (all 18 answers) | yes: log-odds of all 41 answers (32 from earlier probes) |
+    | Listing order | does not matter (TV ≤ 0.03) | the distribution follows the level texts (TV 0.01–0.08 when reversed), so `score` = Σ index × p flips with the order | – |
+
+    - **`score` is a post-processed choice over digit-indexed levels.** `score` equals the
+      expected index Σ i·p_i in the request's order, and confidence the normalised maximum
+      probability, as for choice.
+    - **But score and choice are not the same prompt.** With the same 5 level texts, the
+      ambiguous review ("clean but the staff were rude") gets 0.79 on *mixed* as a score
+      and 0.57 on *negative* as a choice (TV 0.40). Clear reviews differ little (TV
+      0.004–0.11).
+    - **`noul` is a two-way softmax with its own template.** Its log-odds differ by 0.5–1.4
+      from 2-option choices (true/false with criteria, yes/no), which agree with each other
+      to within 0.5 and do not depend on order. Adding true/false criteria to a `noul`
+      moves the log-odds by up to 1.0. Negating the question mirrors the answer (log-odds
+      −4.5 ↔ +5.1, +7.25 ↔ −6.9, −6.5 ↔ +6.6).
+    - Script and raw responses: session scratch (`score_noul_probe.py`), not in the repo; the
+      numbers above are the complete result.
 
 ## What this says about the architecture
 
@@ -366,9 +393,11 @@ calibration on routing-style tasks) + better many-way routing.
   value left for "none" or padding: a common engineering default for a per-request index.
   TypeSafe's launch post says applications needing more options chain two stages, so the cap
   is a product decision.
-- **The score cap may come from the tokenizer (speculation).** Score questions allow at most
-  10 levels, and Qwen has exactly 10 single-digit tokens (`0`–`9`). Reading score levels as
-  digit tokens would explain that cap.
+- **The score cap likely comes from the tokenizer (likely, finding 10).** Score questions
+  allow at most 10 levels, and Qwen has exactly 10 single-digit tokens (`0`–`9`). The API's
+  own answer keys score levels by digit index (`"0"`…`"9"` with a `legend` to the level
+  texts), and each level costs about 1 token beyond its text. Reading score levels as
+  digit tokens would explain the cap.
 
 ### What the 255 option labels could be
 

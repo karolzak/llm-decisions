@@ -195,6 +195,7 @@ Strength: **strong** = follows directly from the data, **likely** = best explana
 | F12 | For the frozen 9B, both one-pass schemes are *worse* than grouped letters on BANKING77: codes 0.706, numbers 0.681, letters 0.750 (numbers also take ≈ 25× longer). Number labels change only 7% of ACE decisions (0.646 vs. 0.647 names only). Grouping is not what holds the frozen base back | strong (R4) |
 | F13 | Prompt layout has no single best: on BANKING77 the default layout is best (0.750) and markdown worst (0.697), the reverse of ACE (F7). The ranking is the same on the calibration and test splits | strong (R5) |
 | F14 | Decision training of the 9B (R9) reproduces most of the *interface*: 0 order flips (16 items per dataset), the fitting name wins between duplicates, a flat answer on empty BANKING77 states, one pass over > 26 options, better calibration (T 1.27). It does **not** reproduce the accuracy: BANKING77 0.749 (no gain), ACE 0.573 / 0.606 (below the frozen base). It still knows which option is listed last (1.00) | strong (one run) |
+| F15 | The three question types share the one-token, bf16-softmax readout but have their own templates. `score` is a softmax over levels keyed by digit index (`"0"`…`"9"`, ≈ 1 billed token per level), post-processed into `score` = expected index; it differs from a `choice` over the same texts on ambiguous items (TV 0.40). `noul` returns only P(true), a two-way softmax that is close to, but not the same as, a 2-option choice (log-odds 0.5–1.4 apart) | strong (mechanism) / likely (digit labels); exploratory, 3 states |
 
 **Working model:** Decision-1 = Qwen3.5-9B's judgement + a trained decision interface
 (compact format, one score per option read jointly and order-free, calibration on
@@ -230,6 +231,9 @@ the Decision-1 API (≈ 9 requests/min, a few cents) and can run in parallel wit
 | **R11** | Strict fixed-order control (2B): each source always lists its labels in one fixed order, so the gold class sits at a fixed position | `ce_fixed` kept varied positions, so it could not show order bias. Does position bias appear when position predicts the label? | Bias appears → shuffling matters only when positions are informative | ≈ 1.5 GPU-h |
 | **R12** | Seeds: `ce_shuffle`, `ce_fixed`, `brier_shuffle` with two more seeds | Are F9's differences between arms (≈ 1–5 points, probe shares) larger than seed noise? | Keep only differences that hold across seeds | ≈ 9 GPU-h |
 | **R13** | Jev and the OpenAI Decisions API through the same probes, plus the 256-question test | Same family? Same limits, readout fingerprint and position blindness? | – | needs API keys |
+| **R14** | Question-type templates on the frozen 9B: for `noul` (true/false, yes/no, A/B labels; criteria shown or not) and `score` (digit vs. letter level labels, levels listed as a scale), find the local template whose log-odds / level distributions track Decision-1's best on ≈ 100 items with the same questions | Can the hidden per-type templates be recovered? (F15) | Correlation with Decision-1 clearly higher for one template → adopt it in the readout and training | API ≈ 100 requests + ≈ 1 GPU-h |
+| **R15** | Train all three types: score data (review stars 1–5, SST-5, STS-B similarity 0–5) with digit labels and an ordinal proper scoring rule (ranked probability score) next to CE; boolean data (BoolQ, entailment as true/false) with its own template | Decision-1 is trained to answer every type; R9 only saw choices. Does multi-type training help calibration of `score` and `noul` without hurting choice? | Score expected-value error and noul calibration approach Decision-1's on held-out rating tasks | ≈ 2 GPU-h |
+| **R16** | Multi-question serving: encode the state once, then score every question from the cached prefix (one label read per question) | Reproduces "state billed once, +25 tokens per added yes/no, 64 questions < 1 s" (F1) at inference time; checks that answers do not depend on which other questions are asked | Same answers as one-question-per-request, ≥ 10× faster for 64 questions | ≈ 0.5 GPU-h |
 
 **Changed or dropped from earlier plans:**
 - **Grouping options into passes of < 30** is kept only as the `letters` baseline. R4 tests
@@ -246,7 +250,7 @@ training setup.
 ## Can we replicate Decision-1 on Qwen3.5-9B?
 
 **Status (2026-10-22):**
-- **The target is specified:** F1–F14 define the interface and behaviour to match.
+- **The target is specified:** F1–F15 define the interface and behaviour to match.
 - **R9, the first decision-trained 9B, reproduces the interface but not the accuracy**
   (F14): it gains nothing on BANKING77 and loses on ACE. Not a replica yet.
 
