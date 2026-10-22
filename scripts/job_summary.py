@@ -92,9 +92,12 @@ def summarize_training() -> dict:
                 e = json.loads(line)
                 if "holdout" in e:
                     evals.append({"step": e["step"], "loss": e["loss"], "elapsed_s":
-                                  e["elapsed_s"], **e["holdout"]})
+                                  e["elapsed_s"],
+                                  **{k: e[k] for k in ("acc", "p_gold", "kl") if k in e},
+                                  **e["holdout"]})
         out[path.parent.name] = {
             "train_s": s.get("train_s"), "examples_seen": s.get("examples_seen"),
+            "examples_by_kind": s.get("examples_by_kind"),
             "dropped_too_long": s.get("dropped_too_long"),
             "trainable_params": s.get("trainable_params"),
             "loss": s["config"]["loss"], "shuffle": s["config"]["shuffle"],
