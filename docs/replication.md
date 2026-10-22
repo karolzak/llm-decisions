@@ -199,6 +199,7 @@ Strength: **strong** = follows directly from the data, **likely** = best explana
 | F16 | The frozen 9B answers `noul` and `score` questions like Decision-1 under any reasonable template: log-odds r = 0.95–0.99, the same yes/no answer on 95–100% of items, the same accuracy within 1–2 items. No template is clearly Decision-1's; digit-labelled score levels fit better than letters on 3 levels (same answer 90% vs. 78%) | strong (R14, 200 items) |
 | F17 | Decision-1's multi-question speed is reproduced by encoding the state once and batching the questions over the cached prefix: 64 questions in 0.83–0.89 s on one A100 (Decision-1: 0.99 s), 4.5× faster than one at a time. Batched bf16 answers differ from one-at-a-time answers by up to 0.05, the size of Decision-1's request-to-request variation | strong (R16) |
 | F18 | Decision-1 is not more robust to rewording the question than its frozen base: decision flips under paraphrase 6.7% vs. 2.7% (ACE), 0.7% vs. 1.3% (BANKING77). Rewording moves both little; prompt layout (F7) is what moves the frozen base | strong (R6, 50 items per dataset) |
+| F19 | Teaching a "none / not applicable" option (empty and mismatched states pick it when listed) instead of uniform answers fixes R9's ACE loss: R9b-kl scores 0.700 / 0.750 on ACE (Decision-1 0.619 / 0.741) and answers empty ACE states with Not-Applicable like Decision-1. BANKING77 stays at the frozen base's level (0.733) | strong (R9b, one run) |
 
 **Working model:** Decision-1 = Qwen3.5-9B's judgement + a trained decision interface
 (compact per-type templates, one score per option or level read jointly and order-free,
@@ -262,15 +263,18 @@ training setup.
 
 **What a replica must match** (Decision-1 vs. the untrained base today):
 
-| Target | Decision-1 | Frozen 9B | 2B arms | R9 (9B trained) |
-|---|---|---|---|---|
-| ACE / BANKING77 accuracy | 0.741 / 0.870 | 0.741–0.767 / 0.750 | 0.51–0.55 / 0.65 | 0.606 / 0.749 |
-| BANKING77 fitted temperature | 1.02 | 1.41 | 1.17–1.46 | 1.27 |
-| ACE decisions flipped by reordering | 0% | 7.5% | 6–11% | 0% |
-| "Which option is listed last?" (BANKING77) | 0.50 (blind) | 1.00 | 0.47–0.53 | 1.00 |
-| Two identical options: the name that fits the description wins | yes (0.84 both orders) | no on ACE: position wins (0.97 → 0.41 when swapped) | no | yes, stronger (0.97 / 0.98) |
-| Empty state, normalised entropy (BANKING77) | 0.95 | 0.75 | 0.82–0.88 | 0.99 |
-| Up to 255 options in one pass | yes | no (groups of 26) | no | yes (codes, trained to 100) |
+| Target | Decision-1 | Frozen 9B | 2B arms | R9 (9B trained) | R9b-kl |
+|---|---|---|---|---|---|
+| ACE accuracy, short / verbose | 0.619 / 0.741 | 0.647 / 0.741 (up to 0.775 / 0.767 with another layout) | 0.49?0.55 | 0.573 / 0.606 | **0.700 / 0.750** |
+| BANKING77 accuracy | 0.870 | 0.750 | 0.64?0.65 | 0.749 | 0.733 |
+| BANKING77 fitted temperature | 1.02 | 1.41 | 1.17?1.46 | 1.27 | 1.26 |
+| ACE decisions flipped by reordering | 0% | 7.5% | 6?11% | 0% | 7.5% |
+| "Which option is listed last?" (BANKING77) | 0.50 (blind) | 1.00 | 0.47?0.53 | 1.00 | 1.00 |
+| Two identical options: the name that fits the description wins | yes (0.84 both orders) | no on ACE: position wins (0.97 ? 0.41 when swapped) | no | yes, stronger (0.97 / 0.98) | yes (0.98 / 0.97) |
+| Two identical opaque options: share of the first (ACE / BANKING77) | 0.45 / 0.42 | 0.92 / 0.39 | ? | 0.42 / 0.34 | 0.43 / 0.44 |
+| Empty ACE state: top answer | Not-Applicable, p ? 0.99 | Not-Applicable | ? | near-uniform | Not-Applicable, p 0.98?0.99 |
+| Empty state, normalised entropy (BANKING77) | 0.95 | 0.75 | 0.82?0.88 | 0.99 | 0.98 |
+| Up to 255 options in one pass | yes | no (groups of 26) | no | yes (codes, trained to 100) | yes |
 
 **R9 design, updated with the findings:**
 - **Base and adapter:** Qwen3.5-9B, light LoRA, plus a KL term to the frozen base so its
@@ -336,6 +340,18 @@ items per dataset):
   gold labels are one third Not-Applicable.
 - So the uniform empty-state target was the wrong target where a "none" option exists.
   R9b tests this.
+
+**R9b-kl result** (job `teal_spade_1wfr7s433f`; test split; probes 16 items per dataset):
+- **ACE recovered:** 0.700 short / 0.750 verbose (R9 0.573 / 0.606; Decision-1 0.619 / 0.741),
+  and calibrated (fitted T 1.11 / 0.99). Empty ACE states now get Not-Applicable (p 0.98?0.99),
+  as from Decision-1. So R9's ACE loss came from the uniform empty-state target. Not-Applicable
+  is now predicted more often than by Decision-1 (14.6% vs. 2.8% short, 20.5% vs. 15.6% verbose).
+- **BANKING77 unchanged:** 0.733 (R9 0.749, frozen 0.750), T 1.26.
+- **Interface:** the fitting name wins between duplicates (0.97?0.99); two opaque copies split
+  evenly (0.43 / 0.44, Decision-1 0.45 / 0.42). ACE order flips are back at 7.5% (R9: 0%),
+  likely the strong KL pull to the base; BANKING77 0%. It still knows which option is listed
+  last (1.00).
+- **Agreement with Decision-1** (kappa): 0.58 / 0.66 / 0.81 (ACE short / verbose / BANKING77).
 
 **Next:**
 - **ACE:** R9b (empty and mismatched states target a "none / not applicable" option when one
