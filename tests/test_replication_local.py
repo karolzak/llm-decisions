@@ -197,6 +197,31 @@ def test_letters_style_matches_previous_noul_readout(lm):
     assert a.probabilities["true"] == pytest.approx(probs[1], abs=1e-6)
 
 
+@pytest.mark.parametrize("order", ["sorted", "sorted_ci"])
+def test_canonical_option_order_makes_reordering_a_no_op(lm, order):
+    r = readout(lm, option_order=order)
+    opts = [Option("beta"), Option("Alpha"), Option("gamma", "third"), Option("delta")]
+    q = Question("c", "Which?", "choice", opts)
+    a, _ = r.answer("state", q)
+    b, _ = r.answer("state", Question("c", "Which?", "choice", opts[::-1]))
+    for v in a.probabilities:
+        assert a.probabilities[v] == pytest.approx(b.probabilities[v], abs=1e-6)
+    probs, _ = r.score_options("state", "Which?", opts)  # dataset path maps back to input order
+    assert probs == pytest.approx([a.probabilities[o.value] for o in opts], abs=1e-6)
+    text = lm.tokenizer.decode(r.plan("state", q)[0])
+    assert text.index("A. Alpha") < text.index("B. ")
+    shown = [opts[i].value for i in r.canonical_order(opts)]
+    assert shown == (["Alpha", "beta", "delta", "gamma"])
+    mixed = [Option("apple"), Option("Banana")]
+    assert [mixed[i].value for i in r.canonical_order(mixed)] == (
+        ["Banana", "apple"] if order == "sorted" else ["apple", "Banana"])
+    s = Question("s", "How good?", "score", LEVELS[::-1])  # ordinal levels are never sorted
+    ids, _, values = r.plan("x", s)
+    assert values == [o.value for o in LEVELS[::-1]]
+    with pytest.raises(ValueError, match="option_order"):
+        ReadoutConfig.from_params({"option_order": "random"})
+
+
 def test_shared_state_prefix_matches_separate_answers(lm):
     r = readout(lm, noul_style="truefalse", score_style="digits")
     state = "A long state. " * 20

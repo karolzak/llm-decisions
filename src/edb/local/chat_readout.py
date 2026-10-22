@@ -109,6 +109,7 @@ TYPED_PROMPT = """Read the state and answer the question by choosing exactly one
 
 {closing}"""
 NOUL_WORDS = {"truefalse": ("true", "false"), "yesno": ("yes", "no")}
+OPTION_ORDERS = ("request", "sorted", "sorted_ci")
 
 
 @dataclass
@@ -127,6 +128,10 @@ class ReadoutConfig:
     # Questions about one state share their common prompt prefix: it is encoded once and
     # cached (R16). Only the probe client (several questions per request) uses it.
     share_state: bool = False
+    # Order in which choice options are shown (R18): as sent (`request`), or canonical:
+    # byte-wise sorted by name (`sorted`) or case-insensitively (`sorted_ci`). Score levels
+    # keep their order (they are ordinal).
+    option_order: str = "request"
 
     @classmethod
     def from_params(cls, *params: dict[str, Any] | None) -> ReadoutConfig:
@@ -144,6 +149,9 @@ class ReadoutConfig:
         if merged.get("score_style", "letters") not in SCORE_STYLES:
             raise ValueError(f"unknown score_style {merged['score_style']!r}; "
                              f"known: {SCORE_STYLES}")
+        if merged.get("option_order", "request") not in OPTION_ORDERS:
+            raise ValueError(f"unknown option_order {merged['option_order']!r}; "
+                             f"known: {OPTION_ORDERS}")
         return cls(**merged)
 
 
@@ -336,9 +344,29 @@ class ChatLetterReadout:
                 "top_vocab_token": labels[int(torch.argmax(t))]}
         return lp, diag, len(ids)
 
+    def canonical_order(self, options: list[Option]) -> list[int]:
+        """Indices of `options` in the order they are shown (`option_order`)."""
+        n = range(len(options))
+        if self.cfg.option_order == "sorted":
+            return sorted(n, key=lambda i: options[i].value)
+        if self.cfg.option_order == "sorted_ci":
+            return sorted(n, key=lambda i: (options[i].value.lower(), options[i].value))
+        return list(n)
+
     def score_options(self, state: Any, instructions: str,
                       options: list[Option]) -> tuple[list[float], dict[str, Any]]:
-        """Probabilities over `options` (in order) + diagnostics."""
+        """Probabilities over `options` (in the given order) + diagnostics."""
+        order = self.canonical_order(options)
+        if order != list(range(len(options))):
+            shown, diag = self._score_shown(state, instructions, [options[i] for i in order])
+            probs = [0.0] * len(options)
+            for j, i in enumerate(order):
+                probs[i] = shown[j]
+            return probs, diag
+        return self._score_shown(state, instructions, options)
+
+    def _score_shown(self, state: Any, instructions: str,
+                     options: list[Option]) -> tuple[list[float], dict[str, Any]]:
         g = min(self.cfg.group_size, self.capacity()) if self.cfg.labels == "letters" \
             else self.capacity()
         if len(options) <= g:
@@ -410,6 +438,8 @@ class ChatLetterReadout:
             options = [Option(v, crit.get(v)) for v in self.cfg.noul_order]
         else:
             options = list(q.options)
+            if q.type == "choice":
+                options = [options[i] for i in self.canonical_order(options)]
         if self.cfg.labels == "numbers" or len(options) > (
                 min(self.cfg.group_size, self.capacity()) if self.cfg.labels == "letters"
                 else self.capacity()):
@@ -442,7 +472,8 @@ class ChatLetterReadout:
             options = [Option(v, crit.get(v)) for v in self.cfg.noul_order]
         else:
             options = list(q.options)
-        probs, diag = self.score_options(state, q.instructions, options)
+        scorer = self.score_options if q.type == "choice" else self._score_shown
+        probs, diag = scorer(state, q.instructions, options)
         return self._answer_from(q, [o.value for o in options], probs), diag
 
     @torch.inference_mode()

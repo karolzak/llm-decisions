@@ -1,0 +1,8 @@
+name: qwen3.5-9b-sorted
+kind: local_readout
+description: "Frozen Qwen3.5-9B, choice options shown in byte-sorted order like Decision-1 (R18)."
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-9b
+  readout: {option_order: sorted}
