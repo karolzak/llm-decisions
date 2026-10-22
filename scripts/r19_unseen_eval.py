@@ -124,6 +124,8 @@ def build() -> None:
 
 # ---------------------------------------------------------------------- Decision-1
 async def query_decision1(pause_s: float = 6.5) -> None:
+    from azure.core.exceptions import ClientAuthenticationError
+
     from edb.probing.clients import load_probe_target, make_client
     from edb.providers.retry import HTTPError
 
@@ -141,7 +143,7 @@ async def query_decision1(pause_s: float = 6.5) -> None:
                         if exc.status != 429 or attempt == 9:
                             raise
                         await asyncio.sleep(20 * (attempt + 1))
-                    except httpx.TransportError:
+                    except (httpx.TransportError, ClientAuthenticationError):
                         if attempt == 9:
                             raise
                         await asyncio.sleep(10 * (attempt + 1))
