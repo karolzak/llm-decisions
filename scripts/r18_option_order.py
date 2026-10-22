@@ -43,6 +43,13 @@ POSITION_QS = {"first": "Ignore the text. Which option is listed first in the li
                "second": "Ignore the text. Which option is listed second in the list of options?",
                "last": "Ignore the text. Which option is listed last in the list of options?"}
 COPY_NAMES = {"aardvark": "aardvark", "zero_prefix": "0_{name}", "capital_prefix": "A {name}"}
+# R18b: names and descriptions sort in opposite orders, so the answers show the sort key.
+DESC_SETS = [
+    (["apple", "banana", "cherry", "date", "elderberry"],
+     ["Zesty fruit.", "Yellow fruit.", "Xanthic fruit.", "Wrinkled fruit.", "Violet fruit."]),
+    (["alpha", "bravo", "charlie", "delta", "echo"],
+     ["Zone five.", "Zone four.", "Zone three.", "Zone two.", "Zone one."]),
+]
 
 
 def cases(n_items: int) -> list[dict[str, Any]]:
@@ -71,11 +78,25 @@ def cases(n_items: int) -> list[dict[str, Any]]:
             out.append({"id": f"dup-{item.id}-{variant}", "kind": "names", "variant": variant,
                         "state": item.state, "instructions": item.instructions,
                         "gold": item.gold, "copy": copy, "request_options": order})
+    rng_desc = random.Random("18b")  # separate stream: earlier cases keep their content
+    for s, (names, descs) in enumerate(DESC_SETS):
+        pairs = list(zip(names, descs, strict=True))
+        for rep in range(4):
+            order = pairs[:]
+            rng_desc.shuffle(order)
+            for qk in ("first", "last"):
+                out.append({"id": f"desc-{s}-{rep}-{qk}", "kind": "desc_position", "question": qk,
+                            "state": "The weather was mild today.",
+                            "request_options": [n for n, _ in order],
+                            "descriptions": dict(order)})
     return out
 
 
 def request(case: dict[str, Any]) -> DecisionRequest:
-    if case["kind"] == "position":
+    if case["kind"] == "desc_position":
+        q = Question("decision", POSITION_QS[case["question"]], "choice",
+                     [Option(v, case["descriptions"][v]) for v in case["request_options"]])
+    elif case["kind"] == "position":
         q = Question("decision", POSITION_QS[case["question"]], "choice",
                      [Option(v) for v in case["request_options"]])
     else:  # the copy keeps no description either: BANKING77 options are names only
@@ -141,6 +162,21 @@ def analyze() -> dict[str, Any]:
         copy_first = [sorted([r["gold"], r["copy"]])[0] == r["copy"] for r in xs]
         res[f"names_{variant}"] = {"n": len(xs), "original_share": round(float(np.mean(share)), 3),
                                    "copy_sorts_first": round(float(np.mean(copy_first)), 3)}
+    for qk in ("first", "last"):
+        xs = [r for r in rows if r["kind"] == "desc_position" and r["question"] == qk]
+        if not xs:
+            continue
+        hit = {"request_order": [], "sorted_by_name": [], "sorted_by_description": []}
+        for r in xs:
+            p = r["probabilities"]
+            top = max(p, key=p.get)
+            names = r["request_options"]
+            orders = {"request_order": names, "sorted_by_name": sorted(names),
+                      "sorted_by_description": sorted(names, key=r["descriptions"].get)}
+            for name, order in orders.items():
+                hit[name].append(top == order[idx[qk]])
+        res[f"descriptions_{qk}"] = {"n": len(xs), **{k: round(float(np.mean(v)), 3)
+                                                      for k, v in hit.items()}}
     return res
 
 

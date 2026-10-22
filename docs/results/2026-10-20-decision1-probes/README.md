@@ -246,6 +246,11 @@ below includes about 400 ms of network and service overhead.
       inability to say which option we listed first (it sees a different order), and the
       "position blindness" in the probes. Order invariance is a property of the serving
       code, not necessarily of the model.
+    - **The sort key is the option name, not its description (R18b, 16 requests).** Five
+      options whose descriptions sort in the opposite order to their names: "listed first"
+      and "listed last" matched name order in 8 of 8 requests each. "Listed last" matched
+      description order in 0 of 8; "listed first" matched it in 4 of 8, only where the
+      name-first and description-first option coincide.
     - **Likely mechanism:**
       - The System One request sends choice options as a JSON *object* keyed by option
         name. JSON objects have no defined order, and a server that parses them into a

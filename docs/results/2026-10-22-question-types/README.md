@@ -129,7 +129,7 @@ Decision-1 run: 500 requests, 0 errors. Frozen 9B: job `silly_head_4hdt71ddk0`, 
 
 ## R18: Decision-1 sorts the options
 
-[r18_option_order.py](../../../scripts/r18_option_order.py), 96 Decision-1 requests
+[r18_option_order.py](../../../scripts/r18_option_order.py), 96 Decision-1 requests (+16 for R18b)
 ([r18-decision1.jsonl](r18-decision1.jsonl)).
 
 **Listing-order questions.** 5 options with mixed-case names, 4 random orders × 4 name sets.
@@ -143,6 +143,17 @@ Share of answers matching each ordering:
 
 Decision-1 shows the model the options in byte-wise sorted order (uppercase before
 lowercase).
+
+**R18b: the sort key.** 16 more requests. Five options whose descriptions sort in the opposite
+order to their names (e.g. `apple` = "Zesty fruit.", `elderberry` = "Violet fruit."), 4 random
+orders × 2 sets:
+
+| Question | Order we sent | Sorted by description | Sorted by name |
+|---|---|---|---|
+| "Which option is listed first?" | 0.00 | 0.50 (only where it coincides with name order) | **1.00** |
+| "… listed last?" | 0.38 | 0.00 | **1.00** |
+
+The sort key is the option name.
 
 **Copies named to sort first.** 16 BANKING77 items, 6 options, the correct option duplicated:
 
