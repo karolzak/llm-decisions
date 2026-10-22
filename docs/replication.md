@@ -205,6 +205,8 @@ Strength: **strong** = follows directly from the data, **likely** = best explana
 | F22 | Training all three question types (R15) moves score answers slightly towards Decision-1 (5 levels: same answer 0.825 vs. 0.725, expected-score r 0.976 vs. 0.958), but makes yes/no log-odds more extreme than Decision-1's (mean abs. difference 1.1–2.3 vs. 0.7–1.3 for the frozen base) and costs 4.8 / 3.7 ACE points against R9b-kl (0.652 / 0.713). BANKING77 0.750, like the other arms (F24) | likely (one run) |
 | F23 | Routing data from BANKING77's own domain (Bitext retail banking, R17) does not close the BANKING77 gap: 0.753 (R9b-kl 0.733, frozen 0.750 with grouped letters, Decision-1 0.870). It gives the best ACE verbose result so far (0.780). Neither readout (R4), prompt (R5), routing data volume (R9) nor domain (R17) explains Decision-1's +12 points | likely (one run) |
 | F24 | Read the same way (code labels, all 77 options in one pass), training does lift BANKING77: frozen base 0.706 (T 1.66) → trained 9B arms 0.733–0.753 (T 1.26–1.32 with KL, 1.50 without), +3 to +5 points. That only reaches the frozen base's grouped-letter score (0.750); Decision-1 is 12 points above both. So "no BANKING77 gain" in earlier wording means no gain beyond the best untrained readout | likely (R4, R9–R17; one run each) |
+| F25 | On three benchmarks never used for training or selection (R19), Decision-1's routing gain holds: +5.7 (MInDS-14, banking intents) and +8.9 points (ATIS) over its untrained base, against +2.0 on ContractNLI (contract reasoning). So its +12 on BANKING77 is general many-way routing skill, not only BANKING77-specific data. Our candidate replica (R9b-kl recipe, sorted options) gains +1.9 / +2.1 / +4.0: above Decision-1 on ContractNLI (0.796 vs. 0.776), 3.8 / 6.8 points below on the intent sets | strong for Decision-1's gain (210 / 238 items); candidate: one run |
+| F26 | Run-to-run variation is large on ACE: retraining R9b-kl with the identical config and seed (R19) gives ACE 0.668 / 0.723 instead of 0.700 / 0.750, BANKING77 0.736 instead of 0.733. ACE differences between our arms of up to ≈ 3 points are therefore noise (R9b-nokl's "best ACE", R17's 0.780 verbose, R15's ACE drop) | strong (one rerun) |
 
 **Working model:** Decision-1 = Qwen3.5-9B's judgement + light post-training (compact
 per-type templates, calibration on routing-style tasks, better many-way routing). The serving
@@ -231,7 +233,7 @@ robustness to rewording (F18).
 
 ## Next experiments
 
-Ordered by value for cost. R4–R9, R9b and R14–R18 are done; R19 and R20 are running.
+Ordered by value for cost. R4–R9, R9b and R14–R19 are done; R20 is running.
 R10–R12 are on hold (2B mechanism checks; R10 and R11 mostly answered by F20). Training on
 Decision-1's own answers (distillation) is not planned until its terms of use are checked.
 API-only experiments run at ≈ 9 requests/min (the deployment's rate limit).
@@ -254,7 +256,7 @@ API-only experiments run at ≈ 9 requests/min (the deployment's rate limit).
 | **R16** (done) | Multi-question serving: encode the state once, then read every question from the cached prefix, batched (`answer_shared`) | Reproduces "state billed once, 64 questions < 1 s" (F1) at inference time | Result: 64 questions in 0.83–0.89 s of GPU time on one A100 (Decision-1 0.99 s end to end), 4.5× faster than one at a time; answers equal in fp32, within bf16 noise on GPU (F17) | 0.5 GPU-h |
 | **R17** (done) | Domain-matched routing data: R9b-kl's recipe on [corpus-r17](../configs/training/corpus-r17.yaml) = the R9 mix + Bitext retail-banking (26 banking intents such as `activate_card`) and customer-support intents, 4,000 rows each. Synthetic data, not BANKING77's: 2 generic phrases shared with BANKING77 train/calibration, none with test; intent names partly identical (e.g. `cancel_transfer`) | Open question 1: is the 12-point BANKING77 gap routing data from the same domain? R9's broader routing data did not move it | Result: BANKING77 0.753 (R9b-kl 0.733): domain data does not close the gap; ACE verbose 0.780 (F23) | ≈ 2 GPU-h |
 | **R18** (done) | Option order: 5 mixed-case options in random orders, "which option is listed first / second / last?"; duplicate options with the copy named to sort first (`aardvark`, `0_<name>`, `A <name>`) | Does Decision-1 canonicalise option order? Is R7's name effect name fit or sorted position? | Result: byte-wise sorted (48/48); name fit for unrelated names, sorted position for near-identical ones (F20) | API 96 requests |
-| **R19** (running) | Candidate replica on unseen benchmarks: the R9b-kl recipe (chosen beforehand: lowest mean calibration-split NLL over ACE short / verbose / BANKING77), retrained with the same config and read with byte-sorted options; evaluated with Decision-1 on 649 items from MInDS-14 (e-banking intents), ATIS (airline intents) and ContractNLI (contract entailment), none used before for training or selection | Do our results hold off the test sets we selected on? How much does a same-config rerun move ACE / BANKING77? | Candidate within a few points of Decision-1 on unseen sets → the ACE / BANKING77 picture generalises | ≈ 2 GPU-h + API 649 requests |
+| **R19** (done) | Candidate replica on unseen benchmarks: the R9b-kl recipe (chosen beforehand: lowest mean calibration-split NLL over ACE short / verbose / BANKING77), retrained with the same config and read with byte-sorted options; evaluated with Decision-1 on 649 items from MInDS-14 (e-banking intents), ATIS (airline intents) and ContractNLI (contract entailment), none used before for training or selection | Do our results hold off the test sets we selected on? How much does a same-config rerun move ACE / BANKING77? | Result: Decision-1's routing gain holds on unseen intents (+5.7 / +8.9); the candidate gains +1.9 / +2.1 / +4.0 and beats Decision-1 on ContractNLI; ACE varies ≈ 3 points between identical runs (F25, F26) | ≈ 2 GPU-h + API 649 requests |
 | **R20** (running) | Training scale: the R17 recipe with 5× the steps (3,000 × 16), LoRA rank 64, KL 0.3 | Is the BANKING77 gap (F24) a matter of training scale? | BANKING77 clearly above 0.75 → scale is a lever; no change → the gap needs other data or objectives | ≈ 7 GPU-h |
 
 **Changed or dropped from earlier plans:**
@@ -272,23 +274,30 @@ training setup.
 ## Can we replicate Decision-1 on Qwen3.5-9B?
 
 **Status (2026-10-22):**
-- **The target is specified:** F1–F24 define the interface and behaviour to match.
+- **The target is specified:** F1–F26 define the interface and behaviour to match.
 - **Most of Decision-1's interface needs no training.** The untrained 9B with sorted options
   reproduces the order, position and name behaviour (F21), and already answers like
   Decision-1 on ACE, yes/no and score questions (F7, F16).
-- **R9b reproduces Decision-1 except on BANKING77.**
-  - **ACE:** above Decision-1 (no-KL arm 0.738 / 0.767), calibrated.
+- **Our trained 9Bs reproduce Decision-1 except on many-way routing.**
+  - **ACE:** at or above Decision-1 in every arm since R9b (0.668–0.738 short, 0.713–0.780
+    verbose, against 0.619 / 0.741), calibrated. Differences between arms are within rerun
+    noise (F26).
+  - **Unseen contract reasoning:** above Decision-1 (ContractNLI 0.796 vs. 0.776, F25).
   - **Interface:** the empty-state behaviour, duplicate handling and one-pass reading of
     many options match.
   - **Order invariance:** comes from sorting the options (F20). Our readout can now sort
     too (`option_order: sorted`); R19 is the first trained arm evaluated that way.
-  - **What is missing:** the 12-point BANKING77 gain and its calibration (T 1.02).
+  - **What is missing:** Decision-1's many-way routing skill. It is 12 points above its base on
+    BANKING77 and 6–9 on unseen intent sets (F25); our best arms recover only 2–5 of those
+    points (F24, F25). BANKING77 calibration is also missing (T 1.02 vs. our 1.24–1.50).
   - **Ruled out as causes of the BANKING77 gap:** readout (R4), prompt (R5), routing data
-    volume (R9) and domain (R17). Multi-type training (R15) does not help either (F22). Each of these is one training run.
+    volume (R9) and domain (R17). Multi-type training (R15) does not help either (F22). Each
+    of these is one training run.
   - **Untested:** training scale. R20 is running; ours was 9,600 LoRA examples, and
     Decision-1's amount is unknown.
   - **Not testable from outside:** whether BANKING77's own train split was in Decision-1's
-    training data.
+    training data. The gains on unseen intent sets (F25) show that it cannot be the whole
+    explanation.
 
 **What a replica must match** (Decision-1 vs. the untrained base and our trained 9Bs). Since
 R18, the order rows are reproduced by sorting the options (F20), as Decision-1 does:
@@ -410,8 +419,9 @@ items per dataset):
 Each arm is one run, and all arms were compared on the same test sets. The ACE leaders are
 also the leaders on the calibration split, so they are not artefacts of picking on test:
 R9b-nokl has the best ACE-short calibration accuracy (0.788) and R17 the best ACE-verbose
-(0.840). Run-to-run variation is unmeasured; R19 retrains R9b-kl with the same config to
-estimate it.
+(0.840). Since then, R19 measured run-to-run variation: an identical rerun of R9b-kl moved
+ACE by about 3 points (F26), so the ACE differences between these arms are mostly noise.
+BANKING77 moved by 0.3.
 
 | | Decision-1 | Frozen 9B | R9b-kl | R9b-nokl | R15 (+ score / yes/no rows) | R17 (+ Bitext banking / support) |
 |---|---|---|---|---|---|---|
