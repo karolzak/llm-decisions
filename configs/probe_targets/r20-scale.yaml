@@ -1,0 +1,9 @@
+name: r20-scale
+kind: local_readout
+description: "R20: R17 recipe at 5x steps, LoRA r64, KL 0.3, byte-sorted options."
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-9b
+  adapter: training/r20_scale
+  readout: {labels: codes, option_order: sorted}

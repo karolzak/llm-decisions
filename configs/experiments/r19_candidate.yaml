@@ -1,0 +1,16 @@
+id: r19_candidate
+description: "R19 candidate replica: R9b-kl recipe retrained, byte-sorted options. ACE/BANKING77 not in training."
+leaderboards: [replication]
+supervision: zero_shot
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_chat_readout
+  model: qwen3.5-9b
+  params:
+    adapter: training/r19_candidate
+    readout: {labels: codes, option_order: sorted}
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

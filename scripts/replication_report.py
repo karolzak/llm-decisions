@@ -42,6 +42,8 @@ METHODS = [
     ("r9b_nokl", "R9b: R9 + none option, no KL", "jobs"),
     ("r15_typed", "R15: R9b + score/noul training", "jobs"),
     ("r17_routing", "R17: R9b-kl + Bitext banking/support routing", "jobs"),
+    ("r19_candidate", "R19: candidate replica (R9b-kl recipe, sorted options)", "jobs"),
+    ("r20_scale", "R20: R17 recipe at 5x steps, LoRA r64", "jobs"),
     ("c6_oss_letter_readout", "gpt-oss-20b letter readout (C6, context)", "local"),
 ]
 DETAIL = ("accuracy", "macro_f1", "nll", "ece", "T", "nll_cal", "ece_cal", "acc@80", "p50_ms",
@@ -50,7 +52,8 @@ AGREE = ("acc_run", "top1_agreement", "chance_agreement", "kappa", "both_wrong",
          "same_answer_when_both_wrong", "error_correlation_phi", "p_gold_pearson",
          "p_gold_spearman", "mean_js_divergence", "prediction_mix_run")
 PROBE_TARGETS = ["decision-1", "qwen3.5-9b", "qwen3.5-9b-sorted", "r9-qwen9b", "r9b-kl",
-                 "r9b-nokl", "r15-typed", "r17-routing", "qwen3.5-2b",
+                 "r9b-nokl", "r15-typed", "r17-routing", "r19-candidate", "r20-scale",
+                 "qwen3.5-2b",
                  "r3-ce-shuffle", "r3-ce-fixed", "r3-brier-shuffle"]
 
 

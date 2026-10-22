@@ -1,0 +1,28 @@
+# R20: training scale. The R17 recipe (R9 mix + Bitext banking / support intents, "none"
+# option, interface augmentations, CE + Brier) with 5x the steps (3,000 x 16 = 48,000 examples,
+# about one pass over corpus-r17), LoRA rank 64 instead of 16, and a weaker KL anchor (0.3) so
+# routing accuracy can move away from the frozen base. Question: does more training close the
+# BANKING77 gap (F23)?
+base_model: qwen3.5-9b
+corpus: corpus-r17
+loss: ce_brier
+shuffle: true
+max_steps: 3000
+batch_size: 16
+lr: 1.0e-4
+warmup_steps: 100
+max_tokens: 2048
+lora: {r: 64, alpha: 128, dropout: 0.05}
+eval_every: 500
+eval_rows: 300
+seed: 0
+readout: {labels: codes}
+aug: {decoy: 0.08, negation: 0.05, empty: 0.05, paraphrase: 0.2,
+      mismatch: 0.06, none_option: 0.1, empty_none: 0.6, none_aware: true}
+checkpoint_every: 50
+arms:
+  r20_scale:
+    kl_weight: 0.3
+    kl_kinds: [plain, paraphrase, none_option]
+    experiment: r20_scale
+    probe_target: r20-scale

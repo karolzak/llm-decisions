@@ -80,6 +80,8 @@ def main() -> int:
     parser.add_argument("--max-rows", type=int)
     parser.add_argument("--r14", action="store_true",
                         help="also run scripts/r14_question_types.py local with the adapter")
+    parser.add_argument("--r19", action="store_true",
+                        help="also run scripts/r19_unseen_eval.py local with the adapter")
     args = parser.parse_args()
 
     experiment, target = names_for(args.arm, args.arms_file)
@@ -120,6 +122,16 @@ def main() -> int:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()  # the child process loads its own copy of the model
         subprocess.run([sys.executable, str(Path(__file__).with_name("r14_question_types.py")),
+                        "local", "--model", cfg.base_model, "--adapter",
+                        f"training/{args.arm}", "--label", args.arm], check=True)
+    if args.r19 and args.arm != "frozen":
+        # Unseen benchmarks (R19), options byte-sorted like Decision-1's.
+        cfg = load_arm(args.arm, args.arms_file)
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        subprocess.run([sys.executable, str(Path(__file__).with_name("r19_unseen_eval.py")),
                         "local", "--model", cfg.base_model, "--adapter",
                         f"training/{args.arm}", "--label", args.arm], check=True)
     print(json.dumps(report, indent=2, default=str))
