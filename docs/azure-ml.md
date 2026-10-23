@@ -140,4 +140,8 @@ uv run python scripts/replication_report.py --tag replication
 ```
 
 Low-priority jobs can be pre-empted and are then restarted by Azure ML. Evaluation and probes
-resume from the synced output; a training arm restarts from scratch (no checkpoints).
+resume from the synced output; training arms with `checkpoint_every` (all 9B arms since R9)
+resume from their last checkpoint, others restart from scratch.
+
+Training jobs can also run the question-type and unseen-benchmark evaluations with the new
+adapter (`train_decider.py --r14 --r19`); their metrics come back in the job summary.

@@ -15,7 +15,8 @@ ranked against each other:
 - **Part 2 — open-weight model (C):** one local model, `openai/gpt-oss-20b`, with identical
   weights in every experiment. Only the readout changes.
 - **Part 3 — replication study (R):** probes of Decision-1 itself, its frozen base model
-  (Qwen3.5-9B) and small trained deciders, to understand how decision models work.
+  (Qwen3.5-9B), and decision-trained Qwen3.5-2B arms and Qwen3.5-9B replicas, to understand
+  how decision models work.
 
 ## Key terms
 
@@ -358,9 +359,13 @@ flowchart LR
     C["8 public tasks<br/>(not ACE / BANKING77)"] --> L["Qwen3.5-2B + LoRA<br/>shuffle vs. fixed order,<br/>CE vs. Brier"]
     L --> E["zero-shot ACE / BANKING77<br/>+ the same probes"]
   end
+  subgraph R9["R9–R24 9B replicas"]
+    C9["routing + classification mix,<br/>'none' option, decoys,<br/>score / yes-no rows"] --> L9["Qwen3.5-9B + LoRA<br/>CE + Brier + KL, or RL"]
+    L9 --> E9["ACE / BANKING77 + unseen sets<br/>(MInDS-14, ATIS, ContractNLI)<br/>+ the same probes"]
+  end
 ```
 
-## R2 / R3 — Chat-model letter readout (`local_chat_readout`)
+## R2–R24 — Chat-model option-label readout (`local_chat_readout`)
 
 ```mermaid
 flowchart LR
@@ -376,3 +381,17 @@ H2O-Lightning). Unlike C6, it uses a non-reasoning chat template (no skipped ana
 and sums all token variants of each letter. More than 26 options are scored in groups, then
 the group winners against each other. R3 trains a LoRA adapter on exactly this prompt and
 readout.
+
+Readout settings added for the 9B replicas (`ReadoutConfig` in `src/edb/local/chat_readout.py`):
+
+- **`labels`:**
+  - `letters` (default);
+  - `codes`: A–Z, then the 562 single-token two-letter codes, up to 588 options in one pass;
+  - `numbers`: multi-digit labels scored digit by digit.
+- **`option_order: sorted`:** choice options are shown sorted byte-wise by name, as
+  Decision-1 does. Probabilities still map back to the caller's order. Score levels are
+  never sorted.
+- **`noul_style` / `score_style`:** yes/no questions as `true` / `false` (or `yes` / `no`)
+  words; score levels labelled by digit `0`–`9` as options or as a scale (R14).
+- **Shared state (`answer_shared`):** questions about one state share their prompt prefix,
+  which is encoded once; the questions are then read in batches from the cached prefix (R16).

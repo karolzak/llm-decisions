@@ -13,7 +13,9 @@ uninformative states):
     rl        exact on-policy RL (R23): maximise E_{a~p}[target(a)] - rl_beta * KL(p || base),
               with the expectation taken over all K labels (no sampling). Optimum:
               p(a) ∝ p_base(a) * exp(target(a) / rl_beta), i.e. the base re-weighted towards
-              the rewarded answer; `kl_weight` is ignored
+              the rewarded answer; `kl_weight` is ignored. A uniform target (uninformative
+              state without a "none" option) carries no reward signal, so those rows only pull
+              the policy back to the base
 
 `shuffle` re-orders the options of every example every time it is seen (the label follows).
 `kl_weight` adds KL(frozen base || model) on the label distribution of the example kinds in

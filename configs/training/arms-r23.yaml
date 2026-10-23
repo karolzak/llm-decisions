@@ -2,6 +2,8 @@
 # with CE + Brier + KL(base || model) replaced by exact on-policy RL: maximise the expected reward
 # E_{a~p}[target(a)] - 0.3 * KL(p || frozen base), computed over all labels (see train.py).
 # Question: is the objective what gives Decision-1 general routing skill and calibration?
+# Note: with this reward, empty-state rows with a uniform target (no "none" option listed, ~2%
+# of examples) carry no reward signal and only pull the policy back to the base (code review).
 base_model: qwen3.5-9b
 corpus: corpus-r9
 loss: rl
