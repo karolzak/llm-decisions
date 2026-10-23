@@ -1,0 +1,16 @@
+id: r23_rl
+description: "R23: candidate recipe trained with exact on-policy RL (expected reward - 0.3 KL to base), byte-sorted options. ACE/BANKING77 not in training."
+leaderboards: [replication]
+supervision: zero_shot
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_chat_readout
+  model: qwen3.5-9b
+  params:
+    adapter: training/r23_rl
+    readout: {labels: codes, option_order: sorted}
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

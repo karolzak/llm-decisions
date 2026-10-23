@@ -1,0 +1,510 @@
+{
+ "target": "decision-1",
+ "probes": {
+  "order": {
+   "records": 176,
+   "errors": 0,
+   "result": {
+    "ace": {
+     "items": 16,
+     "accuracy": 0.8125,
+     "flip_rate_vs_original": 0.0,
+     "items_consistent_all_orders": 1.0,
+     "mean_tv_vs_original": 0.014,
+     "mean_chosen_position": 0.5,
+     "mean_gold_position": 0.5,
+     "first_vs_last_log_lift": -0.0048
+    },
+    "banking77": {
+     "items": 16,
+     "accuracy": 1.0,
+     "flip_rate_vs_original": 0.0,
+     "items_consistent_all_orders": 1.0,
+     "mean_tv_vs_original": 0.0035,
+     "mean_chosen_position": 0.4675,
+     "mean_gold_position": 0.4675,
+     "first_vs_last_log_lift": 0.0216
+    }
+   }
+  },
+  "letter_names": {
+   "records": 128,
+   "errors": 0,
+   "result": {
+    "ace": {
+     "items": 16,
+     "accuracy_letters_aligned": 0.8125,
+     "accuracy_letters_shifted": 0.75,
+     "accuracy_neutral": 0.8125,
+     "accuracy_original": 0.8125,
+     "agree_with_neutral_letters_aligned": 1.0,
+     "agree_with_neutral_letters_shifted": 0.9375,
+     "agree_with_neutral_original": 1.0,
+     "shifted_disagreements": 1,
+     "collision_pull": 0.0
+    },
+    "banking77": {
+     "items": 16,
+     "accuracy_letters_aligned": 1.0,
+     "accuracy_letters_shifted": 1.0,
+     "accuracy_neutral": 0.9375,
+     "accuracy_original": 0.9375,
+     "agree_with_neutral_letters_aligned": 0.9375,
+     "agree_with_neutral_letters_shifted": 0.9375,
+     "agree_with_neutral_original": 0.875,
+     "shifted_disagreements": 1,
+     "collision_pull": 0.0
+    }
+   }
+  },
+  "duplicate": {
+   "records": 96,
+   "errors": 0,
+   "result": {
+    "ace": {
+     "items": 16,
+     "earlier_copy_share_dup_after": 0.8326,
+     "earlier_copy_share_dup_before": 0.1594,
+     "original_name_share_dup_after": 0.8326,
+     "original_name_share_dup_before": 0.8406,
+     "median_abs_log_ratio": 1.875,
+     "mass_conservation": 1.0881
+    },
+    "banking77": {
+     "items": 16,
+     "earlier_copy_share_dup_after": 0.8535,
+     "earlier_copy_share_dup_before": 0.1458,
+     "original_name_share_dup_after": 0.8535,
+     "original_name_share_dup_before": 0.8542,
+     "median_abs_log_ratio": 1.875,
+     "mass_conservation": 1.021
+    }
+   }
+  },
+  "cardinality": {
+   "records": 132,
+   "errors": 2,
+   "result": {
+    "per_k": {
+     "2": {
+      "n": 16,
+      "error_rate": 0.0,
+      "accuracy": 1.0,
+      "mean_p_gold": 0.9931,
+      "input_tokens": 64.75,
+      "latency_p50_ms": 453.7
+     },
+     "4": {
+      "n": 16,
+      "error_rate": 0.0,
+      "accuracy": 0.9375,
+      "mean_p_gold": 0.9381,
+      "input_tokens": 83.125,
+      "latency_p50_ms": 471.7
+     },
+     "8": {
+      "n": 16,
+      "error_rate": 0.0,
+      "accuracy": 0.9375,
+      "mean_p_gold": 0.9225,
+      "input_tokens": 125.5,
+      "latency_p50_ms": 459.9
+     },
+     "16": {
+      "n": 16,
+      "error_rate": 0.0,
+      "accuracy": 1.0,
+      "mean_p_gold": 0.928,
+      "input_tokens": 206.375,
+      "latency_p50_ms": 478.5
+     },
+     "26": {
+      "n": 16,
+      "error_rate": 0.0,
+      "accuracy": 0.9375,
+      "mean_p_gold": 0.929,
+      "input_tokens": 306.875,
+      "latency_p50_ms": 471.9
+     },
+     "27": {
+      "n": 16,
+      "error_rate": 0.0,
+      "accuracy": 0.9375,
+      "mean_p_gold": 0.9104,
+      "input_tokens": 317.5,
+      "latency_p50_ms": 452.2
+     },
+     "40": {
+      "n": 16,
+      "error_rate": 0.0,
+      "accuracy": 0.9375,
+      "mean_p_gold": 0.9201,
+      "input_tokens": 447.375,
+      "latency_p50_ms": 480.6
+     },
+     "77": {
+      "n": 16,
+      "error_rate": 0.0,
+      "accuracy": 0.8125,
+      "mean_p_gold": 0.8485,
+      "input_tokens": 816.875,
+      "latency_p50_ms": 470.8
+     }
+    },
+    "tokens_per_option": 10.04,
+    "tokens_at_k0": 45.1,
+    "tokens_per_option_16_to_26": 10.05,
+    "tokens_per_option_26_to_27": 10.62,
+    "latency_ms_per_option": 0.14,
+    "limits": {
+     "k256": "error: HTTPError: HTTP 400: {\"error\":{\"code\":\"unsupported_request_argument\",\"message\":\"Model does not support request argument ",
+     "k255": "accepted"
+    }
+   }
+  },
+  "question": {
+   "records": 160,
+   "errors": 0,
+   "result": {
+    "banking77": {
+     "accuracy_listed_first": 0.5,
+     "accuracy_listed_last": 0.5,
+     "accuracy_match": 1.0,
+     "accuracy_not_match": 1.0,
+     "same_as_match_listed_first": 0.5,
+     "same_as_match_listed_last": 0.5,
+     "same_as_match_not_match": 0.0
+    },
+    "ace": {
+     "accuracy_listed_first": 1.0,
+     "accuracy_listed_last": 0.75
+    }
+   }
+  },
+  "empty_state": {
+   "records": 20,
+   "errors": 0,
+   "result": {
+    "banking77": {
+     "empty": {
+      "errors": 0,
+      "norm_entropy": 0.9533,
+      "p_first_position": 0.1612,
+      "p_last_position": 0.161,
+      "uniform": 0.125,
+      "top_value": "pending_top_up",
+      "top_value_p": 0.2006
+     },
+     "na": {
+      "errors": 0,
+      "norm_entropy": 0.9083,
+      "p_first_position": 0.1392,
+      "p_last_position": 0.1488,
+      "uniform": 0.125,
+      "top_value": "beneficiary_not_allowed",
+      "top_value_p": 0.2926
+     },
+     "no_info": {
+      "errors": 0,
+      "norm_entropy": 0.8958,
+      "p_first_position": 0.1575,
+      "p_last_position": 0.1653,
+      "uniform": 0.125,
+      "top_value": "beneficiary_not_allowed",
+      "top_value_p": 0.287
+     },
+     "lorem": {
+      "errors": 0,
+      "norm_entropy": 0.9081,
+      "p_first_position": 0.1533,
+      "p_last_position": 0.1533,
+      "uniform": 0.125,
+      "top_value": "beneficiary_not_allowed",
+      "top_value_p": 0.27
+     }
+    },
+    "ace": {
+     "empty": {
+      "errors": 0,
+      "norm_entropy": 0.8623,
+      "p_first_position": 0.3163,
+      "p_last_position": 0.3432,
+      "uniform": 0.3333,
+      "top_value": "Not-Applicable",
+      "top_value_p": 0.5998
+     },
+     "na": {
+      "errors": 0,
+      "norm_entropy": 0.0428,
+      "p_first_position": 0.3332,
+      "p_last_position": 0.3334,
+      "uniform": 0.3333,
+      "top_value": "Not-Applicable",
+      "top_value_p": 0.9928
+     },
+     "no_info": {
+      "errors": 0,
+      "norm_entropy": 0.0156,
+      "p_first_position": 0.3334,
+      "p_last_position": 0.333,
+      "uniform": 0.3333,
+      "top_value": "Not-Applicable",
+      "top_value_p": 0.9978
+     },
+     "lorem": {
+      "errors": 0,
+      "norm_entropy": 0.0331,
+      "p_first_position": 0.3337,
+      "p_last_position": 0.333,
+      "uniform": 0.3333,
+      "top_value": "Not-Applicable",
+      "top_value_p": 0.9946
+     }
+    }
+   }
+  },
+  "multi_question": {
+   "records": 64,
+   "errors": 0,
+   "result": {
+    "items": 16,
+    "shared_tokens_mean": 718.0625,
+    "shared_fraction_of_q1_request": 0.8227,
+    "marginal_tokens_same_question_again": 116.0,
+    "max_abs_dp_q1_alone_vs_combined": 0.047602,
+    "max_abs_dp_q2_alone_vs_combined": 0.04913,
+    "max_abs_dp_duplicate_question": 0.0,
+    "latency_ratio_combined_vs_q1": 1.1124
+   }
+  },
+  "determinism": {
+   "records": 60,
+   "errors": 0,
+   "result": {
+    "banking77": {
+     "items": 6,
+     "identical_all_repeats": 0.0,
+     "max_abs_dp": 0.04343942,
+     "choice_flips": 0.0
+    },
+    "ace": {
+     "items": 6,
+     "identical_all_repeats": 0.0,
+     "max_abs_dp": 0.02552736,
+     "choice_flips": 0.0
+    }
+   }
+  },
+  "tokens": {
+   "records": 18,
+   "errors": 0,
+   "result": {
+    "billed_input_tokens": {
+     "hello": 40,
+     "japanese": 45,
+     "apple_x02": 41,
+     "digits": 49,
+     "sql": 50,
+     "spaces": 42,
+     "apple_x32": 71,
+     "hello_world": 43,
+     "code": 51,
+     "apple_x16": 55,
+     "x": 40,
+     "russian": 46,
+     "apple_x04": 43,
+     "pi": 55,
+     "apple_x01": 40,
+     "url": 48,
+     "emoji": 46,
+     "apple_x08": 47
+    },
+    "tokens_per_apple": 1.0,
+    "tokenizer_fits": {
+     "Qwen/Qwen3.5-9B": {
+      "hidden_prompt_tokens": 39,
+      "exact_fit_fraction": 0.667
+     },
+     "openai/gpt-oss-20b": {
+      "hidden_prompt_tokens": 38,
+      "exact_fit_fraction": 0.333
+     }
+    },
+    "best_tokenizer": "Qwen/Qwen3.5-9B"
+   }
+  },
+  "duplicate_names": {
+   "records": 160,
+   "errors": 0,
+   "result": {
+    "ace": {
+     "items": 16,
+     "first_share_neutral": 0.4505,
+     "original_share_suffix_copy": 0.8499,
+     "original_share_unrelated": 0.7784,
+     "pair_mass_neutral": 0.7656,
+     "pair_mass_suffix_copy": 0.7901,
+     "pair_mass_swap_after": 0.7926,
+     "pair_mass_swap_before": 0.7965,
+     "pair_mass_unrelated": 0.7774,
+     "plain_name_share_swap_after": 0.8413,
+     "plain_name_share_swap_before": 0.8412
+    },
+    "banking77": {
+     "items": 16,
+     "first_share_neutral": 0.4249,
+     "original_share_suffix_copy": 0.911,
+     "original_share_unrelated": 0.994,
+     "pair_mass_neutral": 0.838,
+     "pair_mass_suffix_copy": 0.9481,
+     "pair_mass_swap_after": 0.9465,
+     "pair_mass_swap_before": 0.9475,
+     "pair_mass_unrelated": 0.9433,
+     "plain_name_share_swap_after": 0.8525,
+     "plain_name_share_swap_before": 0.8567
+    }
+   }
+  },
+  "long_options": {
+   "records": 112,
+   "errors": 0,
+   "result": {
+    "per_variant": {
+     "end_010": {
+      "n": 16,
+      "accuracy": 0.875,
+      "mean_p_gold": 0.9232,
+      "input_tokens": 536.875
+     },
+     "end_040": {
+      "n": 16,
+      "accuracy": 0.875,
+      "mean_p_gold": 0.9231,
+      "input_tokens": 1856.875
+     },
+     "end_150": {
+      "n": 16,
+      "accuracy": 0.9375,
+      "mean_p_gold": 0.9121,
+      "input_tokens": 6696.875
+     },
+     "start_000": {
+      "n": 16,
+      "accuracy": 1.0,
+      "mean_p_gold": 0.9375,
+      "input_tokens": 96.875
+     },
+     "start_010": {
+      "n": 16,
+      "accuracy": 0.9375,
+      "mean_p_gold": 0.9175,
+      "input_tokens": 536.875
+     },
+     "start_040": {
+      "n": 16,
+      "accuracy": 0.9375,
+      "mean_p_gold": 0.9194,
+      "input_tokens": 1856.875
+     },
+     "start_150": {
+      "n": 16,
+      "accuracy": 0.9375,
+      "mean_p_gold": 0.9226,
+      "input_tokens": 6696.875
+     }
+    },
+    "tokens_per_filler_repeat": 44.0,
+    "errors": {}
+   }
+  },
+  "paraphrase": {
+   "records": 500,
+   "errors": 0,
+   "result": {
+    "ace": {
+     "items": 50,
+     "per_variant": {
+      "original": {
+       "accuracy": 0.84
+      },
+      "minimal": {
+       "accuracy": 0.82,
+       "flip_rate": 0.08,
+       "mean_tv": 0.0357
+      },
+      "para1": {
+       "accuracy": 0.82,
+       "flip_rate": 0.06,
+       "mean_tv": 0.0329
+      },
+      "para2": {
+       "accuracy": 0.84,
+       "flip_rate": 0.06,
+       "mean_tv": 0.0344
+      },
+      "para3": {
+       "accuracy": 0.9,
+       "flip_rate": 0.08,
+       "mean_tv": 0.0843
+      }
+     },
+     "paraphrase_flip_rate": 0.0667,
+     "items_consistent_paraphrases": 0.88
+    },
+    "banking77": {
+     "items": 50,
+     "per_variant": {
+      "original": {
+       "accuracy": 0.96
+      },
+      "minimal": {
+       "accuracy": 0.96,
+       "flip_rate": 0.0,
+       "mean_tv": 0.0222
+      },
+      "para1": {
+       "accuracy": 0.96,
+       "flip_rate": 0.0,
+       "mean_tv": 0.0113
+      },
+      "para2": {
+       "accuracy": 0.96,
+       "flip_rate": 0.0,
+       "mean_tv": 0.0066
+      },
+      "para3": {
+       "accuracy": 0.94,
+       "flip_rate": 0.02,
+       "mean_tv": 0.0088
+      }
+     },
+     "paraphrase_flip_rate": 0.0067,
+     "items_consistent_paraphrases": 0.98
+    }
+   }
+  }
+ },
+ "forensics": {
+  "answers": 1624,
+  "logit_grid_share": {
+   "0.125": 0.7746,
+   "0.25": 0.1367,
+   "0.5": 0.0326,
+   "0.0625": 0.0308,
+   "1": 0.024,
+   "none": 0.0012
+  },
+  "logit_grid_main_step": "0.125",
+  "bf16_logit_magnitude_if_main_step": "[16, 32)",
+  "confidence_is_jev_formula": 1.0,
+  "confidence_is_max_prob": 0.0,
+  "max_abs_sum_error": 2.220446049250313e-16,
+  "choice_is_argmax": 0.9982,
+  "output_tokens": {
+   "1": 1592,
+   "2": 32
+  },
+  "latency_p50_ms": 485.0,
+  "latency_p95_ms": 886.3
+ }
+}

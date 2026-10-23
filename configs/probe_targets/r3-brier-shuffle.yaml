@@ -1,0 +1,8 @@
+name: r3-brier-shuffle
+kind: local_readout
+description: Qwen3.5-2B + LoRA arm `brier_shuffle` (Brier score, options shuffled every example).
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-2b
+  adapter: training/brier_shuffle

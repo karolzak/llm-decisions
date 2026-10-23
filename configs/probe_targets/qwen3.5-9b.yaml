@@ -1,0 +1,7 @@
+name: qwen3.5-9b
+kind: local_readout
+description: Frozen Qwen3.5-9B (Decision-1's base model), option-letter readout, no training.
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-9b   # configs/models/qwen3.5-9b.yaml

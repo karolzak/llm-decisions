@@ -1,0 +1,8 @@
+name: jev
+kind: systemone
+description: TypeSafe Jev (pinned version). Needs TYPESAFE_API_KEY.
+url: https://api.typesafe.ai/v1/systemone
+auth: env:TYPESAFE_API_KEY
+model: jev-1.13.0
+max_options: 255
+concurrency: 4

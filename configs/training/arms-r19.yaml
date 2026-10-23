@@ -1,0 +1,40 @@
+# R19 candidate replica: the R9b-kl recipe, unchanged (chosen beforehand by the lowest mean
+# calibration-split NLL over ACE short / verbose / BANKING77 among all trained 9B arms).
+# Retrained because adapters stay in their job's outputs; also a rerun check of R9b-kl.
+# Evaluated with byte-sorted options (F20) on ACE, BANKING77 and unseen benchmarks (R19).
+base_model: qwen3.5-9b
+corpus: corpus-r9
+loss: ce_brier
+shuffle: true
+max_steps: 600
+batch_size: 16
+lr: 1.0e-4
+warmup_steps: 30
+max_tokens: 2048
+lora: {r: 16, alpha: 32, dropout: 0.05}
+eval_every: 100
+eval_rows: 300
+seed: 0
+readout: {labels: codes}
+aug: {decoy: 0.08, negation: 0.05, empty: 0.05, paraphrase: 0.2,
+      mismatch: 0.06, none_option: 0.1, empty_none: 0.6, none_aware: true}
+checkpoint_every: 50
+arms:
+  r19_candidate:
+    kl_weight: 1.0
+    kl_kinds: [plain, paraphrase, none_option]
+    experiment: r19_candidate
+    probe_target: r19-candidate
+  # Seed reruns (noise floor for every arm comparison): same config, other seeds.
+  r19_seed1:
+    seed: 1
+    kl_weight: 1.0
+    kl_kinds: [plain, paraphrase, none_option]
+    experiment: r19_seed1
+    probe_target: r19-seed1
+  r19_seed2:
+    seed: 2
+    kl_weight: 1.0
+    kl_kinds: [plain, paraphrase, none_option]
+    experiment: r19_seed2
+    probe_target: r19-seed2

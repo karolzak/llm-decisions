@@ -1,0 +1,15 @@
+id: r2_qwen35_9b_numbers
+description: "Frozen Qwen3.5-9B, option readout with numbered options (1, 2, ...), multi-digit labels scored exactly digit by digit: any number of options in one pass."
+leaderboards: [replication]
+supervision: zero_shot
+dataset: banking77
+label_catalogs: [short, verbose]
+method:
+  type: local_chat_readout
+  model: qwen3.5-9b
+  params:
+    readout: {labels: numbers}
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

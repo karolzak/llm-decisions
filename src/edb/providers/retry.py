@@ -7,6 +7,7 @@ import random
 
 import httpx
 import openai
+from azure.core.exceptions import ClientAuthenticationError
 
 RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
 
@@ -46,6 +47,9 @@ def classify(exc: BaseException) -> tuple[bool, float | None]:
     if isinstance(exc, openai.APIConnectionError | openai.APITimeoutError):
         return True, None
     if isinstance(exc, httpx.TransportError | asyncio.TimeoutError | TimeoutError):
+        return True, None
+    # Entra token fetches (e.g. an `az` CLI subprocess timing out) fail transiently.
+    if isinstance(exc, ClientAuthenticationError):
         return True, None
     return False, None
 

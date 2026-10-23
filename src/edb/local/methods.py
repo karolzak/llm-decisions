@@ -235,11 +235,12 @@ class LocalCrossEncoder(LocalMethod):
 
 
 def local_method_types() -> dict[str, type[DecisionMethod]]:
+    from edb.local.chat_readout import LocalChatReadout
     from edb.local.listwise import LocalListwiseHead
     from edb.local.readout import LocalEarlyExitHead, LocalLetterReadout, LocalReasonThenRead
 
     methods: list[type[DecisionMethod]] = [LocalAutoregressive, LocalSequenceScoring,
                                            LocalCrossEncoder, LocalListwiseHead,
                                            LocalLetterReadout, LocalEarlyExitHead,
-                                           LocalReasonThenRead]
+                                           LocalReasonThenRead, LocalChatReadout]
     return {m.type: m for m in methods}

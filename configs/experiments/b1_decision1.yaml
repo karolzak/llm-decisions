@@ -1,6 +1,6 @@
 id: b1_decision1
 description: Microsoft-Decision-1 on Azure AI Foundry (systemone choice question).
-leaderboards: [product]
+leaderboards: [product, replication]
 dataset: ace
 label_catalogs: [short, verbose]
 method:

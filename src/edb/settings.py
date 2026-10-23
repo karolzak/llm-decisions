@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # Direct OpenAI platform access (OpenAI Decisions API is not served by Azure yet).
     openai_api_key: str | None = Field(default=None, repr=False)
     openai_base_url_direct: str = "https://api.openai.com/v1/"
+    # TypeSafe (Jev) API key, only for probing Jev (configs/probe_targets/jev.yaml).
+    typesafe_api_key: str | None = Field(default=None, repr=False)
 
     hf_token: str | None = Field(default=None, repr=False)
 

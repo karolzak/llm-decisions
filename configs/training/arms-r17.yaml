@@ -1,0 +1,26 @@
+# R17: R9b-kl's recipe on corpus-r17 (R9 mix + Bitext retail-banking and customer-support
+# intents). Compared with R9b-kl, it measures how much domain-matched routing data moves
+# BANKING77 (docs/replication.md, open question 1).
+base_model: qwen3.5-9b
+corpus: corpus-r17
+loss: ce_brier
+shuffle: true
+max_steps: 600
+batch_size: 16
+lr: 1.0e-4
+warmup_steps: 30
+max_tokens: 2048
+lora: {r: 16, alpha: 32, dropout: 0.05}
+eval_every: 100
+eval_rows: 300
+seed: 0
+readout: {labels: codes}
+aug: {decoy: 0.08, negation: 0.05, empty: 0.05, paraphrase: 0.2,
+      mismatch: 0.06, none_option: 0.1, empty_none: 0.6, none_aware: true}
+checkpoint_every: 50
+arms:
+  r17_routing:
+    kl_weight: 1.0
+    kl_kinds: [plain, paraphrase, none_option]
+    experiment: r17_routing
+    probe_target: r17-routing

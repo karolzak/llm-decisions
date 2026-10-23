@@ -1,0 +1,30 @@
+# R15: all three question types (docs/replication.md, F15-F16).
+# R9b's recipe (code labels for choices, "none" option, interface augmentations, CE+Brier,
+# KL to the frozen base) plus score and noul rows (configs/training/corpus-r15.yaml), read
+# with the templates R14 adopted: true/false words for noul, digit-labelled levels for score.
+# Score rows add a ranked-probability-score term. KL also covers score and noul rows: the
+# frozen base already answers them like Decision-1 (F16), so training should keep that.
+base_model: qwen3.5-9b
+corpus: corpus-r15
+loss: ce_brier
+shuffle: true
+max_steps: 600
+batch_size: 16
+lr: 1.0e-4
+warmup_steps: 30
+max_tokens: 2048
+lora: {r: 16, alpha: 32, dropout: 0.05}
+eval_every: 100
+eval_rows: 300
+seed: 0
+readout: {labels: codes, noul_style: truefalse, score_style: digits}
+rps_weight: 0.5
+kl_weight: 1.0
+kl_kinds: [plain, paraphrase, none_option, score, noul]
+aug: {decoy: 0.08, negation: 0.05, empty: 0.05, paraphrase: 0.2,
+      mismatch: 0.06, none_option: 0.1, empty_none: 0.6, none_aware: true}
+checkpoint_every: 50
+arms:
+  r15_typed:
+    experiment: r15_typed
+    probe_target: r15-typed

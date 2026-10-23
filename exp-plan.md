@@ -4,7 +4,8 @@
 > because Azure does not serve the OpenAI Decisions API; A3 infeasible because GPT-6 Luna
 > rejects logprobs; added readouts C2+, C6–C9, a second dataset, BANKING77), are described in
 > the [README](README.md), [docs/methods.md](docs/methods.md) and
-> [docs/results/](docs/results/).
+> [docs/results/](docs/results/). The follow-up study of *how* decision models work (R-series),
+> with its findings and next experiments, is in [docs/replication.md](docs/replication.md).
 
 ## Background context
 
@@ -146,7 +147,7 @@ Score all candidates.
 This tests whether Jev-like shared-state computation provides a meaningful
 latency advantage.
 
-D1 and D2 should produce approximately identical scores.
+Both (C2 and C3 in the README) should produce approximately identical scores.
 
 ### C4 — Cross-encoder scoring
 

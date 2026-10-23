@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,6 +19,8 @@ ENV_NAME = "edb-base"
 # registry under the private-storage policy). run_job.sh installs the locked requirements.
 BASE_IMAGE = "mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04:latest"
 TERMINAL = {"Completed", "Failed", "Canceled", "NotResponding"}
+# Folders under a job's ARTIFACTS_DIR that scripts/aml_collect.py downloads.
+ARTIFACT_DIRS = ("runs/", "latency/", "probes/", "training/")
 
 
 def status_of(job) -> str:
@@ -93,35 +96,76 @@ def job_key(experiment: str, catalog: str) -> str:
     return f"{experiment}__{catalog}"
 
 
+def git_source(ref: str) -> tuple[str, str]:
+    """(commit sha, tarball URL) for `ref`, which must already be pushed to a public GitHub
+    `origin`. Jobs submitted from source download that exact commit, so no code is uploaded
+    to the workspace storage."""
+    def git(*args: str) -> str:
+        return subprocess.check_output(["git", *args], cwd=REPO_ROOT, text=True).strip()
+
+    sha = git("rev-parse", "--verify", f"{ref}^{{commit}}")
+    if not git("branch", "-r", "--contains", sha):
+        raise RuntimeError(f"commit {sha[:12]} is not on any remote branch; push it first")
+    m = re.match(r"(?:https://github\.com/|git@github\.com:)([^/]+)/(.+?)(?:\.git)?$",
+                 git("remote", "get-url", "origin"))
+    if not m:
+        raise RuntimeError("origin is not a GitHub repository")
+    return sha, f"https://codeload.github.com/{m.group(1)}/{m.group(2)}/tar.gz/{sha}"
+
+
 def submit(ml, *, environment: str, dataset: str, experiment: str, catalog: str,
-           splits: list[str], tag: str, extra_args: list[str], compute: str | None = None) -> str:
+           splits: list[str], tag: str, extra_args: list[str], compute: str | None = None,
+           git_ref: str | None = None) -> str:
     """Submit one job running a single experiment x catalog unit."""
+    args = ["scripts/run_experiment.py", "--experiment", experiment, "--catalog", catalog,
+            "--dataset", dataset, "--split", *splits, *extra_args]
+    return submit_script(ml, environment=environment, group=dataset,
+                         key=job_key(experiment, catalog), args=args, tag=tag,
+                         compute=compute, splits=splits, git_ref=git_ref)
+
+
+def submit_script(ml, *, environment: str, group: str, key: str, args: list[str], tag: str,
+                  compute: str | None = None, splits: list[str] | None = None,
+                  git_ref: str | None = None) -> str:
+    """Submit one job running `python <args>` (a repo script) with a resumable output folder
+    at edb/<tag>/<group>/<key>/ that mirrors ARTIFACTS_DIR (runs/, probes/, training/, ...).
+
+    `git_ref`: run a pushed commit downloaded from GitHub instead of uploading the local
+    working tree (for machines that cannot reach the workspace storage)."""
     from azure.ai.ml import Output, command
     from azure.ai.ml.entities import UserIdentityConfiguration
 
-    key = job_key(experiment, catalog)
-    args = ["scripts/run_experiment.py", "--experiment", experiment, "--catalog", catalog,
-            "--dataset", dataset, "--split", *splits, *extra_args]
     compute = compute or get_settings().aml_compute
     if not compute:
         raise RuntimeError("AML_COMPUTE not set (see .env.example) and no --compute given")
+    run = "bash infra/aml/run_job.sh ${{outputs.artifacts}} -- " + " ".join(args)
+    code: str | None = str(REPO_ROOT)
+    sha = None
+    if git_ref:
+        sha, url = git_source(git_ref)
+        code = None
+        run = ("(command -v curl >/dev/null || (apt-get update -qq && apt-get install -y -qq "
+               "curl ca-certificates)) && mkdir -p repo && "
+               f"curl -fsSL --retry 5 {url} | tar xz --strip-components=1 -C repo && "
+               f"cd repo && {run}")
     job = command(
-        code=str(REPO_ROOT),
-        command="bash infra/aml/run_job.sh ${{outputs.artifacts}} -- " + " ".join(args),
+        code=code,
+        command=run,
         environment=environment,
         compute=compute,
         # Storage is key-less (identity-based datastores): jobs access data as the submitter.
         identity=UserIdentityConfiguration(),
         outputs={"artifacts": Output(type="uri_folder", mode="rw_mount",
-                                     path=output_path(tag, dataset, key))},
-        experiment_name=f"edb-{dataset}-{tag}",
-        display_name=f"{key}-{'-'.join(splits)}",
-        tags={"run_id": key, "splits": ",".join(splits), "tag": tag},
+                                     path=output_path(tag, group, key))},
+        experiment_name=f"edb-{group}-{tag}",
+        display_name=f"{key}-{'-'.join(splits)}" if splits else key,
+        tags={"run_id": key, "splits": ",".join(splits or []), "tag": tag,
+              **({"git_sha": sha} if sha else {})},
     )
     created = ml.jobs.create_or_update(job)
-    record({"name": created.name, "run_id": key, "dataset": dataset, "splits": splits,
+    record({"name": created.name, "run_id": key, "dataset": group, "splits": splits or [],
             "tag": tag, "args": args, "compute": compute, "studio_url": created.studio_url,
-            "submitted_at": datetime.now(UTC).isoformat(timespec="seconds")})
+            "git_sha": sha, "submitted_at": datetime.now(UTC).isoformat(timespec="seconds")})
     return created.name
 
 
@@ -162,7 +206,8 @@ def collect(ml, entries: list[dict[str, Any]], dest_root: Path, only_terminal: b
 
 
 def download_output(ml, output_uri: str, dest_root: Path) -> int:
-    """Copy `runs/` and `latency/` from a job's blob output folder into `dest_root`.
+    """Copy the artifact folders (`runs/`, `latency/`, `probes/`, `training/`) from a job's
+    blob output folder into `dest_root`.
 
     Reads the datastore directly with the caller's Entra identity (the SDK's job download
     does not fetch outputs bound to a custom datastore path).
@@ -178,7 +223,7 @@ def download_output(ml, output_uri: str, dest_root: Path) -> int:
                             credential=_credential())
     container = svc.get_container_client(ds.container_name)
     count = 0
-    for sub in ("runs/", "latency/"):
+    for sub in ARTIFACT_DIRS:
         for blob in container.list_blobs(name_starts_with=prefix + sub, include=["metadata"]):
             if (blob.metadata or {}).get("hdi_isfolder") == "true" or blob.name.endswith(".lock"):
                 continue

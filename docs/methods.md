@@ -7,13 +7,16 @@ All methods answer the same bounded question: given a **state** (e.g. contract c
 scenario, or a customer message) and a fixed list of **K options** (labels, optionally with a
 description), return a probability for each option.
 
-The methods fall into two separate parts that are evaluated and reported separately, never
+The methods fall into separate parts that are evaluated and reported separately, never
 ranked against each other:
 
 - **Part 1 — products and baselines (A, B, S):** hosted models called through APIs (GPT-6 Luna,
   Microsoft-Decision-1, `text-embedding-3-large`). We control only the request.
 - **Part 2 — open-weight model (C):** one local model, `openai/gpt-oss-20b`, with identical
   weights in every experiment. Only the readout changes.
+- **Part 3 — replication study (R):** probes of Decision-1 itself, its frozen base model
+  (Qwen3.5-9B), and decision-trained Qwen3.5-2B arms and Qwen3.5-9B replicas, to understand
+  how decision models work.
 
 ## Key terms
 
@@ -66,7 +69,9 @@ flowchart LR
 ```
 
 A purpose-built decision model on Azure AI Foundry: the state and the options go in, a
-distribution comes out. No text is generated or parsed. Its internals are not documented. The
+distribution comes out. No text is generated or parsed. Microsoft does not document its
+internals; our probes found a post-trained Qwen3.5-9B reading one bf16 softmax over the
+options, sorted byte-wise by name ([replication.md](replication.md), F1–F21). The
 OpenAI Decisions API (A2, the same idea on GPT-6 Luna) returns 404 on Azure and is disabled.
 
 ## S1 — Embedding baselines
@@ -336,3 +341,59 @@ flowchart LR
 C2 with one forward pass per candidate (no batching or padding). It is not on the leaderboard;
 it showed that C2 vs. C3 differences come from bf16 numerics that depend on the batch shape
 (median about 0.1 nats), not from a bug.
+
+---
+
+# Part 3 — How do decision models work? (R-series)
+
+Full description, hypotheses and commands: [replication.md](replication.md).
+
+```mermaid
+flowchart LR
+  subgraph R0["R0 probes (API)"]
+    P["perturbed requests:<br/>reorder, rename, duplicate options,<br/>change the question, empty state,<br/>2 questions, K = 2..256"] --> D1["Decision-1<br/>(Jev, OpenAI Decisions)"]
+    D1 --> F["forensics: bf16 logit grid,<br/>confidence formula, tokens"]
+  end
+  subgraph R2["R2 frozen base"]
+    Q9["Qwen3.5-9B, untrained<br/>letter readout"] --> CMP["example-by-example<br/>comparison with Decision-1"]
+  end
+  subgraph R3["R3 training arms"]
+    C["8 public tasks<br/>(not ACE / BANKING77)"] --> L["Qwen3.5-2B + LoRA<br/>shuffle vs. fixed order,<br/>CE vs. Brier"]
+    L --> E["zero-shot ACE / BANKING77<br/>+ the same probes"]
+  end
+  subgraph R9["R9–R24 9B replicas"]
+    C9["routing + classification mix,<br/>'none' option, decoys,<br/>score / yes-no rows"] --> L9["Qwen3.5-9B + LoRA<br/>CE + Brier + KL, or RL"]
+    L9 --> E9["ACE / BANKING77 + unseen sets<br/>(MInDS-14, ATIS, ContractNLI)<br/>+ the same probes"]
+  end
+```
+
+## R2–R24 — Chat-model option-label readout (`local_chat_readout`)
+
+```mermaid
+flowchart LR
+  P["one user message:<br/>&lt;state&gt; &lt;question&gt;<br/>A. option: criterion<br/>B. ..."] --> T["model's own chat template<br/>(thinking off)"]
+  T --> M["ONE forward pass"]
+  M --> V["next-token distribution"]
+  V --> S["sum every token that decodes<br/>to each letter (A, ' A', ...)"]
+  S --> SM["renormalise over the K letters"]
+```
+
+The recipe of the open "System One" replicas that read instruct models (Cygnet, SemIf, Quyet,
+H2O-Lightning). Unlike C6, it uses a non-reasoning chat template (no skipped analysis channel)
+and sums all token variants of each letter. More than 26 options are scored in groups, then
+the group winners against each other. R3 trains a LoRA adapter on exactly this prompt and
+readout.
+
+Readout settings added for the 9B replicas (`ReadoutConfig` in `src/edb/local/chat_readout.py`):
+
+- **`labels`:**
+  - `letters` (default);
+  - `codes`: A–Z, then the 562 single-token two-letter codes, up to 588 options in one pass;
+  - `numbers`: multi-digit labels scored digit by digit.
+- **`option_order: sorted`:** choice options are shown sorted byte-wise by name, as
+  Decision-1 does. Probabilities still map back to the caller's order. Score levels are
+  never sorted.
+- **`noul_style` / `score_style`:** yes/no questions as `true` / `false` (or `yes` / `no`)
+  words; score levels labelled by digit `0`–`9` as options or as a scale (R14).
+- **Shared state (`answer_shared`):** questions about one state share their prompt prefix,
+  which is encoded once; the questions are then read in batches from the cached prefix (R16).

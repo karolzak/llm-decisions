@@ -1,0 +1,37 @@
+# R9b: R9 corrected (docs/replication.md, "R9 result").
+# R9 lost ACE accuracy, most likely because it learned to answer uninformative states
+# uniformly where Decision-1 picks Not-Applicable. R9b teaches a "none" option instead:
+#   - empty state: target the "none" option when one is listed (added to 60% of them),
+#     otherwise uniform
+#   - mismatch: the state of another task + a "none" option -> "none"
+#   - none_option: a "none" option as a distractor on ordinary rows -> gold unchanged,
+#     so "none" is not picked by default
+# Two arms isolate the KL anchor: R9 (KL 0.3) stayed position-aware, the 2B arms (no KL)
+# became position-blind.
+base_model: qwen3.5-9b
+corpus: corpus-r9
+loss: ce_brier
+shuffle: true
+max_steps: 600
+batch_size: 16
+lr: 1.0e-4
+warmup_steps: 30
+max_tokens: 2048
+lora: {r: 16, alpha: 32, dropout: 0.05}
+eval_every: 100
+eval_rows: 300
+seed: 0
+readout: {labels: codes}
+aug: {decoy: 0.08, negation: 0.05, empty: 0.05, paraphrase: 0.2,
+      mismatch: 0.06, none_option: 0.1, empty_none: 0.6, none_aware: true}
+checkpoint_every: 50
+arms:
+  r9b_kl:
+    kl_weight: 1.0
+    kl_kinds: [plain, paraphrase, none_option]
+    experiment: r9b_kl
+    probe_target: r9b-kl
+  r9b_nokl:
+    kl_weight: 0.0
+    experiment: r9b_nokl
+    probe_target: r9b-nokl

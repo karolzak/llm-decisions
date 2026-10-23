@@ -10,6 +10,7 @@ interrupted or rate-limited runs can simply be restarted.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import time
@@ -75,6 +76,8 @@ class RunSpec:
             if self.model else None,
             **({"local_scoring_version": LOCAL_SCORING_VERSION}
                if self.model and self.model.provider == "local_hf" else {}),
+            **({"adapter_sha256": adapter_fingerprint(adapter)}
+               if (adapter := self.experiment.method.params.get("adapter")) else {}),
         }
 
     def context(self, concurrency: int | None = None) -> MethodContext:
@@ -90,6 +93,15 @@ class RunSpec:
             run=run,
             settings=get_settings(),
         )
+
+
+def adapter_fingerprint(adapter: str) -> str | None:
+    """sha256 of a trained adapter's weights (None if not trained yet), so predictions made
+    with a retrained adapter never mix with older ones."""
+    path = Path(adapter)
+    path = (path if path.is_absolute() else get_settings().artifacts_dir / path)
+    weights = path / "adapter.safetensors"
+    return hashlib.sha256(weights.read_bytes()).hexdigest()[:16] if weights.exists() else None
 
 
 def resolve_runs(

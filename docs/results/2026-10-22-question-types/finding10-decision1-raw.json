@@ -1,0 +1,575 @@
+[
+ {
+  "state": "The hotel room was clean but the staff were rude and check-in took an hour.",
+  "raw": {
+   "model": "microsoft-decision-1",
+   "answers": {
+    "c5": {
+     "choice": "negative",
+     "confidence": 0.45795220878268483,
+     "probabilities": {
+      "mixed": 0.3892543703941817,
+      "negative": 0.5663617670261478,
+      "positive": 0.028197495377278243,
+      "very negative": 0.015093031656299575,
+      "very positive": 0.0010933355460926073
+     },
+     "type": "choice"
+    },
+    "c5_rev": {
+     "choice": "negative",
+     "confidence": 0.49044754550763137,
+     "probabilities": {
+      "mixed": 0.3592833320224298,
+      "negative": 0.5923580364061051,
+      "positive": 0.03341855560997152,
+      "very negative": 0.01393092326491995,
+      "very positive": 0.0010091526965736023
+     },
+     "type": "choice"
+    },
+    "c_ft": {
+     "choice": "false",
+     "confidence": 0.9881778634093894,
+     "probabilities": {
+      "false": 0.9940889317046947,
+      "true": 0.005911068295305319
+     },
+     "type": "choice"
+    },
+    "c_tf": {
+     "choice": "false",
+     "confidence": 0.9881778634093894,
+     "probabilities": {
+      "false": 0.9940889317046947,
+      "true": 0.005911068295305319
+     },
+     "type": "choice"
+    },
+    "c_yn": {
+     "choice": "no",
+     "confidence": 0.991859725504453,
+     "probabilities": {
+      "no": 0.9959298627522265,
+      "yes": 0.004070137247773484
+     },
+     "type": "choice"
+    },
+    "n_crit": {
+     "noul": 0.004070149266170407,
+     "type": "noul"
+    },
+    "n_neg": {
+     "noul": 0.9940889319150195,
+     "type": "noul"
+    },
+    "n_plain": {
+     "noul": 0.010986978281729605,
+     "type": "noul"
+    },
+    "s10": {
+     "confidence": 0.6347500455842924,
+     "legend": {
+      "0": "1/10 satisfaction",
+      "1": "2/10 satisfaction",
+      "2": "3/10 satisfaction",
+      "3": "4/10 satisfaction",
+      "4": "5/10 satisfaction",
+      "5": "6/10 satisfaction",
+      "6": "7/10 satisfaction",
+      "7": "8/10 satisfaction",
+      "8": "9/10 satisfaction",
+      "9": "10/10 satisfaction"
+     },
+     "probabilities": {
+      "0": 0.0007859820780901901,
+      "1": 0.003108619421687254,
+      "2": 0.09084719780690399,
+      "3": 0.6712750410258631,
+      "4": 0.2179310983451239,
+      "5": 0.013931865686016403,
+      "6": 0.001663924072374197,
+      "7": 0.0002551710209514233,
+      "8": 0.00013658320519110802,
+      "9": 6.451733779844237e-05
+     },
+     "score": 3.153454923186282,
+     "type": "score"
+    },
+    "s2": {
+     "confidence": 0.968187212377807,
+     "legend": {
+      "0": "no",
+      "1": "yes"
+     },
+     "probabilities": {
+      "0": 0.9840936061889035,
+      "1": 0.01590639381109648
+     },
+     "score": 0.01590639381109648,
+     "type": "score"
+    },
+    "s3": {
+     "confidence": 0.9161298058291378,
+     "legend": {
+      "0": "negative",
+      "1": "mixed",
+      "2": "positive"
+     },
+     "probabilities": {
+      "0": 0.05326171798582455,
+      "1": 0.9440865372194253,
+      "2": 0.0026517447947501356
+     },
+     "score": 0.9493900268089255,
+     "type": "score"
+    },
+    "s5": {
+     "confidence": 0.7390462219485525,
+     "legend": {
+      "0": "very negative",
+      "1": "negative",
+      "2": "mixed",
+      "3": "positive",
+      "4": "very positive"
+     },
+     "probabilities": {
+      "0": 0.00323360530734221,
+      "1": 0.2000560286485453,
+      "2": 0.791236977558842,
+      "3": 0.005331313851263926,
+      "4": 0.00014207463400651174
+     },
+     "score": 1.7990922238560472,
+     "type": "score"
+    },
+    "s5_digits": {
+     "confidence": 0.4415283031085624,
+     "legend": {
+      "0": "1",
+      "1": "2",
+      "2": "3",
+      "3": "4",
+      "4": "5"
+     },
+     "probabilities": {
+      "0": 0.007891298116903082,
+      "1": 0.43085022718159055,
+      "2": 0.5532226424868499,
+      "3": 0.007891298116903082,
+      "4": 0.00014453409775330004
+     },
+     "score": 1.561547542897013,
+     "type": "score"
+    },
+    "s5_rev": {
+     "confidence": 0.6909633809026307,
+     "legend": {
+      "0": "very positive",
+      "1": "positive",
+      "2": "mixed",
+      "3": "negative",
+      "4": "very negative"
+     },
+     "probabilities": {
+      "0": 0.00019666778243349983,
+      "1": 0.0018659319672514783,
+      "2": 0.7527707047221045,
+      "3": 0.24438885935975926,
+      "4": 0.0007778361684511436
+     },
+     "score": 2.243685264164543,
+     "type": "score"
+    }
+   },
+   "usage": {
+    "input_tokens": 493,
+    "output_tokens": 14
+   }
+  },
+  "input_tokens": 493,
+  "output_tokens": 14
+ },
+ {
+  "state": "Absolutely loved it. Friendly staff, great breakfast, would book again tomorrow.",
+  "raw": {
+   "model": "microsoft-decision-1",
+   "answers": {
+    "c5": {
+     "choice": "very positive",
+     "confidence": 0.9788472332402125,
+     "probabilities": {
+      "mixed": 0.00015577980904541748,
+      "negative": 0.0003736963352179642,
+      "positive": 0.012375123036049873,
+      "very negative": 0.004017614227516743,
+      "very positive": 0.9830777865921699
+     },
+     "type": "choice"
+    },
+    "c5_rev": {
+     "choice": "very positive",
+     "confidence": 0.9829663589580131,
+     "probabilities": {
+      "mixed": 0.00010742467403885153,
+      "negative": 0.00029201053936794624,
+      "positive": 0.009670060987871055,
+      "very negative": 0.0035574166323117692,
+      "very positive": 0.9863730871664105
+     },
+     "type": "choice"
+    },
+    "c_ft": {
+     "choice": "true",
+     "confidence": 0.9991388860198718,
+     "probabilities": {
+      "false": 0.0004305569900640863,
+      "true": 0.9995694430099359
+     },
+     "type": "choice"
+    },
+    "c_tf": {
+     "choice": "true",
+     "confidence": 0.9991388860198718,
+     "probabilities": {
+      "false": 0.0004305569900640863,
+      "true": 0.9995694430099359
+     },
+     "type": "choice"
+    },
+    "c_yn": {
+     "choice": "yes",
+     "confidence": 0.9991388858150805,
+     "probabilities": {
+      "no": 0.0004305570924597535,
+      "yes": 0.9995694429075402
+     },
+     "type": "choice"
+    },
+    "n_crit": {
+     "noul": 0.9992903295239898,
+     "type": "noul"
+    },
+    "n_neg": {
+     "noul": 0.0010322362365310631,
+     "type": "noul"
+    },
+    "n_plain": {
+     "noul": 0.999290329133952,
+     "type": "noul"
+    },
+    "s10": {
+     "confidence": 0.9549906624103797,
+     "legend": {
+      "0": "1/10 satisfaction",
+      "1": "2/10 satisfaction",
+      "2": "3/10 satisfaction",
+      "3": "4/10 satisfaction",
+      "4": "5/10 satisfaction",
+      "5": "6/10 satisfaction",
+      "6": "7/10 satisfaction",
+      "7": "8/10 satisfaction",
+      "8": "9/10 satisfaction",
+      "9": "10/10 satisfaction"
+     },
+     "probabilities": {
+      "0": 1.414214447214794e-05,
+      "1": 0.0050349497860018855,
+      "2": 1.602514913166201e-05,
+      "3": 2.6421004239512844e-05,
+      "4": 2.993892008247604e-05,
+      "5": 0.00013417693091135767,
+      "6": 0.00032187372458358603,
+      "7": 0.0020988793367726194,
+      "8": 0.032831996834463105,
+      "9": 0.9594915961693417
+     },
+     "score": 8.920640641336561,
+     "type": "score"
+    },
+    "s2": {
+     "confidence": 0.9981778972864199,
+     "legend": {
+      "0": "no",
+      "1": "yes"
+     },
+     "probabilities": {
+      "0": 0.0009110513567900173,
+      "1": 0.99908894864321
+     },
+     "score": 0.99908894864321,
+     "type": "score"
+    },
+    "s3": {
+     "confidence": 0.9990845258404821,
+     "legend": {
+      "0": "negative",
+      "1": "mixed",
+      "2": "positive"
+     },
+     "probabilities": {
+      "0": 0.0003798970237684907,
+      "1": 0.0002304190825767619,
+      "2": 0.9993896838936547
+     },
+     "score": 1.9990097868698862,
+     "type": "score"
+    },
+    "s5": {
+     "confidence": 0.9835505520458137,
+     "legend": {
+      "0": "very negative",
+      "1": "negative",
+      "2": "mixed",
+      "3": "positive",
+      "4": "very positive"
+     },
+     "probabilities": {
+      "0": 3.489220376039526e-05,
+      "1": 8.370204555287806e-05,
+      "2": 0.0006184791101854647,
+      "3": 0.012422485003850405,
+      "4": 0.9868404416366509
+     },
+     "score": 3.9859498818240784,
+     "type": "score"
+    },
+    "s5_digits": {
+     "confidence": 0.9507840305611079,
+     "legend": {
+      "0": "1",
+      "1": "2",
+      "2": "3",
+      "3": "4",
+      "4": "5"
+     },
+     "probabilities": {
+      "0": 0.00011855086173319708,
+      "1": 0.00015222231963565923,
+      "2": 0.001854446605376432,
+      "3": 0.037247555764368355,
+      "4": 0.9606272244488863
+     },
+     "score": 3.9581126806190388,
+     "type": "score"
+    },
+    "s5_rev": {
+     "confidence": 0.9975467768892599,
+     "legend": {
+      "0": "very positive",
+      "1": "positive",
+      "2": "mixed",
+      "3": "negative",
+      "4": "very negative"
+     },
+     "probabilities": {
+      "0": 0.9980374215114078,
+      "1": 0.001168581646617374,
+      "2": 0.0002954638520836919,
+      "3": 0.00020306913780740308,
+      "4": 0.0002954638520836919
+     },
+     "score": 0.0035505721725417345,
+     "type": "score"
+    }
+   },
+   "usage": {
+    "input_tokens": 491,
+    "output_tokens": 14
+   }
+  },
+  "input_tokens": 491,
+  "output_tokens": 14
+ },
+ {
+  "state": "Order #4471 arrived two weeks late and the box was crushed. Refund requested.",
+  "raw": {
+   "model": "microsoft-decision-1",
+   "answers": {
+    "c5": {
+     "choice": "very negative",
+     "confidence": 0.7965358675155325,
+     "probabilities": {
+      "mixed": 0.0018314302774591618,
+      "negative": 0.14548852739250928,
+      "positive": 0.008207901057574936,
+      "very negative": 0.837228694012426,
+      "very positive": 0.0072434472600307045
+     },
+     "type": "choice"
+    },
+    "c5_rev": {
+     "choice": "very negative",
+     "confidence": 0.7965358675155325,
+     "probabilities": {
+      "mixed": 0.0018314302774591618,
+      "negative": 0.14548852739250928,
+      "positive": 0.008207901057574936,
+      "very negative": 0.837228694012426,
+      "very positive": 0.0072434472600307045
+     },
+     "type": "choice"
+    },
+    "c_ft": {
+     "choice": "false",
+     "confidence": 0.9987473314827349,
+     "probabilities": {
+      "false": 0.9993736657413674,
+      "true": 0.000626334258632522
+     },
+     "type": "choice"
+    },
+    "c_tf": {
+     "choice": "false",
+     "confidence": 0.9987473314827349,
+     "probabilities": {
+      "false": 0.9993736657413674,
+      "true": 0.000626334258632522
+     },
+     "type": "choice"
+    },
+    "c_yn": {
+     "choice": "no",
+     "confidence": 0.9992400311168399,
+     "probabilities": {
+      "no": 0.99962001555842,
+      "yes": 0.0003799844415801328
+     },
+     "type": "choice"
+    },
+    "n_crit": {
+     "noul": 0.0007096736297890205,
+     "type": "noul"
+    },
+    "n_neg": {
+     "noul": 0.9986749769299572,
+     "type": "noul"
+    },
+    "n_plain": {
+     "noul": 0.0015011883826951521,
+     "type": "noul"
+    },
+    "s10": {
+     "confidence": 0.6054135935656064,
+     "legend": {
+      "0": "1/10 satisfaction",
+      "1": "2/10 satisfaction",
+      "2": "3/10 satisfaction",
+      "3": "4/10 satisfaction",
+      "4": "5/10 satisfaction",
+      "5": "6/10 satisfaction",
+      "6": "7/10 satisfaction",
+      "7": "8/10 satisfaction",
+      "8": "9/10 satisfaction",
+      "9": "10/10 satisfaction"
+     },
+     "probabilities": {
+      "0": 0.6448722342090457,
+      "1": 0.26882274198697487,
+      "2": 0.06796904152965104,
+      "3": 0.013383897829627024,
+      "4": 0.0015984786447708619,
+      "5": 0.0008556039628571511,
+      "6": 0.0009695263069494271,
+      "7": 0.00045797179940542776,
+      "8": 0.0004041586944463837,
+      "9": 0.0006663450362721465
+     },
+     "score": 0.47383778824808215,
+     "type": "score"
+    },
+    "s2": {
+     "confidence": 0.99889444263328,
+     "legend": {
+      "0": "no",
+      "1": "yes"
+     },
+     "probabilities": {
+      "0": 0.99944722131664,
+      "1": 0.0005527786833599922
+     },
+     "score": 0.0005527786833599922,
+     "type": "score"
+    },
+    "s3": {
+     "confidence": 0.9970878947671282,
+     "legend": {
+      "0": "negative",
+      "1": "mixed",
+      "2": "positive"
+     },
+     "probabilities": {
+      "0": 0.9980585965114188,
+      "1": 0.0009101117579463646,
+      "2": 0.001031291730634853
+     },
+     "score": 0.0029726952192160707,
+     "type": "score"
+    },
+    "s5": {
+     "confidence": 0.9257862373602759,
+     "legend": {
+      "0": "very negative",
+      "1": "negative",
+      "2": "mixed",
+      "3": "positive",
+      "4": "very positive"
+     },
+     "probabilities": {
+      "0": 0.9406289898882207,
+      "1": 0.053066657500963246,
+      "2": 0.0038441357759896157,
+      "3": 0.0016024742034974413,
+      "4": 0.0008577426313288715
+     },
+     "score": 0.06899332218875029,
+     "type": "score"
+    },
+    "s5_digits": {
+     "confidence": 0.8331159373011849,
+     "legend": {
+      "0": "1",
+      "1": "2",
+      "2": "3",
+      "3": "4",
+      "4": "5"
+     },
+     "probabilities": {
+      "0": 0.8664927498409479,
+      "1": 0.1034878103476274,
+      "2": 0.017983484903158993,
+      "3": 0.008494796769975294,
+      "4": 0.0035411581382903705
+     },
+     "score": 0.17910380301703274,
+     "type": "score"
+    },
+    "s5_rev": {
+     "confidence": 0.8298358070589484,
+     "legend": {
+      "0": "very positive",
+      "1": "positive",
+      "2": "mixed",
+      "3": "negative",
+      "4": "very negative"
+     },
+     "probabilities": {
+      "0": 0.00028979559853017554,
+      "1": 0.0006134972869026617,
+      "2": 0.002749504085393715,
+      "3": 0.1324785573820146,
+      "4": 0.8638686456471588
+     },
+     "score": 3.859022760192369,
+     "type": "score"
+    }
+   },
+   "usage": {
+    "input_tokens": 496,
+    "output_tokens": 14
+   }
+  },
+  "input_tokens": 496,
+  "output_tokens": 14
+ }
+]

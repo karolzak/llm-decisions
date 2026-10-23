@@ -1,0 +1,9 @@
+name: qwen3.5-9b
+provider: local_hf
+hf_model_id: Qwen/Qwen3.5-9B   # Microsoft-Decision-1 is a post-trained Qwen3.5-9B
+# Same GPU price basis as gpt-oss-20b (Standard_NC24ads_A100_v4, on-demand, 2026-10).
+gpu_hourly_price_usd: 4.775
+params:
+  dtype: bfloat16
+  readout:            # edb.local.chat_readout.ReadoutConfig
+    chat_template_kwargs: {enable_thinking: false}

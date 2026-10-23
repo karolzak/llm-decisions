@@ -45,6 +45,8 @@ def main() -> int:
     parser.add_argument("--retry-errors", action="store_true")
     parser.add_argument("--tag", default="main", help="output namespace (e.g. pilot, main)")
     parser.add_argument("--compute", help="AML cluster (default: AML_COMPUTE setting)")
+    parser.add_argument("--git-ref", help="run this pushed commit/branch from GitHub instead of "
+                                          "uploading the working tree")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--sequential", action="store_true", default=True,
                       help="one job at a time (default)")
@@ -102,7 +104,7 @@ def main() -> int:
             continue
         name = submit(ml, environment=environment, dataset=dataset, experiment=exp,
                       catalog=cat, splits=args.split, tag=args.tag, extra_args=extra,
-                      compute=args.compute)
+                      compute=args.compute, git_ref=args.git_ref)
         print(f"[submitted] {key} -> {name} ({args.compute or 'default compute'})", flush=True)
         if not args.parallel:
             results[key] = wait_for(ml, name, args.poll,

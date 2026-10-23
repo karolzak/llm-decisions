@@ -1,0 +1,15 @@
+id: r2_qwen35_9b_letter_json
+description: "Frozen Qwen3.5-9B, option-letter readout, alternative prompt template `json` (prompt-sensitivity control for r2_qwen35_9b_letter)."
+leaderboards: [replication]
+supervision: zero_shot
+dataset: ace
+label_catalogs: [short, verbose]
+method:
+  type: local_chat_readout
+  model: qwen3.5-9b
+  params:
+    readout: {template: json}
+run:
+  concurrency: 1
+  timeout_s: 900
+  max_retries: 1

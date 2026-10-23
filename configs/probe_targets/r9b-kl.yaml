@@ -1,0 +1,9 @@
+name: r9b-kl
+kind: local_readout
+description: "R9b: Qwen3.5-9B decision-trained with a 'none' option, KL 1.0 to the frozen base."
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-9b
+  adapter: training/r9b_kl
+  readout: {labels: codes}

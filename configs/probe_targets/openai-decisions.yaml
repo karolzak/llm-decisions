@@ -1,0 +1,7 @@
+name: openai-decisions
+kind: openai_decisions
+description: OpenAI Decisions API on gpt-6-luna (OpenAI platform; not served by Azure). Needs OPENAI_API_KEY.
+url: https://api.openai.com/v1/decisions
+auth: env:OPENAI_API_KEY
+model: gpt-6-luna
+concurrency: 4

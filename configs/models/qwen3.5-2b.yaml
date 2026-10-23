@@ -1,0 +1,8 @@
+name: qwen3.5-2b
+provider: local_hf
+hf_model_id: Qwen/Qwen3.5-2B   # base of the Part 3 training arms
+gpu_hourly_price_usd: 4.775
+params:
+  dtype: bfloat16
+  readout:
+    chat_template_kwargs: {enable_thinking: false}

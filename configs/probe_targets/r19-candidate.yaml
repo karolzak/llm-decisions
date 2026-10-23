@@ -1,0 +1,9 @@
+name: r19-candidate
+kind: local_readout
+description: "R19 candidate replica: R9b-kl recipe retrained, byte-sorted options."
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-9b
+  adapter: training/r19_candidate
+  readout: {labels: codes, option_order: sorted}

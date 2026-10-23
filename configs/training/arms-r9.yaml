@@ -1,0 +1,28 @@
+# R9: decision-trained Qwen3.5-9B (docs/replication.md#can-we-replicate-decision-1-on-qwen35-9b).
+# Same base as Microsoft-Decision-1; the recipe combines what Parts 1-3 found:
+#   - one label token per option, up to 100 options per row (code labels A..Z, AA, AB, ...)
+#   - options re-shuffled every example; cross-entropy + Brier score (calibration)
+#   - KL to the frozen base on ordinary rows, to keep its judgement (ACE)
+#   - interface examples: decoy duplicates with variant names, negated questions,
+#     uninformative states with uniform targets, paraphrased questions
+base_model: qwen3.5-9b
+corpus: corpus-r9
+loss: ce_brier
+shuffle: true
+max_steps: 600
+batch_size: 16
+lr: 1.0e-4
+warmup_steps: 30
+max_tokens: 2048
+lora: {r: 16, alpha: 32, dropout: 0.05}
+eval_every: 100
+eval_rows: 300
+seed: 0
+readout: {labels: codes}
+kl_weight: 0.3
+aug: {decoy: 0.08, negation: 0.05, empty: 0.04, paraphrase: 0.25}
+checkpoint_every: 50
+arms:
+  r9_qwen9b:
+    experiment: r9_qwen9b
+    probe_target: r9-qwen9b
