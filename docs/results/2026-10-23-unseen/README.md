@@ -90,4 +90,49 @@ calibration-split NLL over ACE short / verbose / BANKING77 among our trained 9B 
 
 ### R20: training scale
 
-R20_PENDING
+The R17 recipe with 5× the steps (3,000 × 16 = 48,000 examples, about one pass over
+corpus-r17), LoRA rank 64 and KL 0.3. Job `epic_mango_qnkc1hqnlh`, 5.9 h of training on one
+A100, read with byte-sorted options.
+
+| | Decision-1 | Untrained 9B | Candidate (R19, 600 steps) | R20 (3,000 steps) |
+|---|---|---|---|---|
+| BANKING77 test accuracy / T | **0.870** / 1.02 | 0.750 / 1.41 | 0.736 / 1.24 | 0.744 / **1.15** |
+| ACE test, short / verbose | 0.619 / 0.741 | 0.647 / 0.741 | 0.668 / 0.723 | **0.586 / 0.561** |
+| MInDS-14 | 0.971 | 0.914 | 0.933 | **0.967** |
+| ATIS | **0.929** | 0.840 | 0.861 | 0.815 |
+| ContractNLI | 0.776 | 0.756 | **0.796** | 0.786 |
+| Agreement with Decision-1 (MInDS-14 / ATIS / ContractNLI) | – | 93% / 89% / 91% | 95% / 90% / 94% | 98% / 87% / 93% |
+| Corpus holdout accuracy | – | – | 0.887 | 0.930 |
+
+- **More training does not close the BANKING77 gap.** 0.744, the same as every 600-step arm
+  (0.733–0.753). It does bring BANKING77 calibration into the target band (T 1.15).
+- **It matches Decision-1 on MInDS-14** (0.967 vs. 0.971), but not on ATIS (0.815, below the
+  untrained base). MInDS-14 is e-banking, the domain of the Bitext retail-banking data in
+  corpus-r17; ATIS's airline domain is in no training source. So the gain looks
+  domain-specific rather than the general routing skill Decision-1 shows (F25).
+  - R20 changed four things at once (corpus, steps, rank, KL), and R17 was never run on
+    these sets, so data and scale cannot be separated here.
+- **It damages ACE badly:** 0.586 / 0.561, below the untrained base. Predictions collapse
+  onto Non-Compliant (72–76%, against Decision-1's 56–64%), and Not-Applicable falls to 6–7%.
+  This is the R9 failure pattern. A weak anchor (KL 0.3) over long routing-heavy training
+  pulls the model away from the base's compliance judgement. Contract NLI (0.786) holds up,
+  so the loss is specific to ACE's three-way compliance labels.
+- **The interface stays right:**
+  - 0 order flips (sorted options);
+  - the fitting name gets 1.00 of the pair;
+  - empty ACE states → Not-Applicable;
+  - empty BANKING77 states flat;
+  - paraphrase flips 2% / 0%.
+
+## What R19 and R20 say
+
+- **Decision-1's routing skill is general.** It holds on unseen intent sets, so it is not
+  BANKING77-specific data (F25).
+- **Our recipe recovers part of that skill.** At 600 steps it gains 2–4 points on unseen
+  sets without hurting reasoning. At 5× it reaches Decision-1 on MInDS-14 but not on ATIS or
+  BANKING77, and it loses ACE. Neither setting reproduces Decision-1's combination: +6 to +12
+  points on routing *and* ACE intact.
+- **What Decision-1's training likely has that ours lacks (speculation):**
+  - routing data spanning many more domains, not more steps on a few;
+  - an objective that keeps the base's reasoning while it learns, e.g. RL against calibrated
+    scores rather than CE + Brier.
