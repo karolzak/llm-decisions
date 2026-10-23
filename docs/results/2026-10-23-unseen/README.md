@@ -1,4 +1,4 @@
-# Unseen benchmarks: R19 (candidate replica) and R20 (training scale) (2026-10-23)
+# Unseen benchmarks: R19 (candidate replica), R20 (training scale), R21 (many domains) and R22 (seeds) (2026-10-23)
 
 All earlier trained arms were compared on ACE and BANKING77 test. R19 evaluates models on three
 benchmarks that no training mix contains and that were not used to choose anything:
@@ -123,6 +123,47 @@ A100, read with byte-sorted options.
   - empty ACE states → Not-Applicable;
   - empty BANKING77 states flat;
   - paraphrase flips 2% / 0%.
+
+### R22: seed noise of the candidate recipe
+
+Seeds 1 and 2 (jobs `teal_double_g29crmt1qc`, `amusing_oregano_h5zrsnys5s`), the same config as
+R9b-kl and the R19 rerun (seed 0):
+
+| Run | ACE short / verbose | BANKING77 | MInDS-14 | ATIS | ContractNLI |
+|---|---|---|---|---|---|
+| R9b-kl (seed 0) | 0.700 / 0.750 | 0.733 | – | – | – |
+| R19 rerun (seed 0) | 0.668 / 0.723 | 0.736 | 0.933 | 0.861 | 0.796 |
+| Seed 1 | 0.689 / 0.729 | 0.734 | 0.929 | 0.840 | 0.811 |
+| Seed 2 | 0.726 / 0.800 | 0.749 | 0.948 | 0.878 | 0.781 |
+| Range (sd) | 5.8 (0.024) / 7.7 (0.035) | 1.6 (0.007) | 1.9 | 3.8 | 3.0 |
+| *Decision-1* | *0.619 / 0.741* | *0.870* | *0.971* | *0.929* | *0.776* |
+
+- **ACE is noisy:** up to 7.7 points between seeds of one recipe. Single-run ACE differences
+  smaller than that say nothing about the recipe.
+- **Routing is stable:** BANKING77 1.6 points, unseen intent sets 2–4. Even the best seed stays
+  12 (BANKING77), 2.3 (MInDS-14) and 5.1 (ATIS) points below Decision-1.
+- **The candidate recipe beats Decision-1 on ACE short in every seed** (0.668–0.726 vs. 0.619;
+  verbose 0.723–0.800 vs. 0.741, below it in 2 of 4 seeds) and on ContractNLI in 2 of 3 seeds.
+
+### R21: routing data from many domains
+
+The candidate recipe with corpus-r21 (job `ashy_prune_61jq2yjk6x`). It adds Bitext intents from
+six customer-service domains, Bitext customer support and SNIPS, 2,500 rows each. Banking /
+finance and travel were excluded so as not to match BANKING77, MInDS-14 and ATIS.
+
+| | ACE short / verbose | BANKING77 / T | MInDS-14 | ATIS | ContractNLI |
+|---|---|---|---|---|---|
+| Candidate recipe, seed range | 0.668–0.726 / 0.723–0.800 | 0.733–0.749 / 1.24–1.29 | 0.929–0.948 | 0.840–0.878 | 0.781–0.811 |
+| R21 | 0.745 / 0.801 | 0.747 / 1.33 | 0.952 | 0.840 | 0.811 |
+
+- **Routing does not move beyond seed noise:**
+  - BANKING77 and ATIS are inside the range;
+  - MInDS-14 is 0.4 points above its top.
+  - The decision rule ("BANKING77 and ATIS above the candidate by more than the seed spread")
+    fails.
+- **ACE and ContractNLI stay intact**, at the top of the seed range.
+- So ≈ 20,000 routing rows from 8 more domains, at the same 600 steps, do not reproduce
+  Decision-1's general routing skill.
 
 ## What R19 and R20 say
 
