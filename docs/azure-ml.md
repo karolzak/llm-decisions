@@ -129,7 +129,9 @@ storage from the laptop:
   example-by-example agreement with Decision-1 from `configs/reference/`, probe and training
   summaries), its exit code and log tail as MLflow tags. `scripts/aml_summaries.py --tag <tag>`
   reassembles them into `artifacts/aml/summaries/<tag>/` and installs probe summaries, so
-  `probe_report.py` and `replication_report.py` work without the raw files. Full outputs stay
+  `probe_report.py` and `replication_report.py` work without the raw files. For each unit it
+  reads the latest submission, or the latest one not cancelled (so a cancelled duplicate does
+  not hide a finished job). Full outputs stay
   in the datastore for `aml_collect.py` once storage is reachable again.
 
 ```powershell

@@ -36,8 +36,10 @@ def main() -> int:
     parser.add_argument("--tag", default="replication")
     parser.add_argument("--tail", action="store_true", help="print each job's log tail")
     args = parser.parse_args()
-    # latest submission per (output group, unit)
-    entries = {f"{e['dataset']}__{e['run_id']}": e for e in read_log(args.tag)}
+    # submissions per (output group, unit), newest last
+    entries: dict[str, list[dict]] = {}
+    for e in read_log(args.tag):
+        entries.setdefault(f"{e['dataset']}__{e['run_id']}", []).append(e)
     if not entries:
         print(f"no jobs with tag {args.tag!r}")
         return 1
@@ -46,8 +48,12 @@ def main() -> int:
     out_dir = root / "aml" / "summaries" / args.tag
     out_dir.mkdir(parents=True, exist_ok=True)
     merged: dict[str, dict] = {}  # probe target -> summary merged over this tag's jobs
-    for run_id, e in sorted(entries.items()):
-        job = ml.jobs.get(e["name"])
+    for run_id, subs in sorted(entries.items()):
+        # latest submission, unless it was cancelled (e.g. a duplicate) and an earlier one exists
+        for e in reversed(subs):
+            job = ml.jobs.get(e["name"])
+            if status_of(job) != "Canceled":
+                break
         tags = dict(job.tags or {})
         summary = assemble(tags)
         record = {"run_id": run_id, "job": e["name"], "status": status_of(job),

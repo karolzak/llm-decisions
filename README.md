@@ -58,17 +58,17 @@ reported separately and never ranked against each other.
 | R4, R5 | Frozen 9B: one-pass option labels (codes, numbers) and prompt layouts on BANKING77 | zero-shot |
 | R6–R8, R14, R18 | Decision-1 probes: paraphrases, duplicate names, long options, question types (`choice` / `score` / `noul`), option order | – |
 | R16 | Serving many questions per state from one cached prompt prefix, on the frozen 9B | – |
-| R9–R24 | Decision-trained Qwen3.5-9B replicas (LoRA): "none" option target, all question types, routing data from more domains, synthetic data, 5× training, seeds; running: an RL objective (R23) and synthetic routing data from 199 domains (R24). Evaluated on ACE, BANKING77 and unseen benchmarks (MInDS-14, ATIS, ContractNLI) | zero-shot (not trained on these tasks) |
+| R9–R24 | Decision-trained Qwen3.5-9B replicas (LoRA): "none" option target, all question types, routing data from more domains, synthetic routing data from 199 domains, an RL objective, 5× training, seeds. Evaluated on ACE, BANKING77 and unseen benchmarks (MInDS-14, ATIS, ContractNLI) | zero-shot (not trained on these tasks) |
 
 Every experiment runs once per label catalog: `short` (label names) and, where available,
 `verbose` (names + one-sentence criteria). Plain-language explanations with a diagram per
 experiment: [docs/methods.md](docs/methods.md). The R-series (how decision models work), with
-findings F1–F29 and the status of every experiment: [docs/replication.md](docs/replication.md).
+findings F1–F31 and the status of every experiment: [docs/replication.md](docs/replication.md).
 Results:
 - [Decision-1 probes](docs/results/2026-10-20-decision1-probes/README.md);
 - [frozen base and training arms](docs/results/2026-10-21-replication/README.md);
 - [question types, shared state, paraphrases, option order](docs/results/2026-10-22-question-types/README.md);
-- [unseen benchmarks, scale, seeds and domain breadth](docs/results/2026-10-23-unseen/README.md).
+- [unseen benchmarks, scale, seeds, domain breadth, RL objective and synthetic data](docs/results/2026-10-23-unseen/README.md).
 
 ## Datasets
 
@@ -123,13 +123,14 @@ New datasets need only a YAML config: see [docs/setup.md](docs/setup.md#adding-a
     frozen base *better* (0.767–0.775).
   - **What post-training adds:** general many-way routing skill (+12 points on BANKING77,
     +6–9 on unseen intent sets) and calibration there.
-- **Replicating it on Qwen3.5-9B (R9–R22):**
+- **Replicating it on Qwen3.5-9B (R9–R24):**
   - **What matches:** a LoRA-trained replica with sorted options reproduces Decision-1's
     interface, and matches or beats it on reasoning (ACE short; ContractNLI by a small
     margin).
   - **What is still missing:** most of the routing skill. The replica recovers only 2–5
     points, leaving 12 on BANKING77 and 4–7 on unseen intent sets. More data, more domains
-    and 5× the training did not close that gap.
+    (real and synthetic, 199 domains), 5× the training and an RL objective did not close that
+    gap.
   - See [docs/replication.md](docs/replication.md#can-we-replicate-decision-1-on-qwen35-9b).
 
 Full results, calibration metrics, latency and cost:
@@ -143,7 +144,7 @@ exp-plan.md             original experiment plan and hypotheses (H1–H6)
 presentation.html       slide deck for the team (open in a browser; arrow keys to navigate)
 docs/
   methods.md            how every method works, one diagram per experiment
-  replication.md        R-series: probes, frozen-base comparison, training arms, findings F1–F29
+  replication.md        R-series: probes, frozen-base comparison, training arms, findings F1–F31
   setup.md              install, .env, workflow, outputs, adding a dataset
   azure-ml.md           running the C-series as Azure ML GPU jobs
   results/              dated result snapshots (write-ups, generated reports, plots)

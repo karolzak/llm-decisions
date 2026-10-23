@@ -210,7 +210,8 @@ Strength: **strong** = follows directly from the data, **likely** = best explana
 | F27 | Training 5× longer (R20: 3,000 steps, LoRA r64, KL 0.3, corpus-r17) does not close the BANKING77 gap (0.744) but calibrates it (T 1.15). It matches Decision-1 on MInDS-14 (0.967 vs. 0.971; same domain as the Bitext banking data) while ATIS falls below the base (0.815), and ACE collapses (0.586 / 0.561, predictions shift to Non-Compliant), the R9 failure pattern. Five settings changed together (corpus, steps, LoRA rank, KL weight, warm-up). Scale on our data and objective buys domain-specific routing at the cost of reasoning, not Decision-1's general routing skill | likely (one run; five settings changed together) |
 | F28 | Seed noise of the candidate recipe (4 runs: R9b-kl, its R19 rerun, seeds 1 and 2): ACE short 0.668–0.726 (mean 0.696, sd 0.024), ACE verbose 0.723–0.800 (mean 0.751, sd 0.035), BANKING77 0.733–0.749 (sd 0.007); unseen sets over 3 runs: MInDS-14 0.929–0.948, ATIS 0.840–0.878, ContractNLI 0.781–0.811. ACE differences under ≈ 8 points and routing differences under ≈ 2–4 points between single runs are noise. All 4 runs are above Decision-1 on ACE short (0.619) and straddle it on ACE verbose (0.741); all are 12–14 points below it on BANKING77 | strong (4 runs) |
 | F29 | Routing data from 8 more routing sets (R21: 6 Bitext customer-service domains, Bitext customer support and the SNIPS voice-assistant set; domains matching the evaluation sets excluded) leaves routing within the seed range: BANKING77 0.747, ATIS 0.840, MInDS-14 0.952 (just above the range, 0.929–0.948). ACE stays intact (0.745 / 0.801, at or above the seed range). Domain breadth at this scale (600 steps, ≈ 20k extra routing rows) is not what gives Decision-1 its general routing skill | likely (one run, judged against F28) |
-
+| F30 | Replacing CE + Brier + KL with exact on-policy RL (R23: maximise the expected target under the model's own distribution, KL 0.3 to the frozen base; same data, steps and seed as the candidate) leaves accuracy inside the seed range everywhere: ACE 0.675 / 0.750, BANKING77 0.737, MInDS-14 0.933, ATIS 0.845, ContractNLI 0.791. It makes the model overconfident: fitted T 2.08 on BANKING77 (candidate 1.24–1.29), 2.64 / 2.11 on ACE (0.99–1.29 / 0.78–1.15), 1.41 / 1.77 / 2.32 on the unseen sets (0.74–1.25). The objective predicts this: its optimum p ∝ p_base · exp(target / 0.3) multiplies the gold option's odds by up to e^3.3 ≈ 28, and an expected-accuracy reward does not reward calibration. Empty BANKING77 states are less flat (entropy 0.93; candidate 0.99–1.00, Decision-1 0.95), as expected, since uniform-target rows carry no reward. The objective alone does not give routing skill, and with this reward it costs the routing calibration Decision-1 has (T 1.02, 0.71–0.74) | likely (one run, judged against F28) |
+| F31 | Synthetic routing data at scale (R24: 43k GPT-6 Luna messages for 4,327 intents in 199 domains, evaluation domains excluded; 1,500 steps, ≈ 24k examples seen, of which ≈ 11k synthetic by the mix proportions) leaves BANKING77 (0.747) and ATIS (0.853) inside the seed range. MInDS-14 rises to 0.967 (Decision-1 0.971, 98% agreement), the score R20 reached with 3,000 steps of real data, so it may track training length rather than the synthetic data. Unlike R20, ACE and ContractNLI stay intact (0.726 / 0.755, 0.806); R20 also changed LoRA rank and KL weight, so the two cannot be compared on ACE directly. The decision rule (BANKING77, MInDS-14 and ATIS above the seed range) fails: routing breadth at this scale is not the lever either | likely (one run, judged against F28) |
 **Working model:** Decision-1 = Qwen3.5-9B's judgement + light post-training (compact
 per-type templates, calibration on BANKING77, better many-way routing). Calibration is not
 uniform: on unseen intent sets Decision-1 is underconfident (fitted T ≈ 0.7), on ACE and
@@ -225,7 +226,9 @@ robustness to rewording (F18).
 1. ~~How much of the BANKING77 gain is post-training, and how much our readout and prompt
    (F8)?~~ Answered by R4 and R5: none of it is readout or prompt. Open: which training data
    produces it; R9's routing mix (CLINC150, MASSIVE, DBpedia level-3) did not (F14), nor
-   did domain-matched routing data (R17, F23) or 5× the training (R20, F27).
+   did domain-matched routing data (R17, F23), 5× the training (R20, F27), 8 more routing
+   domains (R21, F29), synthetic data from 199 domains (R24, F31) or an RL objective (R23,
+   F30).
 2. ~~Does plain decision training of the same 9B reproduce Decision-1's whole profile, or is
    something architectural needed?~~ Mostly answered: order invariance and position
    blindness come from sorting (F20); ACE and the empty-state behaviour are reproduced
@@ -237,7 +240,7 @@ robustness to rewording (F18).
 
 ## Next experiments
 
-Ordered by value for cost. R4–R9, R9b and R14–R22 are done; R23 and R24 are running.
+Ordered by value for cost. R4–R9, R9b and R14–R24 are done.
 R10–R12 are on hold (2B mechanism checks; R10 and R11 mostly answered by F20). Training on
 Decision-1's own answers (distillation) is not planned until its terms of use are checked.
 API-only experiments run at ≈ 9 requests/min (the deployment's rate limit).
@@ -264,8 +267,8 @@ API-only experiments run at ≈ 9 requests/min (the deployment's rate limit).
 | **R20** (done) | Training scale: the R17 recipe with 5× the steps (3,000 × 16), LoRA rank 64, KL 0.3 | Is the BANKING77 gap (F24) a matter of training scale? | Result: BANKING77 0.744 (no change), T 1.15; MInDS-14 0.967, ATIS 0.815; ACE collapses to 0.586 / 0.561 (F27) | 5.9 GPU-h training |
 | **R21** (done) | Many-domain routing data: the R19 candidate recipe unchanged except the corpus ([corpus-r21](../configs/training/corpus-r21.yaml)): the R9 mix plus Bitext intents from six customer-service domains (insurance, telecom, hospitality, restaurants, e-commerce, events ticketing), Bitext customer support and SNIPS, 2,500 rows each. Domains matching an evaluation set (banking / finance, travel) are excluded, so gains on BANKING77, MInDS-14 or ATIS would be general routing skill | Does domain breadth give Decision-1's general routing skill (F25)? | Result: routing within the seed range (BANKING77 0.747, ATIS 0.840, MInDS-14 0.952), ACE intact (0.745 / 0.801); breadth at this scale is not the lever (F29) | ≈ 2 GPU-h |
 | **R22** (done) | Seeds: the R19 candidate recipe with seeds 1 and 2 (seed 0 = R19, plus the R9b-kl run) | How large is run-to-run variation (F26) on ACE, BANKING77 and the unseen sets? | Result: ACE varies up to 7.7 points between seeds, BANKING77 1.6, unseen sets 1.9–3.8 (F28) | ≈ 4 GPU-h (2 runs) |
-| **R23** (running) | Training objective: the R19 candidate recipe with CE + Brier + KL replaced by exact on-policy RL ([arms-r23.yaml](../configs/training/arms-r23.yaml)): maximise E_{a~p}[target(a)] − 0.3 · KL(p ‖ frozen base), the expectation computed over all labels (no sampling); optimum p ∝ p_base · exp(target / 0.3). Uniform-target empty rows (≈ 2%) carry no reward and only pull towards the base | Is the objective (TypeSafe's "RLCD" is RL-based) what gives Decision-1 general routing skill and calibration? | Routing above the seed range (F28) with ACE intact → the objective matters; otherwise not | ≈ 2 GPU-h |
-| **R24** (running) | Synthetic routing data at scale: 43,254 customer messages for 4,327 intents in 199 domains, generated with GPT-6 Luna ([synth_routing.py](../scripts/synth_routing.py), [data/synthetic/r24](../data/synthetic/r24/)); banking / payments / lending, air travel and legal / compliance domains excluded (0.5% of messages still mention such a term in passing; no text overlaps any evaluation set). Candidate recipe with [corpus-r24](../configs/training/corpus-r24.yaml) (R9 mix + 30,000 synthetic rows, options from the row's own domain, descriptions on half) and 1,500 steps | Does far broader routing data give general routing skill? R20 (3,000 steps on real data) is the steps-only comparison | BANKING77, MInDS-14 and ATIS above the seed range with ACE intact → data breadth at scale is the lever | ≈ 4 GPU-h |
+| **R23** (done) | Training objective: the R19 candidate recipe with CE + Brier + KL replaced by exact on-policy RL ([arms-r23.yaml](../configs/training/arms-r23.yaml)): maximise E_{a~p}[target(a)] − 0.3 · KL(p ‖ frozen base), the expectation computed over all labels (no sampling); optimum p ∝ p_base · exp(target / 0.3). Uniform-target empty rows (≈ 2%) carry no reward and only pull towards the base | Is the objective (TypeSafe's "RLCD" is RL-based) what gives Decision-1 general routing skill and calibration? | Result: accuracy inside the seed range everywhere; overconfident (BANKING77 T 2.08). The objective is not the lever (F30) | ≈ 2 GPU-h |
+| **R24** (done) | Synthetic routing data at scale: 43,254 customer messages for 4,327 intents in 199 domains, generated with GPT-6 Luna ([synth_routing.py](../scripts/synth_routing.py), [data/synthetic/r24](../data/synthetic/r24/)); banking / payments / lending, air travel and legal / compliance domains excluded (0.5% of messages still mention such a term in passing; no text overlaps any evaluation set). Candidate recipe with [corpus-r24](../configs/training/corpus-r24.yaml) (R9 mix + 30,000 synthetic rows, options from the row's own domain, descriptions on half) and 1,500 steps | Does far broader routing data give general routing skill? R20 (3,000 steps on real data) is the steps-only comparison | Result: BANKING77 0.747 and ATIS 0.853 inside the seed range, MInDS-14 0.967 (as R20), ACE intact (0.726 / 0.755). Breadth at this scale is not the lever (F31) | ≈ 3.5 GPU-h |
 
 **Changed or dropped from earlier plans:**
 - **Grouping options into passes of < 30** is kept only as the `letters` baseline. R4 tests
@@ -282,7 +285,7 @@ training setup.
 ## Can we replicate Decision-1 on Qwen3.5-9B?
 
 **Status (2026-10-23):**
-- **The target is specified:** F1–F29 define the interface and behaviour to match.
+- **The target is specified:** F1–F31 define the interface and behaviour to match.
 - **Most of Decision-1's interface needs no training.** The untrained 9B with sorted options
   reproduces the order, position and name behaviour (F21), and already answers like
   Decision-1 on ACE, yes/no and score questions (F7, F16).
@@ -298,15 +301,19 @@ training setup.
     too (`option_order: sorted`); R19 is the first trained arm evaluated that way.
   - **What is missing:** Decision-1's many-way routing skill. It is 12 points above its base on
     BANKING77 and 6–9 on unseen intent sets (F25); our best arms recover only 2–5 of those
-    points (F24, F25). BANKING77 calibration is also missing (T 1.02 vs. our 1.24–1.50; only R20 reached 1.15,
-    at the cost of ACE).
+    points (F24, F25). BANKING77 calibration is also missing (T 1.02 vs. our 1.24–1.50, and
+    2.08 with the RL objective; only R20 reached 1.15, at the cost of ACE).
   - **Ruled out as causes of the BANKING77 gap:** readout (R4), prompt (R5), routing data
     volume (R9) and domain (R17). Multi-type training (R15) does not help either (F22). Each
     of these is one training run.
   - **Training scale (R20):** 5× the steps does not close it either, and costs ACE (F27).
   - **Domain breadth (R21):** 8 more routing sets do not close it either (F29).
-  - **Being tested:** the training objective (R23: exact on-policy RL) and far larger,
-    synthetic many-domain routing data (R24: 43k messages from 199 domains).
+  - **Training objective (R23):** exact on-policy RL leaves routing inside the seed range and
+    makes the model overconfident (F30).
+  - **Synthetic data at scale (R24):** 43k messages from 199 domains leave BANKING77 and ATIS
+    inside the seed range; only MInDS-14 reaches Decision-1, as R20 did (F31).
+  - **Untested candidate causes:** training at a much larger scale than ours (≤ 48k examples),
+    full fine-tuning instead of LoRA, and soft targets from a stronger teacher (distillation).
   - **Parked:** learning from Decision-1's own answers.
   - **Not testable from outside:** whether BANKING77's own train split was in Decision-1's
     training data. The gains on unseen intent sets (F25) show that it cannot be the whole
@@ -466,8 +473,10 @@ BANKING77 moved by 0.3.
 - **ACE (done):** solved by the "none" target (F19).
 - **BANKING77 accuracy:** neither broader, domain-matched nor many-domain routing data
   (F23, F24, F29) nor 5× the training (F27) closes the gap. Decision-1's routing gain is
-  general (F25). The training objective (R23) and far larger synthetic routing data (R24)
-  are running.
+  general (F25). Neither the training objective (R23, F30) nor far larger synthetic routing
+  data (R24, F31) closes it. Untested: much larger training, full fine-tuning instead of LoRA,
+  and soft targets from a stronger teacher.
 - **Selection bias (done):** R19 evaluated one candidate, chosen on the calibration split, on
   three benchmarks never used before (MInDS-14, ATIS, ContractNLI); R22 measured seed noise.
-- **Calibration:** a different Brier weight, or a scoring-rule-only loss.
+- **Calibration:** a different Brier weight, or a scoring-rule-only loss. An RL objective
+  with an accuracy reward makes it worse (F30).
