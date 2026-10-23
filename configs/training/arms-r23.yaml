@@ -1,0 +1,26 @@
+# R23: the training objective. The R19 candidate recipe (data, augmentations, 600 steps, LoRA r16)
+# with CE + Brier + KL(base || model) replaced by exact on-policy RL: maximise the expected reward
+# E_{a~p}[target(a)] - 0.3 * KL(p || frozen base), computed over all labels (see train.py).
+# Question: is the objective what gives Decision-1 general routing skill and calibration?
+base_model: qwen3.5-9b
+corpus: corpus-r9
+loss: rl
+rl_beta: 0.3
+shuffle: true
+max_steps: 600
+batch_size: 16
+lr: 1.0e-4
+warmup_steps: 30
+max_tokens: 2048
+lora: {r: 16, alpha: 32, dropout: 0.05}
+eval_every: 100
+eval_rows: 300
+seed: 0
+readout: {labels: codes}
+aug: {decoy: 0.08, negation: 0.05, empty: 0.05, paraphrase: 0.2,
+      mismatch: 0.06, none_option: 0.1, empty_none: 0.6, none_aware: true}
+checkpoint_every: 50
+arms:
+  r23_rl:
+    experiment: r23_rl
+    probe_target: r23-rl

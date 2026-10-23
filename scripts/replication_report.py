@@ -47,6 +47,8 @@ METHODS = [
     ("r19_seed1", "R19 candidate, seed 1", "jobs"),
     ("r19_seed2", "R19 candidate, seed 2", "jobs"),
     ("r21_domains", "R21: candidate recipe + many-domain routing data", "jobs"),
+    ("r23_rl", "R23: candidate recipe, exact on-policy RL objective", "jobs"),
+    ("r24_synth", "R24: candidate recipe + synthetic many-domain routing data", "jobs"),
     ("c6_oss_letter_readout", "gpt-oss-20b letter readout (C6, context)", "local"),
 ]
 DETAIL = ("accuracy", "macro_f1", "nll", "ece", "T", "nll_cal", "ece_cal", "acc@80", "p50_ms",
@@ -56,7 +58,7 @@ AGREE = ("acc_run", "top1_agreement", "chance_agreement", "kappa", "both_wrong",
          "p_gold_spearman", "mean_js_divergence", "prediction_mix_run")
 PROBE_TARGETS = ["decision-1", "qwen3.5-9b", "qwen3.5-9b-sorted", "r9-qwen9b", "r9b-kl",
                  "r9b-nokl", "r15-typed", "r17-routing", "r19-candidate", "r20-scale",
-                 "r19-seed1", "r19-seed2", "r21-domains",
+                 "r19-seed1", "r19-seed2", "r21-domains", "r23-rl", "r24-synth",
                  "qwen3.5-2b",
                  "r3-ce-shuffle", "r3-ce-fixed", "r3-brier-shuffle"]
 

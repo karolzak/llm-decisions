@@ -10,6 +10,10 @@ uninformative states):
                                                       probabilities, a differentiable stand-in
                                                       for "RL for calibrated decisions")
     ce_brier  both
+    rl        exact on-policy RL (R23): maximise E_{a~p}[target(a)] - rl_beta * KL(p || base),
+              with the expectation taken over all K labels (no sampling). Optimum:
+              p(a) ∝ p_base(a) * exp(target(a) / rl_beta), i.e. the base re-weighted towards
+              the rewarded answer; `kl_weight` is ignored
 
 `shuffle` re-orders the options of every example every time it is seen (the label follows).
 `kl_weight` adds KL(frozen base || model) on the label distribution of the example kinds in
@@ -79,7 +83,7 @@ class TrainConfig(BaseModel):
     arm: str
     base_model: str
     corpus: str = "corpus"
-    loss: Literal["ce", "brier", "ce_brier"] = "ce"
+    loss: Literal["ce", "brier", "ce_brier", "rl"] = "ce"
     shuffle: bool = True
     max_steps: int = 1500
     batch_size: int = 16
@@ -95,6 +99,7 @@ class TrainConfig(BaseModel):
     kl_weight: float = 0.0
     kl_kinds: list[str] = Field(default_factory=lambda: ["plain", "paraphrase"])
     rps_weight: float = 0.0  # ranked probability score on score rows (R15)
+    rl_beta: float = 0.3  # loss "rl": weight of KL(policy || frozen base) (R23)
     aug: AugConfig = AugConfig()
     checkpoint_every: int = 0  # optimizer steps between checkpoints (0: none)
     # Names used by scripts/train_decider.py (default: r3_<arm> / r3-<arm>).
@@ -423,10 +428,23 @@ def train(cfg: TrainConfig, lm: LoadedModel | None = None, out: Path | None = No
                     raise RuntimeError(f"almost every row exceeds max_tokens={cfg.max_tokens}")
                 continue
             logp = variant_logp(lm.model, ids, variants)
-            loss = loss_fn(logp, target, cfg.loss)
+            if cfg.loss == "rl":
+                # Exact on-policy RL over the K labels: maximise the expected reward
+                # E_{a~p}[target(a)] minus beta * KL(p || frozen base). The expectation and its
+                # gradient are computed over all labels, so no sampling is needed. The optimum
+                # is p(a) ∝ p_base(a) * exp(target(a) / beta).
+                with torch.no_grad(), adapters_disabled(lm.model):
+                    base = variant_logp(lm.model, ids, variants)
+                p = logp.exp()
+                t = torch.as_tensor(target, dtype=p.dtype, device=p.device)
+                rev_kl = (p * (logp - base)).sum()
+                loss = -(p * t).sum() + cfg.rl_beta * rev_kl
+                window["kl"].append(float(rev_kl.detach()))
+            else:
+                loss = loss_fn(logp, target, cfg.loss)
             if cfg.rps_weight and kind == "score":
                 loss = loss + cfg.rps_weight * rps(logp, target)
-            if cfg.kl_weight and kind in cfg.kl_kinds:
+            if cfg.loss != "rl" and cfg.kl_weight and kind in cfg.kl_kinds:
                 with torch.no_grad(), adapters_disabled(lm.model):
                     base = variant_logp(lm.model, ids, variants)
                 kl = (base.exp() * (base - logp)).sum()

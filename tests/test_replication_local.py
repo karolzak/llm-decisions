@@ -580,6 +580,36 @@ def test_train_with_codes_kl_and_augmentations(tiny_cfg, lm):
     assert not (arm_dir("w") / "checkpoint.pt").exists()
 
 
+def test_rl_loss_trains_and_moves_towards_the_reward(tiny_cfg, lm):
+    """R23: the exact on-policy RL loss runs end to end and raises p(gold) on training rows."""
+    from edb.training.train import train
+
+    _wide_corpus(tiny_cfg)
+    summary = train(_r9_like(arm="rl", loss="rl", rl_beta=0.3, max_steps=3), lm=lm,
+                    log=lambda *_: None)
+    assert summary["examples_seen"] == 6 and summary["config"]["loss"] == "rl"
+
+
+def test_rl_optimum_is_the_tilted_base():
+    """The RL objective's minimiser is p ∝ p_base * exp(target / beta)."""
+    from edb.training.train import TrainConfig
+
+    assert "rl" in TrainConfig.model_fields["loss"].annotation.__args__
+    base = torch.log_softmax(torch.tensor([0.5, -0.3, 1.2]), 0)
+    t, beta = torch.tensor([0.0, 1.0, 0.0]), 0.3
+    z = torch.zeros(3, requires_grad=True)
+    opt = torch.optim.Adam([z], lr=0.05)
+    for _ in range(3000):
+        logp = torch.log_softmax(z, 0)
+        p = logp.exp()
+        loss = -(p * t).sum() + beta * (p * (logp - base)).sum()
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+    expected = torch.softmax(base + t / beta, 0)
+    assert torch.allclose(torch.softmax(z.detach(), 0), expected, atol=1e-3)
+
+
 def test_train_on_all_question_types(tiny_cfg, lm):
     """R15: score and noul rows are read with the typed templates and trained."""
     from edb.training.corpus import corpus_dir
