@@ -12,7 +12,8 @@ benchmarks that no training mix contains and that were not used to choose anythi
 - **Items and answers:** [items.jsonl](items.jsonl); Decision-1's answers in
   [decision1.jsonl](decision1.jsonl).
 - **Script:** [r19_unseen_eval.py](../../../scripts/r19_unseen_eval.py).
-- **Overlap check:** no item text appears in any training corpus (r9, r15, r17).
+- **Overlap check:** no item text appears in any training corpus (r9, r15, r17, r21) or in
+  the R24 synthetic data.
 - **Readout:** local models use code labels with options sorted byte-wise by name, as
   Decision-1 does (F20). The option lists here are already in that order.
 - **Temperature:** "T" is fitted on the same items, as a diagnostic only.
@@ -59,12 +60,13 @@ calibration-split NLL over ACE short / verbose / BANKING77 among our trained 9B 
 | ContractNLI accuracy / ECE / T | 0.776 / 0.104 / 1.60 | **0.796** / 0.048 / 1.25 | 0.756 / 0.086 / 1.31 |
 | Agreement with Decision-1 (kappa) | – | 95% / 90% / 94% (0.94 / 0.89 / 0.91) | 93% / 89% / 91% (0.92 / 0.88 / 0.86) |
 
-- **Training helps on every unseen set:** +1.9 (MInDS-14), +2.1 (ATIS) and +4.0 points
-  (ContractNLI) over the untrained base, and the candidate agrees more with Decision-1.
+- **Training helps a little on the unseen sets:** +1.9 (MInDS-14), +2.1 (ATIS) and +4.0 points
+  (ContractNLI) over the untrained base in this run, and the candidate agrees more with
+  Decision-1. The intent-set gains are within seed noise (R22: seed 1 equals the base on ATIS).
 - **On contract reasoning the candidate is above Decision-1** (0.796 vs. 0.776; 201 items, so
   ±3 points is within sampling noise), and better calibrated (ECE 0.048 vs. 0.104).
-- **On routing it closes a quarter to a third of the gap:** Decision-1 stays 3.8 (MInDS-14) and 6.8
-  (ATIS) points ahead, the same picture as BANKING77.
+- **On routing it closes a quarter to a third of the gap:** Decision-1 stays 3.8 (MInDS-14) and
+  6.7 (ATIS) points ahead, the same picture as BANKING77.
 
 **Rerun check (same config and seed as R9b-kl):**
 
@@ -75,8 +77,9 @@ calibration-split NLL over ACE short / verbose / BANKING77 among our trained 9B 
 
 - **ACE moves by about 3 points between identical runs**, BANKING77 by 0.3.
   - The causes are GPU nondeterminism and resuming after pre-emption.
-  - So ACE differences between our arms of up to about 3 points are not meaningful. That
-    covers R9b-nokl's "best ACE", R17's 0.780 verbose, and R15's 3.7–4.8 point ACE drop.
+  - R22 below shows the full seed spread is larger: up to 7.7 points on ACE. ACE differences
+    between single runs below that are not meaningful (R9b-nokl's "best ACE", R17's 0.780
+    verbose, R15's 3.7–4.8 point ACE drop).
 - **The probes with sorted options** (16 items per dataset):
   - 0 order flips;
   - "listed first / last" 0.50 / 0.50 against request order on BANKING77;
@@ -135,15 +138,15 @@ R9b-kl and the R19 rerun (seed 0):
 | R19 rerun (seed 0) | 0.668 / 0.723 | 0.736 | 0.933 | 0.861 | 0.796 |
 | Seed 1 | 0.689 / 0.729 | 0.734 | 0.929 | 0.840 | 0.811 |
 | Seed 2 | 0.726 / 0.800 | 0.749 | 0.948 | 0.878 | 0.781 |
-| Range (sd) | 5.8 (0.024) / 7.7 (0.035) | 1.6 (0.007) | 1.9 | 3.8 | 3.0 |
+| Range (sd) | 5.7 (0.024) / 7.7 (0.035) | 1.6 (0.007) | 1.9 | 3.8 | 3.0 |
 | *Decision-1* | *0.619 / 0.741* | *0.870* | *0.971* | *0.929* | *0.776* |
 
 - **ACE is noisy:** up to 7.7 points between seeds of one recipe. Single-run ACE differences
   smaller than that say nothing about the recipe.
 - **Routing is stable:** BANKING77 1.6 points, unseen intent sets 2–4. Even the best seed stays
-  12 (BANKING77), 2.3 (MInDS-14) and 5.1 (ATIS) points below Decision-1.
+  12 (BANKING77), 2.4 (MInDS-14) and 5.0 (ATIS) points below Decision-1.
 - **The candidate recipe beats Decision-1 on ACE short in every seed** (0.668–0.726 vs. 0.619;
-  verbose 0.723–0.800 vs. 0.741, below it in 2 of 4 seeds) and on ContractNLI in 2 of 3 seeds.
+  verbose 0.723–0.800 vs. 0.741, below it in 2 of 4 seeds) and on ContractNLI in 3 of 3 seeds (0.781–0.811 vs. 0.776).
 
 ### R21: routing data from many domains
 
@@ -158,22 +161,23 @@ finance and travel were excluded so as not to match BANKING77, MInDS-14 and ATIS
 
 - **Routing does not move beyond seed noise:**
   - BANKING77 and ATIS are inside the range;
-  - MInDS-14 is 0.4 points above its top.
+  - MInDS-14 is 0.5 points (one item) above its top.
   - The decision rule ("BANKING77 and ATIS above the candidate by more than the seed spread")
     fails.
-- **ACE and ContractNLI stay intact**, at the top of the seed range.
+- **ACE and ContractNLI stay intact**, at or above the top of the seed range.
 - So ≈ 20,000 routing rows from 8 more domains, at the same 600 steps, do not reproduce
   Decision-1's general routing skill.
 
-## What R19 and R20 say
+## What R19–R22 say
 
 - **Decision-1's routing skill is general.** It holds on unseen intent sets, so it is not
   BANKING77-specific data (F25).
-- **Our recipe recovers part of that skill.** At 600 steps it gains 2–4 points on unseen
-  sets without hurting reasoning. At 5× it reaches Decision-1 on MInDS-14 but not on ATIS or
+- **Our recipe recovers little of that skill.** At 600 steps it gains 2–4 points on unseen
+  sets (partly within seed noise) without hurting reasoning. At 5× it reaches Decision-1 on MInDS-14 but not on ATIS or
   BANKING77, and it loses ACE. Neither setting reproduces Decision-1's combination: +6 to +12
   points on routing *and* ACE intact.
-- **What Decision-1's training likely has that ours lacks (speculation):**
-  - routing data spanning many more domains, not more steps on a few;
-  - an objective that keeps the base's reasoning while it learns, e.g. RL against calibrated
-    scores rather than CE + Brier.
+- **More domains at this scale do not help** (R21, 8 more routing sets).
+- **What Decision-1's training may have that ours lacks (speculation), now being tested:**
+  - routing data at a far larger scale and breadth (R24: 43k synthetic messages from 199
+    domains);
+  - a different objective (R23: exact on-policy RL with a KL anchor to the base).

@@ -147,7 +147,7 @@ Score all candidates.
 This tests whether Jev-like shared-state computation provides a meaningful
 latency advantage.
 
-D1 and D2 should produce approximately identical scores.
+Both (C2 and C3 in the README) should produce approximately identical scores.
 
 ### C4 — Cross-encoder scoring
 

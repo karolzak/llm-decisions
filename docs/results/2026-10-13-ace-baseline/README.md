@@ -71,7 +71,7 @@ Selective prediction on test (thresholds fit on calibration, target 80% coverage
    supervised vs. zero-shot runs.
 4. **Decision-1 is the best zero-shot method on test,** and the cheapest and fastest of the
    decision APIs. It relies heavily on criteria text: verbose descriptions add 12 points
-   (0.62 → 0.74). With short labels it almost never predicts Not-Applicable (recall 0.09 vs.
+   (0.62 → 0.74). With short labels it almost never predicts Not-Applicable (recall 0.10 vs.
    0.52 with verbose) and over-predicts Non-Compliant (recall about 0.98). About 1.3% of its
    answers have exactly tied top-two probabilities (broken in catalog order).
 5. **Verbose criteria help Decision-1 but not GPT-6 Luna** (−1 to −2 points).

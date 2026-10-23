@@ -14,7 +14,8 @@ probe, all targets side by side).
 | 2B + LoRA arms | Qwen3.5-2B, LoRA r = 16, 1,500 × 16 examples from 8 public tasks (**not** ACE or BANKING77), same readout. One setting differs per arm: loss (cross-entropy vs. Brier) and option order (re-shuffled every example vs. fixed) |
 
 All numbers are on the sealed test sets (ACE 1,100, BANKING77 3,080); temperatures are fit
-on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priority).
+on the calibration split. GPU work: about 14 A100-hours on Azure ML (low priority; an
+estimate from job durations).
 
 ## TL;DR
 
@@ -171,7 +172,8 @@ about 500 steps in every arm, so 1,500 steps is enough at this size.
   blind to option positions, reduces order sensitivity, improves answers to negated
   questions, flattens the prior on empty input and calibrates the probabilities. Decision-1,
   however, gets its order invariance and listing-order blindness from sorting the options
-  (R18), not from training; the frozen 9B with sorted options already matches it there.
+  (R18), not from training; the frozen 9B with sorted options already matches it there,
+  including the name preference (name fit plus a first-position preference in sorted order).
   Option shuffling and a proper scoring rule refine the trained arms (negation,
   calibration).
 - **Gains concentrate on tasks that look like the training data.** Many-way routing over

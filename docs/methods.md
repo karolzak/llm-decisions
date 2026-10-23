@@ -69,7 +69,9 @@ flowchart LR
 ```
 
 A purpose-built decision model on Azure AI Foundry: the state and the options go in, a
-distribution comes out. No text is generated or parsed. Its internals are not documented. The
+distribution comes out. No text is generated or parsed. Microsoft does not document its
+internals; our probes found a post-trained Qwen3.5-9B reading one bf16 softmax over the
+options, sorted byte-wise by name ([replication.md](replication.md), F1–F21). The
 OpenAI Decisions API (A2, the same idea on GPT-6 Luna) returns 404 on Azure and is disabled.
 
 ## S1 — Embedding baselines

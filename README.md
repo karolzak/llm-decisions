@@ -56,8 +56,9 @@ reported separately and never ranked against each other.
 | R2 | Frozen Qwen3.5-9B (Decision-1's base) and Qwen3.5-2B, option-letter readout, compared example by example with Decision-1 | zero-shot |
 | R3 | Qwen3.5-2B + LoRA trained on 8 other public tasks (shuffled vs. fixed option order, CE vs. Brier loss), evaluated on ACE/BANKING77 | zero-shot (not trained on these tasks) |
 | R4, R5 | Frozen 9B: one-pass option labels (codes, numbers) and prompt layouts on BANKING77 | zero-shot |
-| R6–R8, R14, R16, R18 | Decision-1 probes: paraphrases, duplicate names, long options, question types (`choice` / `score` / `noul`), many questions per state, option order | – |
-| R9–R24 | Decision-trained Qwen3.5-9B replicas (LoRA): "none" option target, all question types, routing data from more domains, synthetic data, 5× training, seeds, an RL objective; evaluated on ACE, BANKING77 and unseen benchmarks (MInDS-14, ATIS, ContractNLI) | zero-shot (not trained on these tasks) |
+| R6–R8, R14, R18 | Decision-1 probes: paraphrases, duplicate names, long options, question types (`choice` / `score` / `noul`), option order | – |
+| R16 | Serving many questions per state from one cached prompt prefix, on the frozen 9B | – |
+| R9–R24 | Decision-trained Qwen3.5-9B replicas (LoRA): "none" option target, all question types, routing data from more domains, synthetic data, 5× training, seeds; running: an RL objective (R23) and synthetic routing data from 199 domains (R24). Evaluated on ACE, BANKING77 and unseen benchmarks (MInDS-14, ATIS, ContractNLI) | zero-shot (not trained on these tasks) |
 
 Every experiment runs once per label catalog: `short` (label names) and, where available,
 `verbose` (names + one-sentence criteria). Plain-language explanations with a diagram per
@@ -105,8 +106,8 @@ New datasets need only a YAML config: see [docs/setup.md](docs/setup.md#adding-a
 | C7 early-exit head (supervised) | 0.931 | 0.908 |
 
 **Findings.**
-- **Decision-1** is the best zero-shot product on both datasets, and its probabilities are
-  calibrated out of the box.
+- **Decision-1** is the best zero-shot product on both datasets, and on BANKING77 its
+  probabilities are calibrated out of the box (not on ACE, where it is overconfident).
 - **Within gpt-oss-20b**, a one-pass readout nearly matches generation on intent routing (at
   1/8 of the latency), but collapses on compliance, which needs reasoning.
 - **The decision is already in the mid-layer activations:** a linear head trained on them
@@ -124,9 +125,11 @@ New datasets need only a YAML config: see [docs/setup.md](docs/setup.md#adding-a
     +6–9 on unseen intent sets) and calibration there.
 - **Replicating it on Qwen3.5-9B (R9–R22):**
   - **What matches:** a LoRA-trained replica with sorted options reproduces Decision-1's
-    interface, and matches or beats it on reasoning (ACE short, ContractNLI).
-  - **What is still missing:** only 2–5 of the routing points. More data, more domains and
-    5× the training did not close that gap.
+    interface, and matches or beats it on reasoning (ACE short; ContractNLI by a small
+    margin).
+  - **What is still missing:** most of the routing skill. The replica recovers only 2–5
+    points, leaving 12 on BANKING77 and 4–7 on unseen intent sets. More data, more domains
+    and 5× the training did not close that gap.
   - See [docs/replication.md](docs/replication.md#can-we-replicate-decision-1-on-qwen35-9b).
 
 Full results, calibration metrics, latency and cost:

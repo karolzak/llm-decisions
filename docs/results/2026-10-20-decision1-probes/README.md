@@ -2,8 +2,8 @@
 
 Part 1 of the [replication study](../../replication.md): 854 perturbed requests to
 Microsoft-Decision-1 (852 answered; the other 2 are the deliberate 256-option test), plus 272
-follow-up requests for findings 8 and 9 (R7, R8), 12 for finding 10 (question types) and 96
-for finding 11 (R18, option order). R6 (500 paraphrase requests) and R14 (200 question-type
+follow-up requests for findings 8 and 9 (R7, R8), 12 for finding 10 (question types) and 112
+for finding 11 (R18 and R18b, option order). R6 (500 paraphrase requests) and R14 (200 question-type
 requests) are reported in [2026-10-22-question-types](../2026-10-22-question-types/README.md). Most
 probes use 16 `dev` items each from ACE and BANKING77; the repeat test uses 6, the empty-state
 test 1 item per dataset, and the token test synthetic inputs. Full tables:
@@ -294,8 +294,10 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
 - **Score source (likely).** The scores' size (16–32) matches a language model's output-layer
   logits, so the readout is probably the regular output layer read at one token per option.
   A bf16 classifier head of similar scale cannot be excluded.
-- **Option tokens (speculation).** Qwen splits numbers into single digits and there are only
-  26 letters, so 255 single-token option labels would need a dedicated set of option tokens.
+- **Option tokens (open).** Qwen splits numbers into single digits and there are only 26
+  letters, but its vocabulary has 562 single-token two-letter codes (A–Z plus codes give 588
+  labels, see the table below), so 255 single-token labels need no dedicated tokens. Whether
+  Decision-1 uses such codes, new tokens or a head is not visible from outside.
 - **Options are encoded together, in sorted order (strong).**
   - Each option's score depends on the other options present, so options are not scored in
     isolation (finding 3).
@@ -344,8 +346,9 @@ request -> compact template (~21 hidden tokens) -> Qwen3.5-9B (bf16, batched ser
   - It is calibrated on BANKING77 (fitted T = 1.02) but overconfident on ACE (T = 1.65–2.75).
     Its untrained base, read in one pass, ranges from T = 0.64 to 2.51 on ACE depending only
     on the prompt layout (next section), so ACE shows no calibration gain from training.
-  - The calibration objective worked on routing-style data and did not carry over to
-    compliance reasoning.
+  - The calibration objective worked on BANKING77 but not uniformly on routing: on two
+    unseen intent sets Decision-1 is *under*confident (fitted T ≈ 0.7, R19), and on
+    compliance reasoning (ACE, ContractNLI) overconfident.
 - **Light-touch post-training that kept the base model's judgement (likely).**
   - The answer scores keep the output layer's natural size.
   - On ACE its accuracy and decisions are within what changing the prompt of its untrained
@@ -437,7 +440,7 @@ which option wins. Yet:
 
 In short: Decision-1 = Qwen3.5-9B's judgement, unchanged on compliance reasoning, + a
 trained decision interface (compact format, joint option scoring, calibration on
-routing-style tasks) + options sorted before scoring + better many-way routing.
+BANKING77) + options sorted before scoring + better many-way routing.
 
 ## Where the 255 limit comes from
 

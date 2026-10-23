@@ -184,7 +184,8 @@ The sort key is the option name.
   The remaining probe difference is a flatter empty-state answer on BANKING77, resting on
   one item per dataset.
 - So order invariance is a property of Decision-1's serving code, and the name preference is
-  the base model's first-position preference applied to sorted names. Neither needs training.
+  name fit (unrelated names lose even when sorted first) plus the base model's first-position
+  preference applied to sorted names. Neither needs training.
 
 ## Reproduce
 
