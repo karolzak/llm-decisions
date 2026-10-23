@@ -1,0 +1,26 @@
+# R24: far broader routing data. The R19 candidate recipe with corpus-r24 (R9 mix + ~30k synthetic
+# routing messages from ~200 domains) and 1,500 steps instead of 600, so the synthetic data is
+# actually seen (~11k of its rows). R20 (3,000 steps on real data) is the steps-only comparison.
+base_model: qwen3.5-9b
+corpus: corpus-r24
+loss: ce_brier
+shuffle: true
+max_steps: 1500
+batch_size: 16
+lr: 1.0e-4
+warmup_steps: 30
+max_tokens: 2048
+lora: {r: 16, alpha: 32, dropout: 0.05}
+eval_every: 250
+eval_rows: 300
+seed: 0
+readout: {labels: codes}
+aug: {decoy: 0.08, negation: 0.05, empty: 0.05, paraphrase: 0.2,
+      mismatch: 0.06, none_option: 0.1, empty_none: 0.6, none_aware: true}
+checkpoint_every: 50
+arms:
+  r24_synth:
+    kl_weight: 1.0
+    kl_kinds: [plain, paraphrase, none_option]
+    experiment: r24_synth
+    probe_target: r24-synth

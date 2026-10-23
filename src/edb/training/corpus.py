@@ -58,6 +58,14 @@ class SourceSpec(BaseModel):
     true_labels: list[str] = Field(default_factory=list)
     about: bool = False
     criteria: dict[str, str] = Field(default_factory=dict)
+    # Local JSONL file (path relative to the repo root) instead of a Hugging Face dataset (R24).
+    local: str | None = None
+    # Each row's options come only from the labels of rows with the same value of `group`
+    # (e.g. a domain with its own intent taxonomy); `description_field` gives each label's
+    # criterion, shown on a `describe_share` of rows.
+    group: str | None = None
+    description_field: str | None = None
+    describe_share: float = 0.5
 
 
 class CorpusSpec(BaseModel):
@@ -118,6 +126,11 @@ def _get(params: dict[str, Any], attempts: int = 14) -> dict[str, Any]:
 
 def fetch_rows(src: SourceSpec, n: int, seed: int) -> tuple[list[dict[str, Any]], dict]:
     """~n rows from random pages of the split (cached), plus the feature schema."""
+    if src.local:
+        path = Path(__file__).resolve().parents[3] / src.local
+        rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+        random.Random(f"{seed}:{src.name}").shuffle(rows)
+        return rows[:n], {}
     path = corpus_dir() / "raw" / f"{src.name}-{n}-{seed}.json"
     if path.exists():
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -156,6 +169,8 @@ def to_decisions(src: SourceSpec, spec: CorpusSpec, rows: list[dict],
                  features: dict[str, Any]) -> list[dict[str, Any]]:
     if src.type != "choice":
         return to_typed(src, spec, rows, features)
+    if src.group:
+        return to_grouped(src, spec, rows)
     names = label_names(src, features, rows)
     values = [src.rename.get(n, n) for n in names]
     allowed = [i for i, n in enumerate(names) if n not in src.exclude_labels]
@@ -185,6 +200,44 @@ def to_decisions(src: SourceSpec, spec: CorpusSpec, rows: list[dict],
             "options": [{"value": values[i], "description": src.descriptions.get(values[i])}
                         for i in chosen],
             "gold": values[idx],
+        })
+    return out
+
+
+def to_grouped(src: SourceSpec, spec: CorpusSpec, rows: list[dict]) -> list[dict[str, Any]]:
+    """Choice rows whose options are the labels of the row's own group (e.g. one domain's
+    intents), with label descriptions from `description_field` on part of the rows."""
+    rng = random.Random(f"{spec.seed}:{src.name}:rows")
+    labels: dict[str, list[str]] = {}
+    desc: dict[tuple[str, str], str] = {}
+    for r in rows:
+        g, lab = str(r[src.group]), label_key(r[src.label])
+        labels.setdefault(g, [])
+        if lab not in labels[g]:
+            labels[g].append(lab)
+        if src.description_field and r.get(src.description_field):
+            desc.setdefault((g, lab), r[src.description_field])
+    out = []
+    for r in rows:
+        g, gold = str(r[src.group]), label_key(r[src.label])
+        pool = sorted(labels[g])
+        if len(pool) < 2:
+            continue
+        k = len(pool)
+        if k > spec.max_options:
+            k = rng.randint(spec.min_options, spec.max_options)
+        elif spec.subsample:
+            k = rng.randint(spec.min_options, k)
+        chosen = sorted([gold, *rng.sample([x for x in pool if x != gold], k - 1)])
+        show = bool(desc) and rng.random() < src.describe_share
+        fields = {**r, "group": g}
+        out.append({
+            "source": src.name,
+            "state": src.state.format(**r)[: spec.max_state_chars],
+            "instructions": rng.choice(src.instructions).format(**fields),
+            "options": [{"value": v, "description": desc.get((g, v)) if show else None}
+                        for v in chosen],
+            "gold": gold,
         })
     return out
 

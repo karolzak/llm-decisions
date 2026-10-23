@@ -1,0 +1,9 @@
+name: r24-synth
+kind: local_readout
+description: "R24: candidate recipe + synthetic many-domain routing data."
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-9b
+  adapter: training/r24_synth
+  readout: {labels: codes, option_order: sorted}

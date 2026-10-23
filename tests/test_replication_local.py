@@ -440,6 +440,29 @@ def test_typed_corpus_rows():
     assert [r["gold"] for r in out] == ["true", "false"]
 
 
+def test_grouped_source_keeps_options_within_the_group():
+    from edb.training.corpus import CorpusSpec, SourceSpec, to_decisions
+
+    rows = [{"domain": d, "intent": f"{d}_i{i % 4}", "description": f"about {d} {i % 4}",
+             "text": f"msg {d} {i}"} for d in ("zoo", "gym") for i in range(20)]
+    src = SourceSpec(name="g", dataset="-", state="{text}", label="intent", group="domain",
+                     description_field="description", describe_share=0.5,
+                     instructions=["Route this {group} request."])
+    out = to_decisions(src, CorpusSpec(name="t", sources=[], subsample=True), rows, {})
+    assert len(out) == 40
+    shown = 0
+    for r in out:
+        dom = r["state"].split()[1]
+        values = [o["value"] for o in r["options"]]
+        assert r["gold"] in values and all(v.startswith(dom + "_") for v in values)
+        assert values == sorted(values) and 2 <= len(values) <= 4
+        assert r["instructions"] == f"Route this {dom} request."
+        descs = [o["description"] for o in r["options"]]
+        assert all(d is None for d in descs) or all(d.startswith(f"about {dom}") for d in descs)
+        shown += descs[0] is not None
+    assert 0 < shown < 40
+
+
 def test_split_by_state_keeps_shared_texts_together():
     from edb.training.corpus import CorpusSpec, split_rows
 
