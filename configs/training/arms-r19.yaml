@@ -25,3 +25,16 @@ arms:
     kl_kinds: [plain, paraphrase, none_option]
     experiment: r19_candidate
     probe_target: r19-candidate
+  # Seed reruns (noise floor for every arm comparison): same config, other seeds.
+  r19_seed1:
+    seed: 1
+    kl_weight: 1.0
+    kl_kinds: [plain, paraphrase, none_option]
+    experiment: r19_seed1
+    probe_target: r19-seed1
+  r19_seed2:
+    seed: 2
+    kl_weight: 1.0
+    kl_kinds: [plain, paraphrase, none_option]
+    experiment: r19_seed2
+    probe_target: r19-seed2

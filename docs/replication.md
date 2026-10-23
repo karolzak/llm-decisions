@@ -233,7 +233,7 @@ robustness to rewording (F18).
 
 ## Next experiments
 
-Ordered by value for cost. R4–R9, R9b and R14–R20 are done.
+Ordered by value for cost. R4–R9, R9b and R14–R20 are done; R21 and R22 are running.
 R10–R12 are on hold (2B mechanism checks; R10 and R11 mostly answered by F20). Training on
 Decision-1's own answers (distillation) is not planned until its terms of use are checked.
 API-only experiments run at ≈ 9 requests/min (the deployment's rate limit).
@@ -258,6 +258,8 @@ API-only experiments run at ≈ 9 requests/min (the deployment's rate limit).
 | **R18** (done) | Option order: 5 mixed-case options in random orders, "which option is listed first / second / last?"; duplicate options with the copy named to sort first (`aardvark`, `0_<name>`, `A <name>`) | Does Decision-1 canonicalise option order? Is R7's name effect name fit or sorted position? | Result: byte-wise sorted (48/48); name fit for unrelated names, sorted position for near-identical ones (F20) | API 96 requests |
 | **R19** (done) | Candidate replica on unseen benchmarks: the R9b-kl recipe (chosen beforehand: lowest mean calibration-split NLL over ACE short / verbose / BANKING77), retrained with the same config and read with byte-sorted options; evaluated with Decision-1 on 649 items from MInDS-14 (e-banking intents), ATIS (airline intents) and ContractNLI (contract entailment), none used before for training or selection | Do our results hold off the test sets we selected on? How much does a same-config rerun move ACE / BANKING77? | Result: Decision-1's routing gain holds on unseen intents (+5.7 / +8.9); the candidate gains +1.9 / +2.1 / +4.0 and beats Decision-1 on ContractNLI; ACE varies ≈ 3 points between identical runs (F25, F26) | ≈ 2 GPU-h + API 649 requests |
 | **R20** (done) | Training scale: the R17 recipe with 5× the steps (3,000 × 16), LoRA rank 64, KL 0.3 | Is the BANKING77 gap (F24) a matter of training scale? | Result: BANKING77 0.744 (no change), T 1.15; MInDS-14 0.967, ATIS 0.815; ACE collapses to 0.586 / 0.561 (F27) | 5.9 GPU-h training |
+| **R21** (running) | Many-domain routing data: the R19 candidate recipe unchanged except the corpus ([corpus-r21](../configs/training/corpus-r21.yaml)): the R9 mix plus Bitext intents from six customer-service domains (insurance, telecom, hospitality, restaurants, e-commerce, events ticketing), Bitext customer support and SNIPS, 2,500 rows each. Domains matching an evaluation set (banking / finance, travel) are excluded, so gains on BANKING77, MInDS-14 or ATIS would be general routing skill | Does domain breadth give Decision-1's general routing skill (F25)? | BANKING77 and ATIS above the candidate by more than the seed spread (R22), with ACE intact → breadth is the lever; no gain → it is the objective or far larger data | ≈ 2 GPU-h |
+| **R22** (running) | Seeds: the R19 candidate recipe with seeds 1 and 2 (seed 0 = R19, plus the R9b-kl run) | How large is run-to-run variation (F26) on ACE, BANKING77 and the unseen sets? | Sets the noise floor for every arm comparison | ≈ 4 GPU-h (2 runs) |
 
 **Changed or dropped from earlier plans:**
 - **Grouping options into passes of < 30** is kept only as the `letters` baseline. R4 tests

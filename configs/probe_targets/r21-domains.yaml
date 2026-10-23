@@ -1,0 +1,9 @@
+name: r21-domains
+kind: local_readout
+description: "R21: candidate recipe on many-domain routing data (corpus-r21), byte-sorted options."
+max_options: 255
+concurrency: 1
+params:
+  model: qwen3.5-9b
+  adapter: training/r21_domains
+  readout: {labels: codes, option_order: sorted}

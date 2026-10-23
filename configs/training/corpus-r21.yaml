@@ -1,0 +1,184 @@
+# R21 decision corpus: the R9 mix plus routing intents from many customer-service domains, to
+# test whether Decision-1's general routing skill (F25) comes from domain breadth. Domains that
+# match an evaluation set are excluded on purpose: banking / finance (BANKING77, MInDS-14:
+# Bitext retail-banking, mortgage-loans, wealth-management) and travel (ATIS: Bitext travel).
+# ACE, BANKING77, MInDS-14, ATIS, ContractNLI and SST-5 are not in it.
+# Caveat: CLINC150 and MASSIVE contain banking/finance intents (similar domain to BANKING77).
+name: decision-mix-r21
+description: R9's eleven choice tasks plus 8 routing sets from other customer-service domains.
+rows_per_source: 3000
+max_options: 100
+min_options: 2
+subsample: true      # vary the option-set size for every source
+max_state_chars: 3000
+holdout_fraction: 0.05
+seed: 0
+sources:
+  - name: ag_news
+    dataset: fancyzhx/ag_news
+    state: "{text}"
+    label: label
+    instructions:
+      - What is the topic of this news article?
+      - Which news section does this article belong to?
+    rename: {Sci/Tech: Science and technology}
+  - name: dbpedia
+    dataset: fancyzhx/dbpedia_14
+    config: dbpedia_14
+    state: "{title}: {content}"
+    label: label
+    instructions:
+      - What kind of entity does this encyclopedia entry describe?
+      - Which category fits the subject of this text?
+  - name: yahoo_topics
+    dataset: community-datasets/yahoo_answers_topics
+    config: yahoo_answers_topics
+    state: "{question_title}\n{question_content}"
+    label: topic
+    instructions:
+      - Which forum category should this question be posted in?
+      - What is this question about?
+  - name: emotion
+    dataset: dair-ai/emotion
+    config: split
+    state: "{text}"
+    label: label
+    instructions:
+      - Which emotion does the writer express?
+      - How does the author of this message feel?
+  - name: sst2
+    dataset: nyu-mll/glue
+    config: sst2
+    state: "{sentence}"
+    label: label
+    instructions:
+      - What is the sentiment of this movie review excerpt?
+      - Is this review fragment positive or negative?
+  - name: mnli
+    dataset: nyu-mll/glue
+    config: mnli
+    state: "Premise: {premise}\nHypothesis: {hypothesis}"
+    label: label
+    instructions:
+      - How does the hypothesis relate to the premise?
+      - Given the premise, is the hypothesis true, false or undetermined?
+    descriptions:
+      entailment: The premise guarantees that the hypothesis is true.
+      neutral: The premise neither guarantees nor rules out the hypothesis.
+      contradiction: The premise rules out the hypothesis.
+  - name: boolq
+    dataset: google/boolq
+    state: "{passage}"
+    label: answer
+    instructions:
+      - "Based on the passage: {question}?"
+      - "Answer from the passage only: {question}?"
+    rename: {"true": "yes", "false": "no"}
+  - name: clinc
+    dataset: clinc/clinc_oos
+    config: plus
+    state: "{text}"
+    label: intent
+    instructions:
+      - What does the user want the assistant to do?
+      - Which intent does this request express?
+    rename: {oos: out_of_scope}
+    rows: 4000
+    note: Includes banking intents; a similar domain to BANKING77 (different data).
+  - name: massive
+    dataset: mteb/amazon_massive_intent
+    config: en
+    state: "{text}"
+    label: label_text
+    rows: 4000
+    instructions:
+      - What does the user want the assistant to do?
+      - Which intent does this request express?
+      - Route this request to the right intent.
+  - name: dbpedia_l3
+    dataset: DeveloperOats/DBPedia_Classes
+    state: "{text}"
+    label: l3
+    rows: 4000
+    instructions:
+      - What kind of entity does this encyclopedia entry describe?
+      - Which fine-grained category fits the subject of this text?
+  - name: newsgroups
+    dataset: SetFit/20_newsgroups
+    state: "{text}"
+    label: label_text
+    instructions:
+      - Which newsgroup was this message posted to?
+      - What is the topic of this forum message?
+  # ---------------------------------------------------------------- many-domain routing (R21)
+  - name: bitext_insurance
+    dataset: bitext/Bitext-insurance-llm-chatbot-training-dataset
+    state: "{instruction}"
+    label: intent
+    rows: 2500
+    instructions:
+      - What does the insurance customer want?
+      - Route this request to the right support intent.
+      - Which intent does this message express?
+  - name: bitext_telco
+    dataset: bitext/Bitext-telco-llm-chatbot-training-dataset
+    state: "{instruction}"
+    label: intent
+    rows: 2500
+    instructions:
+      - What does the telecom customer want?
+      - Route this request to the right support intent.
+      - Which intent does this message express?
+  - name: bitext_hospitality
+    dataset: bitext/Bitext-hospitality-llm-chatbot-training-dataset
+    state: "{instruction}"
+    label: intent
+    rows: 2500
+    instructions:
+      - What does the hotel guest want?
+      - Route this request to the right support intent.
+      - Which intent does this message express?
+  - name: bitext_restaurants
+    dataset: bitext/Bitext-restaurants-llm-chatbot-training-dataset
+    state: "{instruction}"
+    label: intent
+    rows: 2500
+    instructions:
+      - What does the restaurant customer want?
+      - Route this request to the right support intent.
+      - Which intent does this message express?
+  - name: bitext_retail_ecommerce
+    dataset: bitext/Bitext-retail-ecommerce-llm-chatbot-training-dataset
+    state: "{instruction}"
+    label: intent
+    rows: 2500
+    instructions:
+      - What does the shopper want?
+      - Route this request to the right support intent.
+      - Which intent does this message express?
+  - name: bitext_events_ticketing
+    dataset: bitext/Bitext-events-ticketing-llm-chatbot-training-dataset
+    state: "{instruction}"
+    label: intent
+    rows: 2500
+    instructions:
+      - What does the ticket buyer want?
+      - Route this request to the right support intent.
+      - Which intent does this message express?
+  - name: bitext_customer_support
+    dataset: bitext/Bitext-customer-support-llm-chatbot-training-dataset
+    state: "{instruction}"
+    label: intent
+    rows: 2500
+    instructions:
+      - What does the customer want?
+      - Route this request to the right support intent.
+      - Which intent does this message express?
+  - name: snips
+    dataset: benayas/snips
+    state: "{text}"
+    label: category
+    rows: 2500
+    instructions:
+      - What does the user want the voice assistant to do?
+      - Which intent does this request express?

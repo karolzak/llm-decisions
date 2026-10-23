@@ -1,0 +1,27 @@
+# R21: many-domain routing data. The R19 candidate recipe (R9b-kl) unchanged except the corpus:
+# corpus-r21 adds Bitext intents from six customer-service domains, Bitext customer-support and
+# SNIPS (domains matching BANKING77, MInDS-14 and ATIS excluded). Same 600 steps as the candidate,
+# so any change comes from the data. Question: does domain breadth give general routing skill (F25)?
+base_model: qwen3.5-9b
+corpus: corpus-r21
+loss: ce_brier
+shuffle: true
+max_steps: 600
+batch_size: 16
+lr: 1.0e-4
+warmup_steps: 30
+max_tokens: 2048
+lora: {r: 16, alpha: 32, dropout: 0.05}
+eval_every: 100
+eval_rows: 300
+seed: 0
+readout: {labels: codes}
+aug: {decoy: 0.08, negation: 0.05, empty: 0.05, paraphrase: 0.2,
+      mismatch: 0.06, none_option: 0.1, empty_none: 0.6, none_aware: true}
+checkpoint_every: 50
+arms:
+  r21_domains:
+    kl_weight: 1.0
+    kl_kinds: [plain, paraphrase, none_option]
+    experiment: r21_domains
+    probe_target: r21-domains
