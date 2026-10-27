@@ -5,6 +5,9 @@ make bounded decisions, and how far can you get without one? A **bounded decisio
 model a state (e.g. contract clauses plus a scenario, or a customer message) and a fixed list
 of options, and asks for a probability per option instead of free text.
 
+> **Short on time?** [docs/summary.md](docs/summary.md) summarises what we learned about how
+> decision models work under the hood, rated by how sure we are of each point.
+
 This repository is a reproducible, dataset-agnostic benchmark of the ways to get such
 decisions. It measures **accuracy, calibration** (do the probabilities mean what they say?),
 **selective prediction** (can it abstain when unsure?), **latency** and **cost**.
@@ -143,6 +146,7 @@ README.md               this overview
 exp-plan.md             original experiment plan and hypotheses (H1–H6)
 presentation.html       slide deck for the team (open in a browser; arrow keys to navigate)
 docs/
+  summary.md            how decision models work under the hood: findings, rated by certainty
   methods.md            how every method works, one diagram per experiment
   replication.md        R-series: probes, frozen-base comparison, training arms, findings F1–F31
   setup.md              install, .env, workflow, outputs, adding a dataset
