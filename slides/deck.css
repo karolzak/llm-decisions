@@ -71,6 +71,8 @@ li::marker { color: var(--faint); }
 ul.tight li { margin: 0 0 7px; }
 strong { font-weight: 650; }
 code { font-family: var(--mono); font-size: .88em; background: var(--track); padding: 1px 8px; border-radius: 6px; }
+a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+a:hover { text-decoration-thickness: 3px; }
 
 .kicker {
   font-size: 24px;
@@ -162,15 +164,15 @@ code { font-family: var(--mono); font-size: .88em; background: var(--track); pad
 .bar-head { font-size: 19px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin: 6px 0 2px; }
 
 /* Calibration rows: bar = actual accuracy, black line = stated confidence */
-.calib-row { display: grid; grid-template-columns: 130px 1fr 110px; align-items: center; gap: 16px; font-size: 21px; margin: 14px 0 0; }
+.calib-row { display: grid; grid-template-columns: 170px 1fr 140px; align-items: center; gap: 16px; font-size: 21px; margin: 14px 0 0; }
 .calib-row .track { position: relative; height: 30px; background: var(--track); border-radius: 8px; }
 .calib-row .fill { display: block; height: 100%; width: calc(var(--v) * 100%); border-radius: 8px; }
 .calib-row .fill.green { background: var(--confirmed); }
 .calib-row .fill.red { background: #e8735f; }
 .calib-row .said { position: absolute; top: -6px; bottom: -6px; width: 4px; border-radius: 2px; background: var(--ink); left: calc(var(--s) * 100% - 2px); }
-.calib-row .val { font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
+.calib-row .val { font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .gap-head { margin: 18px 0 2px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.gap-row { display: grid; grid-template-columns: 150px 1fr 110px; align-items: center; gap: 16px; font-size: 19px; margin: 8px 0 0; }
+.gap-row { display: grid; grid-template-columns: 170px 1fr 140px; align-items: center; gap: 16px; font-size: 19px; margin: 8px 0 0; }
 .gap-row .track { height: 18px; background: var(--track); border-radius: 6px; overflow: hidden; }
 .gap-row .fill { display: block; height: 100%; width: calc(var(--v) * 100%); border-radius: 6px; }
 .gap-row .fill.grey { background: #b5bcc5; }

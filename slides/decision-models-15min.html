@@ -278,35 +278,35 @@ same coffee this morning.
   </aside>
 </section>
 
-<section class="slide" data-tier="confirmed">
+<section class="slide">
   <div class="kicker">Can you trust its confidence?</div>
   <h2>Its confidence: honest on routing, overconfident on contracts</h2>
-  <p class="small muted" style="margin-top:-18px">We grouped Decision-1's test answers by how sure it said it was, then checked how often each group was actually right.</p>
+  <p class="small muted" style="margin-top:-18px">We grouped Decision-1's test answers by how sure it claimed to be, then checked how often each group was actually correct.</p>
   <div class="cols">
     <div class="card confirmed">
       <h3>BANKING77 · routing <span class="c-confirmed">✓ honest</span></h3>
-      <div class="calib-row"><span>Says ~81%</span><span class="track"><span class="fill green" style="--v:.791"></span><i class="said" style="--s:.807"></i></span><span class="val">right 79%</span></div>
-      <div class="calib-row"><span>Says ~94%</span><span class="track"><span class="fill green" style="--v:.931"></span><i class="said" style="--s:.942"></i></span><span class="val">right 93%</span></div>
-      <div class="calib-row"><span>Says ~99%</span><span class="track"><span class="fill green" style="--v:.988"></span><i class="said" style="--s:.988"></i></span><span class="val">right 99%</span></div>
-      <div class="gap-head">Average gap between "says" and "right"</div>
+      <div class="calib-row"><span>Claims 81% sure</span><span class="track"><span class="fill green" style="--v:.791"></span><i class="said" style="--s:.807"></i></span><span class="val">Correct 79%</span></div>
+      <div class="calib-row"><span>Claims 94% sure</span><span class="track"><span class="fill green" style="--v:.931"></span><i class="said" style="--s:.942"></i></span><span class="val">Correct 93%</span></div>
+      <div class="calib-row"><span>Claims 99% sure</span><span class="track"><span class="fill green" style="--v:.988"></span><i class="said" style="--s:.988"></i></span><span class="val">Correct 99%</span></div>
+      <div class="gap-head">Average gap: claimed vs. correct</div>
       <div class="gap-row"><span>Untrained base</span><span class="track"><span class="fill grey" style="--v:.81"></span></span><span class="val">9.7 pts</span></div>
       <div class="gap-row"><span>Decision-1</span><span class="track"><span class="fill green" style="--v:.125"></span></span><span class="val">1.5 pts</span></div>
     </div>
     <div class="card" style="border-top:6px solid var(--bad)">
       <h3>ACE · contracts <span class="c-bad">✗ overconfident</span></h3>
-      <div class="calib-row"><span>Says ~81%</span><span class="track"><span class="fill red" style="--v:.713"></span><i class="said" style="--s:.806"></i></span><span class="val">right 71%</span></div>
-      <div class="calib-row"><span>Says ~94%</span><span class="track"><span class="fill red" style="--v:.724"></span><i class="said" style="--s:.940"></i></span><span class="val">right 72%</span></div>
-      <div class="calib-row"><span>Says ~99%</span><span class="track"><span class="fill red" style="--v:.887"></span><i class="said" style="--s:.989"></i></span><span class="val">right 89%</span></div>
-      <div class="gap-head">Average gap between "says" and "right"</div>
+      <div class="calib-row"><span>Claims 81% sure</span><span class="track"><span class="fill red" style="--v:.713"></span><i class="said" style="--s:.806"></i></span><span class="val">Correct 71%</span></div>
+      <div class="calib-row"><span>Claims 94% sure</span><span class="track"><span class="fill red" style="--v:.724"></span><i class="said" style="--s:.940"></i></span><span class="val">Correct 72%</span></div>
+      <div class="calib-row"><span>Claims 99% sure</span><span class="track"><span class="fill red" style="--v:.887"></span><i class="said" style="--s:.989"></i></span><span class="val">Correct 89%</span></div>
+      <div class="gap-head">Average gap: claimed vs. correct</div>
       <div class="gap-row"><span>Untrained base</span><span class="track"><span class="fill grey" style="--v:.88"></span></span><span class="val">10.6 pts</span></div>
       <div class="gap-row"><span>Decision-1</span><span class="track"><span class="fill red" style="--v:.88"></span></span><span class="val">10.6 pts</span></div>
     </div>
   </div>
-  <p class="tiny" style="margin:10px 0 0">Bar = how often it was right · black line = how sure it said it was · honest when they line up. Gap: lower is better.</p>
-  <div class="callout">Microsoft's training fixed the confidence on routing, not on contracts. <b>The fix:</b> test on a few hundred labelled examples of your task and, if it's overconfident, soften its scores by one fixed factor. Its picks never change.</div>
+  <p class="tiny" style="margin:10px 0 0">Bar = how often it was correct · line = how sure it claimed to be · honest when they line up. Gap: lower is better.</p>
+  <div class="callout">Microsoft's training fixed routing, not contracts. <b>The fix:</b> dial its confidence down by a fixed amount learned from your labelled examples. Its picks never change.</div>
   <aside class="notes">
     <p>Why this matters: the whole point of a probability is to automate when it's sure and escalate when it isn't. That only works if "94% sure" really means right about 94% of the time.</p>
-    <p>How to read it: each row is a group of answers. The black line is the average confidence Decision-1 reported for that group; the bar is how often that group was actually right. BANKING77: they line up. ACE: when it says ~94%, it's right only 72% of the time.</p>
+    <p>How to read it: each row is a group of answers. The black line is the average confidence Decision-1 claimed for that group; the bar is how often that group was actually correct. BANKING77: they line up. ACE: when it claims ~94%, it's correct only 72% of the time.</p>
     <p>Group sizes: BANKING77 521 / 539 / 1,470 answers; ACE (with option descriptions) 324 / 199 / 319 answers. Bins: 70–90%, 90–97%, 97–100% stated confidence. Computed from our raw Decision-1 test predictions.</p>
     <p>Base vs. Decision-1 rows: "average gap" is the expected calibration error (ECE) from the job summaries. BANKING77: untrained Qwen3.5-9B 0.097 vs. Decision-1 0.015, so Microsoft's training removed most of the overconfidence. ACE: 0.106 vs. 0.106; same size of gap, but not the same model behaviour (they disagree on 19% of answers, and the base is slightly less overconfident by temperature: 1.33 vs. 1.65). We only have per-group numbers for Decision-1; the base model's raw predictions are on Azure ML storage we can't reach from here.</p>
     <p>On ACE, the softening turned "says 97%, right 82%" into "says 94.5%, right 91%" (answers stated at ≥90%).</p>
@@ -318,14 +318,32 @@ same coffee this morning.
 
 <section class="slide" data-tier="confirmed">
   <div class="kicker">Can we rebuild it?</div>
-  <h2>Mostly, except what Microsoft's training adds</h2>
-  <div class="cols" style="--n:3">
-    <div class="card confirmed"><h3 class="c-confirmed">Interface: yes</h3><p class="small">Sort, one-pass scoring, shared state, all on the open base with no training.</p></div>
-    <div class="card confirmed"><h3 class="c-confirmed">Contract judgement: yes</h3><p class="small">The base already matches it; our fine-tunes match or beat it.</p></div>
-    <div class="card" style="border-top:6px solid var(--bad)"><h3 class="c-bad">Many options: no</h3><p class="small">Still 12–14 points behind on BANKING77 after more data, synthetic data, 5× training and RL.</p></div>
+  <h2>The mechanics are easy to copy; the training isn't</h2>
+  <div class="cols">
+    <div class="card confirmed">
+      <h3 class="c-confirmed">Recreated on the open Qwen3.5-9B, no training</h3>
+      <ul class="small checks">
+        <li><b>Speed:</b> one pass, nothing generated. 64 questions on one state in ~0.85 s on a single GPU.</li>
+        <li><b>Cost:</b> the same open 9B model, one output token per question.</li>
+        <li><b>A probability for every option:</b> sort the options, read their scores in one pass.</li>
+        <li><b>Contract judgement:</b> the untrained base already matches Decision-1.</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top:6px solid var(--bad)">
+      <h3 class="c-bad">Not recreated: Microsoft's post-training</h3>
+      <ul class="small checks no">
+        <li><b>Picking 1 of many:</b> our fine-tunes stay 12–14 points behind on BANKING77.</li>
+        <li><b>Honest confidence on routing:</b> ours stay overconfident there; Decision-1 doesn't.</li>
+      </ul>
+      <p class="small muted" style="margin:14px 0 0">Tried, didn't close the gap: more and broader routing data, 43k synthetic examples, 5× longer training, reinforcement learning.</p>
+    </div>
   </div>
-  <div class="callout assumption mt">Unknown: how it was trained. Jev's docs mention RL for calibration, which is our next experiment.</div>
-  <aside class="notes"><p>The many-options skill is the moat. Everything else is engineering you can copy.</p></aside>
+  <div class="callout">The interface is engineering anyone can copy. What sets Decision-1 apart is Microsoft's training recipe, and that isn't public.</div>
+  <aside class="notes">
+    <p>Left: everything here runs on the untrained open model. We reproduced the sorting, the one-pass scoring of all options, and computing the shared state once for many questions (64 questions in ~0.85 s on one A100, vs. ~0.6 s of Decision-1 server time). On contracts the untrained base already scores like Decision-1, and our fine-tunes match or beat it on ACE and ContractNLI, with honest confidence there too.</p>
+    <p>Right: the two things Microsoft's training clearly adds, and that we could not reproduce. Many options: Decision-1 is 12 points above its base on BANKING77; our best fine-tunes recover only 2–5 of those points. Confidence on routing: Decision-1 temperature 1.02 (honest); our fine-tunes 1.24–1.50 (overconfident).</p>
+    <p>If asked what's left to try: much larger-scale training, full fine-tuning instead of LoRA, distillation from a stronger model. Jev's docs say it's trained with RL for calibrated decisions; Microsoft hasn't published how Decision-1 was trained.</p>
+  </aside>
 </section>
 
 <section class="slide">
@@ -344,7 +362,8 @@ same coffee this morning.
 <section class="slide center">
   <div class="kicker">Thank you</div>
   <h1>Questions?</h1>
-  <p class="lede">Full write-up: <code>docs/summary.md</code> in <code>karolzak/llm-decisions</code>. The 60-minute version of this talk covers history, applications, and every finding by certainty level.</p>
+  <p class="lede">Summary of findings: <a href="https://github.com/karolzak/llm-decisions/blob/main/docs/summary.md" target="_blank" rel="noopener">github.com/karolzak/llm-decisions/blob/main/docs/summary.md</a></p>
+  <p class="lede">Code and full results: <a href="https://github.com/karolzak/llm-decisions" target="_blank" rel="noopener">github.com/karolzak/llm-decisions</a></p>
 </section>
 
 </div>

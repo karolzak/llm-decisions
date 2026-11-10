@@ -81,6 +81,7 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Enter' && e.target.closest && e.target.closest('a')) return;
     switch (e.key) {
       case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ': case 'Enter':
         e.preventDefault(); show(idx + 1); break;
