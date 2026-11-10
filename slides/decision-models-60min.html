@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inside the Black Box of Decision Models (60 min)</title>
+<link rel="stylesheet" href="deck.css" />
+</head>
+<body data-short="Inside the Black Box of Decision Models">
+<div class="stage">
+
+<!-- ============================================================ 1. TITLE -->
+<section class="slide title">
+  <div class="kicker">DS / AI sharing session · November 2026</div>
+  <h1>Inside the black box of decision models</h1>
+  <p class="lede">What Microsoft-Decision-1 actually does, why it matters, and how far an open model gets you.</p>
+  <div class="meta">Findings from <code style="background:#22262c;color:#cfd6de">karolzak/llm-decisions</code></div>
+  <aside class="notes">
+    <p>Welcome. One hour: what decision models are, where they came from, why we care, then what we learned by poking Microsoft-Decision-1 from the outside.</p>
+    <p>Promise up front: every finding in the second half is labelled by how sure we are.</p>
+  </aside>
+</section>
+
+<!-- ============================================================ 2. AGENDA -->
+<section class="slide">
+  <div class="kicker">Plan for the hour</div>
+  <h2>Agenda</h2>
+  <div class="cols wide-left grow">
+    <div class="agenda">
+      <div class="row"><div class="no">1</div><div class="what">What decision models are<span>and where they came from</span></div><div class="min">~10 min</div></div>
+      <div class="row"><div class="no">2</div><div class="what">Why they matter<span>and the applications that make them worth it</span></div><div class="min">~10 min</div></div>
+      <div class="row"><div class="no">3</div><div class="what">What we found<span>confirmed → plausible → assumptions</span></div><div class="min">~28 min</div></div>
+      <div class="row"><div class="no">4</div><div class="what">Takeaways and Q&amp;A</div><div class="min">~12 min</div></div>
+    </div>
+    <div class="card">
+      <h3>How to read the findings</h3>
+      <p class="small">Every finding slide carries one of these labels.</p>
+      <div class="stack">
+        <div><span class="tier confirmed">Confirmed</span><p class="small" style="margin-top:8px">Measured directly, reproducible.</p></div>
+        <div><span class="tier plausible">Plausible</span><p class="small" style="margin-top:8px">Best explanation of several signals; alternatives not ruled out.</p></div>
+        <div><span class="tier assumption">Assumption</span><p class="small" style="margin-top:8px">Not testable from outside. Our bet, or someone else's claim.</p></div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>Roughly 20 minutes of context, 28 of findings, 12 for takeaways and questions.</p>
+    <p>Introduce the three labels now; they come back on every findings slide (bottom centre of the footer).</p>
+  </aside>
+</section>
+
+<!-- ============================================================ PART 1 -->
+<section class="slide section">
+  <div class="kicker">Part 1</div>
+  <h1>What is a decision model?</h1>
+  <p class="lede">And where did it come from?</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">Definition</div>
+  <h2>A question with a fixed list of answers, and a probability for each</h2>
+  <div class="cols grow">
+    <div class="stack">
+      <div class="flow">
+        <div class="step"><b>State</b>A message, a clause, a log, an agent's next action</div>
+        <div class="arrow">+</div>
+        <div class="step"><b>Question</b>A fixed list of options, each with a description</div>
+        <div class="arrow">→</div>
+        <div class="step dark"><b>Out</b>One probability per option. No free text.</div>
+      </div>
+      <table class="t small">
+        <tr><th>Type</th><th>Asks</th><th>Returns</th></tr>
+        <tr><td><b>choice</b></td><td>Which one?</td><td>Distribution over 2–255 options</td></tr>
+        <tr><td><b>score</b></td><td>How much?</td><td>Distribution over 2–10 ordered levels</td></tr>
+        <tr><td><b>noul</b> / predicate</td><td>Is it true?</td><td>P(true)</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="tiny" style="margin-bottom:10px">STATE (illustrative, BANKING77-style)</div>
+      <p style="font-size:24px">"I was charged twice for the same coffee this morning."</p>
+      <div class="tiny" style="margin:18px 0 10px">QUESTION: which intent?</div>
+      <div class="probs">
+        <div class="p"><span>charged_twice</span><span class="track"><span class="fill" style="--v:.81;display:block"></span></span><span class="val">.81</span></div>
+        <div class="p"><span>wrong_amount</span><span class="track"><span class="fill" style="--v:.09;display:block"></span></span><span class="val">.09</span></div>
+        <div class="p"><span>pending_payment</span><span class="track"><span class="fill" style="--v:.06;display:block"></span></span><span class="val">.06</span></div>
+        <div class="p"><span>request_refund</span><span class="track"><span class="fill" style="--v:.04;display:block"></span></span><span class="val">.04</span></div>
+      </div>
+      <p class="small muted mt">Software branches on the numbers: act, double-check, or escalate.</p>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>Three ingredients: the state, the question with its options, and a probability per option back.</p>
+    <p>Three question types. The names come from TypeSafe's API (noul); OpenAI calls the yes/no one "predicate". The limits (255 options, 10 levels) come up again later as a fingerprint.</p>
+  </aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">Definition</div>
+  <h2>Same model family, different output: don't talk, decide</h2>
+  <div class="cols">
+    <div class="card">
+      <h3 class="muted">Using a chat LLM</h3>
+      <div class="flow" style="flex-direction:column">
+        <div class="step">State + options in a prompt</div>
+        <div class="step">Generate tokens: reasoning, then an answer</div>
+        <div class="step">Parse text / JSON, handle invented labels</div>
+        <div class="step">One answer, usually <b style="display:inline">no usable probability</b></div>
+      </div>
+    </div>
+    <div class="card accent">
+      <h3>Using a decision model</h3>
+      <div class="flow" style="flex-direction:column">
+        <div class="step">State + options in a structured request</div>
+        <div class="step">One pass; nothing is generated</div>
+        <div class="step">Always a valid option, never a parse error</div>
+        <div class="step">A probability per option you can put a <b style="display:inline">threshold</b> on</div>
+      </div>
+    </div>
+  </div>
+  <div class="callout">Bounded output removes invalid answers. It does <b>not</b> remove wrong answers: a decision model can be perfectly valid and confidently wrong.</div>
+  <aside class="notes">
+    <p>The core contrast. A chat model has to talk its way to an answer; a decision model is asked to put probability mass on options you gave it.</p>
+    <p>In our own runs, GPT-OSS generating answers invented 30 labels on BANKING77. A decision model can't do that. But "can't hallucinate a label" is not "can't be wrong".</p>
+  </aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">Where they came from</div>
+  <h2>Not a new idea: zero-shot like an LLM, output like a classifier</h2>
+  <div class="timeline" style="--n:5">
+    <div class="ev"><div class="when">Before 2018</div><div class="what">Trained classifiers</div><div class="desc">Probabilities per class, fast and cheap. One model per task, thousands of labels needed.</div></div>
+    <div class="ev"><div class="when">2018–19</div><div class="what">Fine-tuned BERT, zero-shot via NLI</div><div class="desc">Fewer labels; "does this text entail label X?" as a zero-shot trick.</div></div>
+    <div class="ev"><div class="when">2020–21</div><div class="what">Prompted LLMs, label scoring</div><div class="desc">Read the likelihood of each label. Works, but biased by format and order.</div></div>
+    <div class="ev"><div class="when">2023–25</div><div class="what">Chat LLMs + JSON outputs</div><div class="desc">Great zero-shot judgement; text out, no reliable probability. Reasoning models hide logprobs.</div></div>
+    <div class="ev hi"><div class="when">Sep 2026</div><div class="what">Decision models</div><div class="desc">LLM-level zero-shot judgement, classifier-style output, as a product.</div></div>
+  </div>
+  <div class="callout">The new part is the packaging: you get an LLM's zero-shot judgement with a classifier's output, behind a single API call.</div>
+  <aside class="notes">
+    <p>We've had probability-per-class models forever; they needed labelled data per task. LLMs removed the need for labels but moved us to text.</p>
+    <p>Decision models try to get both. Keep the 2021 "calibrate before use" lesson in mind: reading label probabilities from an LLM is biased by format and order. That shows up again in our results.</p>
+    <p>Side note: GPT-6 Luna, as a reasoning model, rejects logprob requests, so you can't get these probabilities from it yourself (our experiment A3).</p>
+  </aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">Where they came from</div>
+  <h2>Three products in under four weeks</h2>
+  <div class="timeline" style="--n:4">
+    <div class="ev hi"><div class="when">15 Sep 2026</div><div class="what">TypeSafe launches Jev</div><div class="desc">The first "System One" model: a purpose-built model for fast, typed, calibrated decisions.</div></div>
+    <div class="ev"><div class="when">29 Sep 2026</div><div class="what">OpenAI Decisions API</div><div class="desc">Announced at DevDay: predicate, choice and score questions on GPT-6 Luna.</div></div>
+    <div class="ev"><div class="when">6 Oct 2026</div><div class="what">OpenAI public beta</div><div class="desc">Developers get access. Not served on Azure yet.</div></div>
+    <div class="ev hi"><div class="when">9 Oct 2026</div><div class="what">Microsoft-Decision-1</div><div class="desc">In Foundry and OpenRouter: Qwen3.5-9B "post-trained for fast, single-pass decision scoring".</div></div>
+  </div>
+  <div class="cols mt" style="--n:2">
+    <div class="card"><h3>"System One"</h3><p class="small">The name echoes Kahneman's fast, intuitive System 1. TypeSafe's thesis: LLMs were optimised to <i>talk</i>, but software needs values it can branch on.</p></div>
+    <div class="card"><h3>Same programming model</h3><p class="small">All three share the same idea: one state, several typed questions, a probability per option. The question types and API limits are almost identical.</p></div>
+  </div>
+  <aside class="notes">
+    <p>This went from one start-up to a category in under four weeks.</p>
+    <p>TypeSafe was co-founded by Diogo Almeida, previously at OpenAI; the pitch was that language generation is the wrong primitive for automation.</p>
+    <p>The resemblance across the three APIs is what made us ask whether they share a mechanism. We could only test Decision-1.</p>
+  </aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">The landscape</div>
+  <h2>What is public about each one</h2>
+  <table class="t">
+    <tr><th style="width:22%"></th><th>TypeSafe Jev</th><th>OpenAI Decisions API</th><th>Microsoft-Decision-1</th></tr>
+    <tr><td><b>Model</b></td><td>Purpose-built, architecture unpublished</td><td>Reportedly existing GPT-6 Luna weights</td><td>Post-trained Qwen3.5-9B (open base)</td></tr>
+    <tr><td><b>Training story</b></td><td>RL for calibrated decisions (their docs)</td><td>Not described</td><td>"Post-trained for single-pass decision scoring"</td></tr>
+    <tr><td><b>Known quirks</b></td><td>Literal; weak on numeric precision and indirection; leans to first option</td><td>–</td><td>Claims zero flips when options are reordered</td></tr>
+    <tr><td><b>Access</b></td><td>TypeSafe API</td><td>OpenAI platform (not on Azure)</td><td>Foundry, OpenRouter</td></tr>
+    <tr class="hl"><td><b>Tested by us</b></td><td class="c-bad">No (no API key)</td><td class="c-bad">No (Azure returns 404)</td><td class="c-confirmed"><b>Yes: ~2,000 probes + benchmarks</b></td></tr>
+  </table>
+  <div class="callout">Decision-1 is the one we can open up: its base model is public, so we can compare it with the base, decision by decision.</div>
+  <aside class="notes">
+    <p>Decision-1 is the interesting one for a research study precisely because its base, Qwen3.5-9B, is open. Anything Decision-1 does that the base doesn't must come from post-training or serving.</p>
+    <p>Jev's documentation lists its own "jagged edges": literal, weak at numbers, slight bias to the first option. Keep the first-option bias in mind.</p>
+  </aside>
+</section>
+
+<!-- ============================================================ PART 2 -->
+<section class="slide section">
+  <div class="kicker">Part 2</div>
+  <h1>Why do they matter?</h1>
+  <p class="lede">Speed, cost, and a probability you can build a policy on.</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">Why it matters</div>
+  <h2>Three properties that a chat LLM doesn't give you by default</h2>
+  <div class="cols" style="--n:3">
+    <div class="card accent stat"><div class="num">~0.5 s</div><div class="label">per decision, flat from 2 to 77 options (Decision-1, our measurement). Nothing is generated.</div>
+      <p class="small mt">Microsoft's framing: 100 ms extra on each of 20 chained decisions is 2 s per workflow.</p></div>
+    <div class="card accent stat"><div class="num">$0.03</div><div class="label">per 1,000 decisions (Decision-1 on our benchmarks)</div>
+      <p class="small mt">vs. $0.08–0.28 per 1,000 for GPT-6 Luna on the same tasks: <b>2.4–7.7× cheaper</b>.</p></div>
+    <div class="card accent stat"><div class="num">P(x)</div><div class="label">a probability per option, not just an answer</div>
+      <p class="small mt">If it is calibrated, "90% sure" means right 9 times in 10, and you can automate above a threshold.</p></div>
+  </div>
+  <div class="callout">The third one is the real product. Accuracy tells you if the model is right; calibration tells you if you can build policy on its confidence.</div>
+  <aside class="notes">
+    <p>Speed: latency barely changes with the number of options. That's one of the clues to how it works, later.</p>
+    <p>Cost: per-decision numbers from our runs. Microsoft charges for input tokens only; output is free.</p>
+    <p>The probability is what makes it more than a fast classifier.</p>
+  </aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">Why it matters</div>
+  <h2>The probability is the product: automate, check, or escalate</h2>
+  <div class="cols wide-right grow">
+    <div class="stack">
+      <div class="flow" style="flex-direction:column">
+        <div class="step" style="border-left:6px solid var(--confirmed)"><b>p ≥ 0.95 → automate</b>Act directly.</div>
+        <div class="step" style="border-left:6px solid var(--plausible)"><b>0.70–0.95 → check</b>Stronger model, extra rules, sampling.</div>
+        <div class="step" style="border-left:6px solid var(--bad)"><b>p &lt; 0.70 → escalate</b>Human review.</div>
+      </div>
+      <p class="tiny">Thresholds are illustrative; fit them on your own labelled data.</p>
+    </div>
+    <div class="card">
+      <h3>Our numbers, BANKING77 (77 intents)</h3>
+      <div class="bar-head">Accuracy on the answers it keeps</div>
+      <div class="bars">
+        <div class="bar-row"><span>Decision-1 (keeps 82%)</span><span class="track"><span class="fill green" style="--v:.936;display:block"></span></span><span class="val">93.6%</span></div>
+        <div class="bar-row"><span>Luna + verbal conf. (83%)</span><span class="track"><span class="fill" style="--v:.888;display:block"></span></span><span class="val">88.8%</span></div>
+        <div class="bar-row"><span>Luna, label only (100%)</span><span class="track"><span class="fill grey" style="--v:.829;display:block"></span></span><span class="val">82.9%</span></div>
+      </div>
+      <p class="small mt">A label-only LLM is "100% sure" of every answer, so it can't abstain. Asking it for a confidence costs 20–40% more output tokens.</p>
+    </div>
+  </div>
+  <div class="callout">Selective prediction: thresholds fitted on a calibration split, then applied to the test set.</div>
+  <aside class="notes">
+    <p>This is selective prediction: let the model keep the answers it is sure about, route the rest.</p>
+    <p>Decision-1 keeps 82% of BANKING77 at 93.6% accuracy. The label-only LLM has nothing to threshold on.</p>
+    <p>Thresholds were fitted on a calibration split, then applied to test.</p>
+  </aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">Applications</div>
+  <h2>Most enterprise "AI judgement" is a bounded decision</h2>
+  <div class="cols" style="--n:3">
+    <div class="card"><h3>Routing &amp; triage</h3><p class="small">Which queue, team, intent or model should handle this? Our BANKING77 benchmark is exactly this.</p></div>
+    <div class="card"><h3>Labelling at scale</h3><p class="small">Xbox Research sorted 10k+ reviews into fixed themes: ~GPT-6 Sol quality, 14× faster, 200× cheaper.*</p></div>
+    <div class="card"><h3>Compliance &amp; verification</h3><p class="small">Is this scenario compliant with these clauses? Our ACE benchmark is exactly this.</p></div>
+    <div class="card"><h3>Guardrails &amp; agent control</h3><p class="small">Should this agent action be allowed? Is this a prompt injection? Harmful or harmless?</p></div>
+    <div class="card"><h3>Evaluation &amp; grading</h3><p class="small">Rubric scores for LLM answers and agent steps. The Copilot team tested it for response-quality checks.*</p></div>
+    <div class="card"><h3>Workflow control</h3><p class="small">Is this evidence sufficient? Is the task done? Replan or continue? Many small decisions in a loop.</p></div>
+  </div>
+  <p class="tiny mt">* Microsoft's own reported internal results (Command Line blog, 9 Oct 2026), not verified by us.</p>
+  <aside class="notes">
+    <p>The common pattern: unstructured state in, small fixed answer space out, and the decision feeds software.</p>
+    <p>Agents are the big one: an agent makes dozens of small control decisions; each one being 0.5 s and cheap matters more than each one being eloquent.</p>
+  </aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">Applications</div>
+  <h2>…and when you should reach for something else</h2>
+  <div class="cols">
+    <div class="card confirmed">
+      <h3 class="c-confirmed">Good fit</h3>
+      <ul class="small">
+        <li>"At a glance" judgement over a fixed answer space</li>
+        <li>Many options (tens to hundreds of intents)</li>
+        <li>No labelled data yet, or the labels change often</li>
+        <li>High volume, latency-sensitive, chained decisions</li>
+        <li>You need a confidence to drive automate-or-escalate</li>
+      </ul>
+    </div>
+    <div class="card" style="border-top:6px solid var(--bad)">
+      <h3 class="c-bad">Think twice</h3>
+      <ul class="small">
+        <li><b>You have a few thousand labels:</b> embeddings + logistic regression hit 0.944 on BANKING77 at $0.002 per 1k</li>
+        <li><b>The decision needs deliberation:</b> one-pass readouts collapse on compliance reasoning (later)</li>
+        <li><b>Numbers, multi-step indirection:</b> Jev's own docs flag these</li>
+        <li><b>Open-ended output:</b> it can only pick from your list</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>The honest counterweight: with labelled data, a classifier on embeddings beat every zero-shot method we tried on BANKING77, at a fraction of the price.</p>
+    <p>Decision models shine when you don't have labels, the label set changes, or you need many different questions without training a model for each.</p>
+  </aside>
+</section>
+
+<!-- ============================================================ PART 3: STUDY -->
+<section class="slide section">
+  <div class="kicker">Part 3</div>
+  <h1>What we found</h1>
+  <p class="lede">How does Microsoft-Decision-1 work, and can we rebuild it from open parts?</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">Our study</div>
+  <h2>Four ways of looking at one black box</h2>
+  <div class="cols" style="--n:4">
+    <div class="card accent"><h3>1. Benchmark</h3><p class="small">Decision-1 vs. GPT-6 Luna vs. embeddings on accuracy, calibration, latency, cost.</p></div>
+    <div class="card accent"><h3>2. Probe</h3><p class="small">~2,000 deliberately altered API requests. Forensics on returned numbers and billed tokens.</p></div>
+    <div class="card accent"><h3>3. Compare</h3><p class="small">Run its open base, Qwen3.5-9B, the same way. Compare decision by decision.</p></div>
+    <div class="card accent"><h3>4. Rebuild</h3><p class="small">Fine-tune Qwen3.5-9B with LoRA to see which behaviours we can reproduce.</p></div>
+  </div>
+  <div class="cols mt" style="--n:2">
+    <div class="card">
+      <h3>Datasets</h3>
+      <ul class="small">
+        <li><b>ACE</b>: is a scenario compliant with contract clauses? 3 options</li>
+        <li><b>BANKING77</b>: which of 77 intents is this customer message?</li>
+        <li><b>Never tuned on</b>: MInDS-14, ATIS (intents), ContractNLI (contracts)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Plus a side experiment</h3>
+      <p class="small">On open <b>gpt-oss-20b</b>, we kept the weights fixed and changed only the <i>readout</i>, i.e. how the decision is pulled out of the model: generate, score labels, read one token, or train a small head.</p>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>We had no access to internals, so everything is black-box: what goes in, what comes out, what gets billed.</p>
+    <p>The base-model comparison is the strongest tool: same weights before post-training, so differences point at training or serving.</p>
+  </aside>
+</section>
+
+<!-- ============================================================ CONFIRMED -->
+<section class="slide section confirmed">
+  <div class="kicker">Findings · tier 1 of 3</div>
+  <h1>Confirmed</h1>
+  <p class="lede">Measured directly. We would bet on these.</p>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">Benchmark</div>
+  <h2>Decision-1 is the best zero-shot option we tested</h2>
+  <div class="cols grow">
+    <div>
+      <div class="bar-head">ACE (with option descriptions)</div>
+      <div class="bars">
+        <div class="bar-row"><span>Decision-1</span><span class="track"><span class="fill green" style="--v:.741;display:block"></span></span><span class="val">0.741</span></div>
+        <div class="bar-row"><span>GPT-6 Luna (best variant)</span><span class="track"><span class="fill" style="--v:.707;display:block"></span></span><span class="val">0.707</span></div>
+        <div class="bar-row"><span>Embedding similarity</span><span class="track"><span class="fill grey" style="--v:.345;display:block"></span></span><span class="val">0.345</span></div>
+      </div>
+      <div class="bar-head mt">BANKING77</div>
+      <div class="bars">
+        <div class="bar-row"><span>Decision-1</span><span class="track"><span class="fill green" style="--v:.870;display:block"></span></span><span class="val">0.870</span></div>
+        <div class="bar-row"><span>GPT-6 Luna</span><span class="track"><span class="fill" style="--v:.829;display:block"></span></span><span class="val">0.829</span></div>
+        <div class="bar-row"><span>Embedding similarity</span><span class="track"><span class="fill grey" style="--v:.570;display:block"></span></span><span class="val">0.570</span></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card"><h3>Faster and cheaper</h3><p class="small">0.6–0.8 s vs. 1.1–2.7 s; $0.03 vs. $0.08–0.28 per 1k decisions.</p></div>
+      <div class="card"><h3>But with labels, a classifier wins</h3><p class="small">Embeddings + logistic regression: <b>0.944</b> on BANKING77 ($0.002 per 1k), <b>0.844</b> on ACE (partly a dataset shortcut).</p></div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>Accuracy on the official test sets. Zero-shot means no training on the task.</p>
+    <p>GPT-6 Luna ran with medium reasoning. Decision-1 is both more accurate and cheaper.</p>
+    <p>Caveat on ACE supervised: the scenario text partly gives away the label, which a trained classifier exploits.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">How the answer is computed</div>
+  <h2>It never writes a word: one score per option, then a plain softmax</h2>
+  <div class="cols wide-left grow">
+    <div class="stack">
+      <div class="card"><h3>Billed exactly one output token per question</h3><p class="small">Even when option names are long. Nothing is generated.</p></div>
+      <div class="card"><h3>A bf16 fingerprint in the probabilities</h3><p class="small">In <b>99.8%</b> of answers, the gaps between returned log-probabilities are exact multiples of a bf16 rounding step, the 16-bit format the model computes in. Any post-processing (temperature, averaging over orders, scoring in groups) would erase it. It holds up to 255 options, so all options are scored in one go.</p></div>
+      <div class="card"><h3>So calibration lives in the weights</h3><p class="small">Nothing touches the numbers after the softmax. Whatever calibration it has must come from training.</p></div>
+    </div>
+    <div class="card soft">
+      <h3>The <code>confidence</code> field</h3>
+      <p style="font-size:30px;font-family:var(--mono);margin:22px 0">(p<sub>max</sub> − 1/K)<br>÷ (1 − 1/K)</p>
+      <p class="small">K = number of options. 0 = uniform, 1 = certain.</p>
+      <p class="small">This is exactly the formula TypeSafe documents for <b>Jev</b>.</p>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>The bf16 trick is the most fun finding. Log-probabilities from a softmax are logit minus a constant, so gaps between them are gaps between logits. Logits computed in bf16 sit on a coarse grid, so the gaps land on grid multiples. Post-processing would knock them off the grid.</p>
+    <p>That rules out a separate calibration step. It doesn't tell us how the training was done.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">How the input is handled</div>
+  <h2>"Zero flips on reorder" is a sort, not a skill</h2>
+  <div class="cols grow">
+    <div class="stack">
+      <div class="flow">
+        <div class="step"><b>You send</b><span style="font-family:var(--mono);font-size:20px">refund<br>Billing<br>account<br>Card</span></div>
+        <div class="arrow">→</div>
+        <div class="step dark"><b>The model sees</b><span style="font-family:var(--mono);font-size:20px">Billing<br>Card<br>account<br>refund</span></div>
+      </div>
+      <ul class="small">
+        <li>Options are <b>sorted byte-wise by name</b> before the model sees them: uppercase first, then lowercase. The description doesn't affect the order.</li>
+        <li>Asked "which option is listed first / second / last?", it answered by sorted order in <b>48 of 48</b> requests.</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <div class="card"><h3>Why it matters</h3><p class="small">Microsoft's "zero flips when options are reordered" is true, but the robustness comes from the <b>serving code</b>, not from the model.</p></div>
+      <div class="card"><h3>Practical consequence</h3><p class="small">The <b>option name</b> decides the position the model sees. Renaming an option can move it, and position effects come back.</p></div>
+    </div>
+  </div>
+  <div class="callout confirmed">Robustness you get for free, as long as you know it comes from the serving code.</div>
+  <aside class="notes">
+    <p>We just asked it. "Which option is listed first?" and it named the alphabetically first one every time, regardless of what we sent first.</p>
+    <p>LLMs are known to be sensitive to option order. Sorting makes the input canonical, so reordering can't change anything. Nice engineering, but not a property of the model.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">How the input is handled</div>
+  <h2>Options are judged together; the state is read once</h2>
+  <div class="cols" style="--n:2">
+    <div class="card confirmed"><h3>Options are scored jointly</h3><p class="small">The score gap between two options changes when other options are added. They are not scored one by one.</p></div>
+    <div class="card confirmed"><h3>Questions share the state</h3><p class="small">State billed once; each extra question adds only its own tokens. The same question asked twice in one request gets <b>bit-identical</b> answers.</p></div>
+    <div class="card confirmed"><h3>A tiny hidden prompt</h3><p class="small">Qwen3.5 tokenizer, with only ~21 tokens of hidden template. It was trained on a compact format, not steered by long instructions.</p></div>
+    <div class="card confirmed"><h3>Descriptions are read in full</h3><p class="small">Tested up to ~1,650 tokens per option; facts at the very end were still used.</p></div>
+  </div>
+  <div class="callout confirmed">Mental model: one shared state, then each question with <i>all</i> its options in view at once.</div>
+  <aside class="notes">
+    <p>The billing data gives a lot away. We can count exactly how many tokens each part of the request costs.</p>
+    <p>21 hidden tokens is very short: think "a short delimiter plus a format the model was trained on", not a long system prompt.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">API fingerprints</div>
+  <h2>Decision-1 has exactly the limits of TypeSafe's API</h2>
+  <div class="cols wide-left grow">
+    <table class="t">
+      <tr><th>Limit</th><th>Decision-1</th><th>TypeSafe "System One"</th></tr>
+      <tr><td>Options per question</td><td class="num">2–255</td><td class="num">2–255</td></tr>
+      <tr><td>Score levels</td><td class="num">2–10</td><td class="num">2–10</td></tr>
+      <tr><td>Questions per request</td><td class="num">≤ 255</td><td class="num">≤ 255</td></tr>
+      <tr><td>Error over the limit</td><td colspan="2"><code>invalid TypeSafe request</code></td></tr>
+      <tr><td><code>confidence</code> formula</td><td colspan="2">identical</td></tr>
+    </table>
+    <div class="stack">
+      <div class="card"><h3>What this shows</h3><p class="small">Decision-1 sits behind a TypeSafe-compatible request layer.</p></div>
+      <div class="card"><h3>What it doesn't</h3><p class="small">That the <i>models</i> are related. Same interface ≠ same mechanism.</p></div>
+      <div class="card"><h3>Also measured</h3><p class="small">Identical requests vary by up to 0.04 in an option's probability; the top answer never changed. Typical of batched GPU serving.</p></div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>The error message literally says "TypeSafe". So the request layer is compatible with TypeSafe's, and maybe shared.</p>
+    <p>Be careful not to over-read it. This is about the API surface, not the weights.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">Decision-1 vs. its untrained base (strong evidence)</div>
+  <h2>Most of its judgement is the base model</h2>
+  <div class="cols" style="--n:3">
+    <div class="card stat"><div class="num c-confirmed">0.741</div><div class="label">ACE accuracy for <b>both</b> Decision-1 and the untrained Qwen3.5-9B (with descriptions)</div></div>
+    <div class="card stat"><div class="num c-confirmed">81–83%</div><div class="label">of ACE items get the <b>same decision</b> from both</div></div>
+    <div class="card stat"><div class="num c-confirmed">95–100%</div><div class="label">same answer on yes/no questions (200 items); probability correlation 0.95–0.99</div></div>
+  </div>
+  <div class="cols mt">
+    <div class="card"><h3>Prompt layout moves the base more than training does</h3><p class="small">Changing only the layout changes 15–35% of the base's decisions. One layout, chosen on a separate split, makes the untrained base <b>better</b> than Decision-1: 0.767–0.775 on ACE.</p></div>
+    <div class="card"><h3>Order behaviour reproduces without training</h3><p class="small">Sort the base's options the same way and it shows the same order and naming behaviour. Checked on 16 items per dataset only.</p></div>
+  </div>
+  <aside class="notes">
+    <p>This is the headline. On contract compliance, post-training bought nothing in accuracy. The base, run with the right layout, matches or beats it.</p>
+    <p>"Strong evidence" rather than fully confirmed because the order-behaviour check is small (16 items).</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">What post-training clearly adds · 1 of 2</div>
+  <h2>Choosing among many options</h2>
+  <div class="cols wide-left grow">
+    <div>
+      <div class="bar-head">BANKING77 (77 intents)</div>
+      <div class="bars">
+        <div class="bar-row"><span>Decision-1</span><span class="track"><span class="fill green" style="--v:.870;display:block"></span></span><span class="val">0.870</span></div>
+        <div class="bar-row"><span>Untrained Qwen3.5-9B</span><span class="track"><span class="fill grey" style="--v:.750;display:block"></span></span><span class="val">0.750</span></div>
+      </div>
+      <div class="bar-head mt">Gain on sets we never tuned on</div>
+      <div class="bars">
+        <div class="bar-row"><span>BANKING77</span><span class="track"><span class="fill green" style="--v:.6;display:block"></span></span><span class="val">+12.0</span></div>
+        <div class="bar-row"><span>ATIS</span><span class="track"><span class="fill green" style="--v:.44;display:block"></span></span><span class="val">+8.8</span></div>
+        <div class="bar-row"><span>MInDS-14</span><span class="track"><span class="fill green" style="--v:.285;display:block"></span></span><span class="val">+5.7</span></div>
+      </div>
+      <p class="tiny">Accuracy points over the untrained base.</p>
+    </div>
+    <div class="stack">
+      <div class="card"><h3>A general skill</h3><p class="small">The gain carries to intent sets we never used for tuning, so it isn't just memorising BANKING77.</p></div>
+      <div class="card"><h3>Not an artefact of how we ran the base</h3><p class="small">None of our readout or prompt variants of the base closed the gap.</p></div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>This is where training clearly earns its keep: picking 1 of many.</p>
+    <p>It's also the part we could NOT reproduce, as we'll see in a few slides.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">What post-training clearly adds · 2 of 2</div>
+  <h2>Calibration, but only on some tasks</h2>
+  <p class="small muted" style="margin-bottom:0">T = the temperature that makes its probabilities honest on labelled data. <b>1 = honest</b>, &gt;1 = overconfident, &lt;1 = underconfident.</p>
+  <div class="tscale">
+    <div class="axis"></div>
+    <div class="tick" style="left:0%">0.5</div>
+    <div class="tick" style="left:21.7%">1.0</div>
+    <div class="tick" style="left:43.5%">1.5</div>
+    <div class="tick" style="left:65.2%">2.0</div>
+    <div class="tick" style="left:87%">2.5</div>
+    <div class="mark up" style="left:8.7%">MInDS-14 / ATIS<br>≈ 0.7</div>
+    <div class="mark up c-confirmed" style="left:22.6%">BANKING77<br>1.02</div>
+    <div class="mark up" style="left:48.9%">ContractNLI 1.60 · ACE + desc. 1.65</div>
+    <div class="mark up" style="left:97.8%">ACE, names only<br>2.75</div>
+    <div class="mark down base" style="left:39.6%">untrained base on BANKING77: 1.41</div>
+  </div>
+  <div class="cols mt">
+    <div class="card confirmed"><h3>Routing: trust it</h3><p class="small">BANKING77 needs no correction (ECE 0.015). Training fixed the base's overconfidence (1.41 → 1.02). Unseen intent sets are slightly <i>under</i>confident (T fitted on the reported items).</p></div>
+    <div class="card" style="border-top:6px solid var(--bad)"><h3>Compliance: recalibrate first</h3><p class="small">Overconfident on contract tasks. On ACE the base ranges 0.64–2.51 depending only on prompt layout, so no calibration gain from training there.</p></div>
+  </div>
+  <aside class="notes">
+    <p>Temperature scaling: divide log-probs by T and re-softmax. It never changes the winner, only how confident it is.</p>
+    <p>Practical: on routing-like tasks you can threshold its numbers directly. On compliance-like tasks, fit a T on your own labelled data first.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">Using it well</div>
+  <h2>Write the option descriptions: they decide the answer</h2>
+  <div class="cols grow">
+    <div>
+      <div class="bar-head">ACE accuracy</div>
+      <div class="bars">
+        <div class="bar-row"><span>Option names only</span><span class="track"><span class="fill grey" style="--v:.619;display:block"></span></span><span class="val">0.619</span></div>
+        <div class="bar-row"><span>Names + one-line criteria</span><span class="track"><span class="fill green" style="--v:.741;display:block"></span></span><span class="val">0.741</span></div>
+      </div>
+      <div class="bar-head mt">Recall of <code>Not-Applicable</code></div>
+      <div class="bars">
+        <div class="bar-row"><span>Option names only</span><span class="track"><span class="fill grey" style="--v:.10;display:block"></span></span><span class="val">0.10</span></div>
+        <div class="bar-row"><span>Names + one-line criteria</span><span class="track"><span class="fill green" style="--v:.52;display:block"></span></span><span class="val">0.52</span></div>
+      </div>
+    </div>
+    <div class="stack">
+      <div class="card"><h3>+12 points from one sentence per option</h3><p class="small">With names only, it says <code>Non-Compliant</code> 64% of the time and almost never picks <code>Not-Applicable</code>.</p></div>
+      <div class="card"><h3>Contrast: GPT-6 Luna</h3><p class="small">The same descriptions slightly <i>hurt</i> GPT-6 Luna on ACE (−1 to −2 points).</p></div>
+    </div>
+  </div>
+  <div class="callout confirmed">Rule of thumb: one sentence of criteria per option. It's cheap, and it's read in full.</div>
+  <aside class="notes">
+    <p>Biggest practical lever we found. The descriptions are read in full, so use them.</p>
+    <p>Calibration also gets much worse without descriptions: T goes from 1.65 to 2.75.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">Side experiment · same gpt-oss-20b weights, different readouts</div>
+  <h2>How you read the model matters as much as the model</h2>
+  <div class="cols" style="--n:3">
+    <div class="card confirmed"><h3>Intuitive decisions: one pass is enough</h3><p class="small">BANKING77: reading the option letter from one forward pass (116 ms) is within <b>1.5 points</b> of generating with reasoning (949 ms), with better confidence ranking.</p></div>
+    <div class="card" style="border-top:6px solid var(--bad)"><h3>Deliberative decisions: think first</h3><p class="small">ACE: one-pass readouts score 0.45–0.62, vs. 0.69–0.77 when the model reasons first. Reason, then read the probabilities, gives the best of both.</p></div>
+    <div class="card confirmed"><h3>The answer is already inside</h3><p class="small">A linear head on frozen hidden states scores <b>0.937</b> on ACE and 0.903 on BANKING77 (supervised). After only 16–20 of 24 layers: 69–93 ms.</p></div>
+  </div>
+  <div class="callout">Same weights, different readout, different opinion: on ACE one readout says <code>Not-Applicable</code> 73% of the time, another says <code>Non-Compliant</code> 87% of the time.</div>
+  <aside class="notes">
+    <p>This connects back to "System One": fast single-pass judgement works for intuitive tasks like intent routing, not for tasks that need deliberation.</p>
+    <p>Interesting that Decision-1 still does OK on ACE in one pass (0.741). Our untrained base does too with the right layout. gpt-oss-20b is a reasoning model and seems to rely on its thinking more.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="confirmed">
+  <div class="kicker">Can it be rebuilt from open parts?</div>
+  <h2>Mostly yes, except the part training adds</h2>
+  <div class="cols" style="--n:3">
+    <div class="card confirmed"><h3 class="c-confirmed">The interface: yes</h3><p class="small">Sort the options, score them all in one forward pass of the open base, compute the state once for many questions. No training needed. We served 64 questions in ~0.85 s on one A100.</p></div>
+    <div class="card confirmed"><h3 class="c-confirmed">Contract reasoning: yes</h3><p class="small">The untrained base already matches Decision-1; our LoRA fine-tunes match or beat it on ACE and ContractNLI (small margin, 201 items).</p></div>
+    <div class="card" style="border-top:6px solid var(--bad)"><h3 class="c-bad">Many options: no</h3><p class="small">Our fine-tunes stay <b>12–14 points</b> below on BANKING77 and several points below on unseen intent sets.</p></div>
+  </div>
+  <div class="card mt">
+    <h3>What didn't close the many-options gap (one run each, judged against 4-run noise)</h3>
+    <p class="small" style="margin:0">More and broader real routing data · BANKING77-domain data · 43,000 synthetic messages from 199 domains · 5× longer training · RL with an accuracy reward. <span class="muted">Not yet tried: much larger scale, full fine-tuning, distillation, an RL reward for calibration.</span></p>
+  </div>
+  <aside class="notes">
+    <p>The interface and most of the judgement are reproducible on open weights. The many-options skill is the moat. We don't know how it was trained.</p>
+    <p>Jev's docs say "RL for calibrated decisions"; we tried RL with an accuracy reward, not a calibration reward. That's the next thing to try.</p>
+  </aside>
+</section>
+
+<!-- ============================================================ PLAUSIBLE -->
+<section class="slide section plausible">
+  <div class="kicker">Findings · tier 2 of 3</div>
+  <h1>Plausible</h1>
+  <p class="lede">The best explanation of several signals. Alternatives not ruled out.</p>
+</section>
+
+<section class="slide" data-tier="plausible">
+  <div class="kicker">Our best reconstruction</div>
+  <h2>What probably happens to a request</h2>
+  <div class="flow">
+    <div class="step confirmed"><b>1. Sort options</b>Byte-wise by name, in the serving code</div>
+    <div class="arrow">→</div>
+    <div class="step confirmed"><b>2. Short template</b>~21 hidden tokens + state, read once</div>
+    <div class="arrow">→</div>
+    <div class="step plausible"><b>3. Label each option</b>A short label token per option, plus its description</div>
+    <div class="arrow">→</div>
+    <div class="step plausible"><b>4. One forward pass</b>Post-trained Qwen3.5-9B in bf16</div>
+    <div class="arrow">→</div>
+    <div class="step plausible"><b>5. Read label logits</b>Next-token score at each option's label</div>
+    <div class="arrow">→</div>
+    <div class="step confirmed"><b>6. Plain softmax</b>Returned as-is</div>
+  </div>
+  <div class="cols mt">
+    <div class="card"><h3>Many questions → parallel branches</h3><p class="small">State computed once; each question branches off the shared prefix with its options. Duplicates are bit-identical, which rules out processing them one after another in one sequence.</p></div>
+    <div class="card"><h3>Legend</h3><p class="small"><span class="tier confirmed">Confirmed</span> &nbsp;green underline<br><span class="tier plausible" style="margin-top:10px">Plausible</span> &nbsp;amber underline</p></div>
+  </div>
+  <div class="callout plausible">In one sentence: an LLM that isn't allowed to talk. One pass, one score per option, softmax.</div>
+  <aside class="notes">
+    <p>This is the picture we'd draw on a whiteboard. The ends are measured; the middle is inferred.</p>
+    <p>Everything plausible here is consistent with every signal we have. The next two slides show the signals.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="plausible">
+  <div class="kicker">Signals → interpretation · scoring</div>
+  <h2>How the scores are probably read</h2>
+  <div class="signal-head"><span>What we observed</span><span></span><span>What it most likely means</span></div>
+  <div class="signals mt" style="margin-top:12px">
+    <div class="signal"><div class="obs">Score sizes of about 16–32, typical of an LLM's next-token logits</div><div class="arr">→</div><div class="means">Scores are normal next-token predictions read once per option label. A separate classifier layer can't be ruled out.</div></div>
+    <div class="signal"><div class="obs">Each option is billed ~2 tokens beyond its name and description</div><div class="arr">→</div><div class="means">A short label + separator per option. Not letters (only 26, but 255 options allowed) or numbers (Qwen splits digits). Two-letter codes or new tokens.</div></div>
+    <div class="signal"><div class="obs">Score questions are capped at exactly 10 levels</div><div class="arr">→</div><div class="means">Levels read as the digit tokens 0–9.</div></div>
+    <div class="signal"><div class="obs">Decision-1 tracks its base closely on judgement</div><div class="arr">→</div><div class="means">Post-training was light and preserved the base's behaviour.</div></div>
+  </div>
+  <aside class="notes">
+    <p>The label puzzle: 255 options need 255 distinct single-token labels. Letters run out at 26; numbers above 9 tokenize to multiple digits in Qwen. So something else: two-letter codes, reused tokens, or newly added ones.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="plausible">
+  <div class="kicker">Signals → interpretation · serving and robustness</div>
+  <h2>How it is probably served</h2>
+  <div class="signal-head"><span>What we observed</span><span></span><span>What it most likely means</span></div>
+  <div class="signals" style="margin-top:12px">
+    <div class="signal"><div class="obs">Options are sent as a JSON object keyed by name; score levels as a list, and only options get sorted</div><div class="arr">→</div><div class="means">Sorting is a side-effect: the server parses options into a sorted map. Possibly not even deliberate.</div></div>
+    <div class="signal"><div class="obs">Latency ~450–480 ms from 2 to 77 options; ~0.6 s at 255</div><div class="arr">→</div><div class="means">One forward pass per request (also Microsoft's "single-pass" claim). Timing alone can't prove it.</div></div>
+    <div class="signal"><div class="obs">Bit-identical duplicates; we reproduce the speed with prefix sharing (64 questions, ~0.85 s, one A100)</div><div class="arr">→</div><div class="means">Questions run as parallel branches off a shared, cached state. Billing proves the state is <i>charged</i> once, not <i>computed</i> once.</div></div>
+    <div class="signal"><div class="obs">Rewording the question flipped 6.7% of Decision-1's ACE decisions vs. 2.7% for the base (50 items)</div><div class="arr">→</div><div class="means">Training did not make it more robust to rewording. Small sample, so "likely", not firm.</div></div>
+  </div>
+  <aside class="notes">
+    <p>The JSON-object explanation is neat: if you parse JSON into a sorted dictionary, you get exactly byte-wise order. Score levels arrive as a list and keep their order, which fits.</p>
+    <p>Rewording: Microsoft reports 1.3% average flips across eight perturbation types. Our rewording-specific number is higher, and higher than its own base.</p>
+  </aside>
+</section>
+
+<!-- ============================================================ ASSUMPTIONS -->
+<section class="slide section assumption">
+  <div class="kicker">Findings · tier 3 of 3</div>
+  <h1>Assumptions &amp; unknowns</h1>
+  <p class="lede">Not testable from outside. Treat as hypotheses.</p>
+</section>
+
+<section class="slide" data-tier="assumption">
+  <div class="kicker">What we can't see</div>
+  <h2>Open questions about Decision-1</h2>
+  <div class="cols" style="--n:2">
+    <div class="card assumption"><h3>How was it trained?</h3><p class="small">Fine-tuning, reinforcement learning or distillation, and on what data. Above all: what produces the many-options gain we couldn't reproduce?</p></div>
+    <div class="card assumption"><h3>The exact labels and template</h3><p class="small">We know the size (~21 hidden tokens, ~2 per option), not the content.</p></div>
+    <div class="card assumption"><h3>Was BANKING77 in its training data?</h3><p class="small">Possible; Microsoft hasn't published its list. The gains on unseen sets show it can't be the whole story.</p></div>
+    <div class="card assumption"><h3>Logits or a classifier head?</h3><p class="small">The score sizes fit next-token logits. A dedicated head would look much the same from outside.</p></div>
+  </div>
+  <aside class="notes">
+    <p>These are the things we'd need inside access, or much more compute, to answer.</p>
+    <p>The training question is the one that matters commercially: it's the only part we couldn't rebuild.</p>
+  </aside>
+</section>
+
+<section class="slide" data-tier="assumption">
+  <div class="kicker">Across the three products</div>
+  <h2>Do Jev and OpenAI Decisions work the same way?</h2>
+  <div class="cols wide-left grow">
+    <div class="stack">
+      <div class="card"><h3>Points of contact with Jev</h3><ul class="small">
+        <li>Same API limits and the same <code>confidence</code> formula (confirmed)</li>
+        <li>Jev's docs: reads the state once, answers questions in parallel, leans slightly to the first option. In sorted order, Decision-1 also leans slightly to the first option</li>
+        <li>Jev is "trained with RL for calibrated decisions"; Decision-1's training is unpublished</li>
+      </ul></div>
+      <div class="card"><h3>OpenAI Decisions v1</h3><p class="small">Reportedly built in about a week on existing GPT-6 Luna weights. If true, a decision API doesn't need a new model, just a different readout and serving. We couldn't test it: Azure returns 404.</p></div>
+    </div>
+    <div class="card assumption">
+      <h3>Our bet on the common recipe</h3>
+      <ol class="small" style="padding-left:1.1em">
+        <li>A strong LLM base</li>
+        <li>A one-pass readout of one score per option</li>
+        <li>Serving tricks: canonical option order, shared state for many questions</li>
+        <li>Post-training aimed at many-option choice and calibration</li>
+      </ol>
+      <p class="small muted">Shared interface ≠ shared mechanism. This is an assumption.</p>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>The honest answer is: we don't know. The API overlap is real but says nothing about weights.</p>
+    <p>The OpenAI "built in a week on Luna" story is reported, not verified by us. It supports the idea that steps 1–3 are cheap and step 4 is where the differentiation is.</p>
+  </aside>
+</section>
+
+<!-- ============================================================ TAKEAWAYS -->
+<section class="slide section">
+  <div class="kicker">Part 4</div>
+  <h1>So what?</h1>
+</section>
+
+<section class="slide">
+  <div class="kicker">Takeaways</div>
+  <h2>What I'd tell a team about to use one</h2>
+  <div class="cols" style="--n:2">
+    <div class="stack">
+      <div class="card"><h3>1. Use it for fast, bounded judgement</h3><p class="small">Routing, labelling, guardrails, grading. Strongest with many options and no labels.</p></div>
+      <div class="card"><h3>2. Always write option descriptions</h3><p class="small">+12 points on ACE. They are read in full.</p></div>
+      <div class="card"><h3>3. Recalibrate before thresholding</h3><p class="small">Trust it on routing (T ≈ 1). On compliance-style tasks, fit T on your own labels (we saw 1.6–2.75).</p></div>
+    </div>
+    <div class="stack">
+      <div class="card"><h3>4. Mind the names</h3><p class="small">Options are sorted by name, so names set the position the model sees.</p></div>
+      <div class="card"><h3>5. Have labels? Try a classifier first</h3><p class="small">Embeddings + logistic regression: 0.944 on BANKING77 at $0.002 per 1k.</p></div>
+      <div class="card"><h3>6. Deliberative task? Reason, then read</h3><p class="small">One pass is great for intuition, weak for multi-step reasoning.</p></div>
+    </div>
+  </div>
+  <aside class="notes">
+    <p>Six practical rules. If people remember only two: write descriptions, and check calibration on your own data before you automate on it.</p>
+  </aside>
+</section>
+
+<section class="slide center">
+  <div class="kicker">One sentence</div>
+  <h1 style="max-width:1350px">A decision model is an LLM that isn't allowed to talk.</h1>
+  <p class="lede">One forward pass, one score per option, and training that makes the probabilities mean something. Most of it you can rebuild on an open model; the many-options skill is the part you can't (yet).</p>
+  <aside class="notes">
+    <p>Pause here. Then questions.</p>
+  </aside>
+</section>
+
+<section class="slide">
+  <div class="kicker">Thank you</div>
+  <h2>Questions?</h2>
+  <div class="cols">
+    <div class="card"><h3>In the repo</h3><ul class="small">
+      <li><code>docs/summary.md</code>: findings, rated by certainty</li>
+      <li><code>docs/replication.md</code>: findings F1–F31, every experiment</li>
+      <li><code>docs/methods.md</code>: every readout, with a diagram</li>
+      <li><code>docs/results/</code>: reports, leaderboards, plots</li>
+    </ul></div>
+    <div class="card"><h3>Further reading</h3><ul class="small">
+      <li>Microsoft Command Line: "Microsoft-Decision-1" (9 Oct 2026)</li>
+      <li>TypeSafe docs: "System One" and "Model jaggedness"</li>
+      <li>Guo et al. 2017, <i>On Calibration of Modern Neural Networks</i></li>
+      <li>Zhao et al. 2021, <i>Calibrate Before Use</i></li>
+    </ul></div>
+  </div>
+  <aside class="notes">
+    <p>Likely questions: "Should we use it?" (yes for routing-like tasks, with descriptions); "Is it Jev?" (unknown, shared API layer only); "Can we self-host?" (interface yes, many-options quality no).</p>
+  </aside>
+</section>
+
+</div>
+<script src="deck.js"></script>
+</body>
+</html>
